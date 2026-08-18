@@ -3,6 +3,7 @@ import type { Reservation } from "@/lib/types";
 import type { CalendarEvent } from "./types";
 import {
   buildManualExtensionPatch,
+  buildSyncedExtensionReservation,
   getExtendableBookings,
   getExtendedStayRange,
 } from "./extendable-bookings";
@@ -87,7 +88,8 @@ describe("getExtendableBookings", () => {
       getExtendableBookings("2026-08-18", "2026-08-18", [syncedStay()], [])
     ).toMatchObject([
       {
-        eventUid: "airbnb-rob-and-joanne",
+        sourceEventUid: "airbnb-rob-and-joanne",
+        sourcePlatform: "airbnb",
         bookingStart: "2026-08-19",
         bookingEnd: "2026-08-23",
         side: "before",
@@ -98,7 +100,8 @@ describe("getExtendableBookings", () => {
       getExtendableBookings("2026-08-23", "2026-08-23", [syncedStay()], [])
     ).toMatchObject([
       {
-        eventUid: "airbnb-rob-and-joanne",
+        sourceEventUid: "airbnb-rob-and-joanne",
+        sourcePlatform: "airbnb",
         bookingStart: "2026-08-19",
         bookingEnd: "2026-08-23",
         side: "after",
@@ -132,6 +135,8 @@ describe("getExtendableBookings", () => {
       name: "Dasha",
       platform: "airbnb",
       linkedEventUid: "claimed-stay",
+      linkedEventPlatform: "airbnb",
+      linkedEventRole: "claim",
       checkIn: "2026-08-20T12:00:00.000Z",
       checkOut: "2026-08-23T12:00:00.000Z",
     });
@@ -143,6 +148,8 @@ describe("getExtendableBookings", () => {
         name: "Dasha",
         platform: "airbnb",
         reservationId: 44,
+        sourceEventUid: "claimed-stay",
+        sourcePlatform: "airbnb",
         bookingStart: "2026-08-19",
         bookingEnd: "2026-08-23",
         side: "before",
@@ -155,8 +162,10 @@ describe("getExtendableBookings", () => {
     const extension = stay({
       id: 45,
       name: "Rob and Joanne",
-      platform: "airbnb",
+      platform: "direct",
       linkedEventUid: "base-stay",
+      linkedEventPlatform: "airbnb",
+      linkedEventRole: "extension",
       checkIn: "2026-08-23T12:00:00.000Z",
       checkOut: "2026-08-25T12:00:00.000Z",
     });
@@ -166,7 +175,7 @@ describe("getExtendableBookings", () => {
     ).toEqual([
       {
         name: "Rob and Joanne",
-        platform: "airbnb",
+        platform: "direct",
         reservationId: 45,
         bookingStart: "2026-08-23",
         bookingEnd: "2026-08-25",
@@ -193,6 +202,8 @@ describe("getExtendableBookings", () => {
       name: "Named Airbnb guest",
       platform: "airbnb",
       linkedEventUid: "shared-uid",
+      linkedEventPlatform: "airbnb",
+      linkedEventRole: "claim",
     });
 
     const candidates = getExtendableBookings(
@@ -207,6 +218,8 @@ describe("getExtendableBookings", () => {
       name: "Named Airbnb guest",
       platform: "airbnb",
       reservationId: 46,
+      sourceEventUid: "shared-uid",
+      sourcePlatform: "airbnb",
       bookingStart: "2026-08-19",
       bookingEnd: "2026-08-23",
       side: "after",
@@ -214,7 +227,8 @@ describe("getExtendableBookings", () => {
     expect(candidates).toContainEqual({
       name: "Booking source",
       platform: "booking",
-      eventUid: "shared-uid",
+      sourceEventUid: "shared-uid",
+      sourcePlatform: "booking",
       bookingStart: "2026-08-19",
       bookingEnd: "2026-08-23",
       side: "after",
@@ -237,6 +251,8 @@ describe("getExtendableBookings", () => {
         name: "Named legacy guest",
         platform: "airbnb",
         reservationId: 47,
+        sourceEventUid: "legacy-source",
+        sourcePlatform: "airbnb",
         bookingStart: "2026-08-19",
         bookingEnd: "2026-08-25",
         side: "after",
@@ -275,6 +291,32 @@ describe("extension date payloads", () => {
     });
     expect(buildManualExtensionPatch("2026-08-23", "2026-08-24", after)).toEqual({
       checkOut: "2026-08-25",
+    });
+  });
+
+  it("creates a separate Direct row with the exact synced source identity", () => {
+    expect(
+      buildSyncedExtensionReservation(
+        "2026-08-23",
+        "2026-08-24",
+        {
+          ...booking,
+          platform: "airbnb",
+          sourceEventUid: "source-uid",
+          sourcePlatform: "airbnb",
+          side: "after",
+        },
+        68,
+      ),
+    ).toEqual({
+      name: "Rob and Joanne",
+      checkIn: "2026-08-23",
+      checkOut: "2026-08-25",
+      platform: "direct",
+      propertyId: 68,
+      linkedEventUid: "source-uid",
+      linkedEventPlatform: "airbnb",
+      linkedEventRole: "extension",
     });
   });
 });

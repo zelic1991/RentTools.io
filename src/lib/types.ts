@@ -30,6 +30,13 @@ export interface Reservation {
   checkOut: string;
   platform: string;
   linkedEventUid?: string | null;
+  /** Exact platform namespace for linkedEventUid. Kept separate from
+   *  platform because a manually paid extension is a Direct booking linked
+   *  to (for example) an Airbnb event. */
+  linkedEventPlatform?: string | null;
+  /** How this local row relates to its synced event. Claims overlap the
+   *  source; extensions are separate Direct segments that abut it. */
+  linkedEventRole?: "claim" | "extension" | null;
   /** Per-reservation messenger group URLs. Set when the host has
    *  created a one-off group chat for this booking (Telegram or
    *  WhatsApp) and saved its URL here, so the "Open group" button in

@@ -252,9 +252,11 @@ export function Sidebar({
                               <span className={`shrink-0 rounded px-1 py-px text-xs font-bold ${
                                 res.platform === "booking"
                                   ? "bg-[#003580]/30 text-[#79c0ff]"
-                                  : "bg-[#FF5A5F]/15 text-[#f78166]"
+                                  : res.platform === "direct"
+                                    ? "bg-slate-500/20 text-slate-300"
+                                    : "bg-[#FF5A5F]/15 text-[#f78166]"
                               }`}>
-                                {res.platform === "booking" ? "B" : "A"}
+                                {res.platform === "booking" ? "B" : res.platform === "direct" ? "D" : "A"}
                               </span>
                             </div>
                             <div className="text-xs text-[#7d8590]">

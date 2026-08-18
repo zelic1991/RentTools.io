@@ -5,6 +5,7 @@ import { logAudit } from "@/lib/audit";
 import { canManageProperty, listAccessiblePropertyIds } from "@/lib/ownership";
 import { normalizePlatformSlug } from "@/lib/platforms";
 import { parseReservationDate } from "@/lib/reservation-dates";
+import { loadEffectiveLinkedStayRange } from "@/lib/linked-stay";
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,7 +34,16 @@ export async function POST(request: NextRequest) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { name, checkIn, checkOut, platform, propertyId, linkedEventUid } = await request.json();
+    const {
+      name,
+      checkIn,
+      checkOut,
+      platform,
+      propertyId,
+      linkedEventUid,
+      linkedEventPlatform,
+      linkedEventRole,
+    } = await request.json();
     if (
       typeof name !== "string" ||
       !name.trim() ||
@@ -41,7 +51,13 @@ export async function POST(request: NextRequest) {
       typeof checkOut !== "string" ||
       !Number.isInteger(propertyId) ||
       propertyId <= 0 ||
-      (platform !== undefined && typeof platform !== "string")
+      (platform !== undefined && typeof platform !== "string") ||
+      (linkedEventPlatform !== undefined &&
+        linkedEventPlatform !== null &&
+        typeof linkedEventPlatform !== "string") ||
+      (linkedEventRole !== undefined &&
+        linkedEventRole !== null &&
+        typeof linkedEventRole !== "string")
     ) {
       return NextResponse.json({ error: "Invalid reservation data" }, { status: 400 });
     }
@@ -111,16 +127,24 @@ export async function POST(request: NextRequest) {
     const endDateStr = checkOutDate.toISOString().substring(0, 10);
     let reservationPlatform = platform || "airbnb";
     let sourceIdentity: { platform: string; uid: string } | null = null;
+    let sourceRole: "claim" | "extension" | null = null;
 
     if (hasLinkedSource) {
-      if (typeof platform !== "string" || typeof linkedEventUid !== "string") {
+      // New clients send linkedEventPlatform because an extension's actual
+      // channel is Direct. Legacy clients sent only `platform`; keep accepting
+      // that shape and infer claim vs extension from the validated geometry.
+      const rawSourcePlatform = linkedEventPlatform ?? platform;
+      if (
+        typeof rawSourcePlatform !== "string" ||
+        typeof linkedEventUid !== "string"
+      ) {
         return NextResponse.json(
           { error: "Invalid linked calendar event" },
           { status: 400 },
         );
       }
 
-      const normalizedPlatform = normalizePlatformSlug(platform);
+      const normalizedPlatform = normalizePlatformSlug(rawSourcePlatform);
       const normalizedUid = linkedEventUid.trim();
       if (!normalizedPlatform || !normalizedUid) {
         return NextResponse.json(
@@ -144,12 +168,18 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const effectiveSource = await loadEffectiveLinkedStayRange({
+        propertyId,
+        sourcePlatform: normalizedPlatform,
+        sourceUid: normalizedUid,
+        source: linkedSource,
+      });
       const overlapsSource =
-        linkedSource.startDate < endDateStr &&
-        linkedSource.endDate > startDateStr;
+        effectiveSource.startDate < endDateStr &&
+        effectiveSource.endDate > startDateStr;
       const abutsSource =
-        endDateStr === linkedSource.startDate ||
-        startDateStr === linkedSource.endDate;
+        endDateStr === effectiveSource.startDate ||
+        startDateStr === effectiveSource.endDate;
       if (!overlapsSource && !abutsSource) {
         return NextResponse.json(
           { error: "Linked booking relationship cannot be changed" },
@@ -157,8 +187,46 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      reservationPlatform = normalizedPlatform;
+      const inferredRole: "claim" | "extension" = overlapsSource
+        ? "claim"
+        : "extension";
+      const requestedRole =
+        linkedEventRole === undefined ||
+        linkedEventRole === null ||
+        linkedEventRole === ""
+          ? null
+          : linkedEventRole;
+      if (
+        requestedRole !== null &&
+        (requestedRole !== "claim" && requestedRole !== "extension")
+      ) {
+        return NextResponse.json(
+          { error: "Invalid linked calendar event role" },
+          { status: 400 },
+        );
+      }
+      if (requestedRole !== null && requestedRole !== inferredRole) {
+        return NextResponse.json(
+          { error: "Linked booking relationship cannot be changed" },
+          { status: 409 },
+        );
+      }
+
+      sourceRole = requestedRole ?? inferredRole;
+      // The platform field is the actual booking/payment channel. A manually
+      // agreed extension must be exported back to every OTA, including the
+      // source OTA, so it is Direct rather than masquerading as source-owned.
+      reservationPlatform =
+        sourceRole === "extension" ? "direct" : normalizedPlatform;
       sourceIdentity = { platform: normalizedPlatform, uid: normalizedUid };
+    } else if (
+      linkedEventPlatform !== undefined ||
+      linkedEventRole !== undefined
+    ) {
+      return NextResponse.json(
+        { error: "Invalid linked calendar event" },
+        { status: 400 },
+      );
     }
 
     const syncedOverlap = await prisma.calendarEvent.findFirst({
@@ -192,6 +260,8 @@ export async function POST(request: NextRequest) {
         checkOut: checkOutDate,
         platform: reservationPlatform,
         linkedEventUid: sourceIdentity?.uid || null,
+        linkedEventPlatform: sourceIdentity?.platform || null,
+        linkedEventRole: sourceRole,
         propertyId,
       },
     });
@@ -233,6 +303,9 @@ export async function POST(request: NextRequest) {
       propertyId,
       checkIn: reservation.checkIn,
       checkOut: reservation.checkOut,
+      platform: reservation.platform,
+      linkedEventPlatform: reservation.linkedEventPlatform,
+      linkedEventRole: reservation.linkedEventRole,
     });
     return NextResponse.json(reservation);
   } catch (err) {

@@ -111,6 +111,7 @@ export interface CleaningScheduleHandle {
 
 interface CalendarEvent {
   id: number;
+  uid?: string;
   platform: string;
   summary: string;
   startDate: string;
@@ -201,7 +202,32 @@ function toDateStr(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-function computeCleaningDays(
+function linkedSourceKey(platform: string, uid: string): string {
+  return `${platform.trim().toLowerCase()}\u0000${uid.trim()}`;
+}
+
+function rangesConnect(startA: string, endA: string, startB: string, endB: string): boolean {
+  // Half-open stay ranges connect when they overlap OR abut. Equality is
+  // the important source-checkout → Direct-checkin case.
+  return startA <= endB && endA >= startB;
+}
+
+function rangesOverlap(startA: string, endA: string, startB: string, endB: string): boolean {
+  return startA < endB && endA > startB;
+}
+
+function isGenericBookingName(name: string): boolean {
+  const normalized = name.trim().toLowerCase();
+  return (
+    !normalized ||
+    normalized.includes("reserved") ||
+    normalized.includes("closed") ||
+    normalized.includes("not available") ||
+    normalized.includes("blocked")
+  );
+}
+
+export function computeCleaningDays(
   property: Property,
   events: CalendarEvent[],
   links: CalendarLink[],
@@ -216,8 +242,19 @@ function computeCleaningDays(
   // Booking window cutoff — ignore events starting beyond this date
   const cutoff = bookingWindowCutoff(property.bookingWindow || 365);
 
-  interface Booking { start: string; end: string; name: string; platform: string }
-  const allBookings: Booking[] = [];
+  interface Booking {
+    start: string;
+    end: string;
+    name: string;
+    platform: string;
+    /** Identity of this synced source event. */
+    sourceKey?: string;
+    /** Exact synced source referenced by a local claim/extension row. */
+    linkedSourceKey?: string;
+    linkedRole?: "claim" | "extension";
+  }
+  const rawBookings: Booking[] = [];
+  const sourceByKey = new Map<string, Booking>();
 
   for (const ev of events) {
     if (ev.startDate >= cutoff) continue;
@@ -227,7 +264,16 @@ function computeCleaningDays(
       ev.summary.includes("Not available") || ev.summary.includes("Blocked")
     );
     const name = isAirbnbBlock ? "Airbnb block" : ev.summary;
-    allBookings.push({ start: ev.startDate, end: ev.endDate, name, platform: ev.platform });
+    const sourceKey = ev.uid ? linkedSourceKey(ev.platform, ev.uid) : undefined;
+    const booking: Booking = {
+      start: ev.startDate,
+      end: ev.endDate,
+      name,
+      platform: ev.platform,
+      sourceKey,
+    };
+    rawBookings.push(booking);
+    if (sourceKey) sourceByKey.set(sourceKey, booking);
   }
 
   for (const res of property.reservations) {
@@ -235,9 +281,92 @@ function computeCleaningDays(
     const end = toDateStr(new Date(res.checkOut));
     let d = start;
     while (d <= end) { allBooked.add(d); d = addDaysStr(d, 1); }
-    allBookings.push({ start, end, name: res.name, platform: res.platform || "airbnb" });
+    const platform = (res.platform || "airbnb").trim().toLowerCase();
+    const linkedUid = res.linkedEventUid?.trim();
+    const sourcePlatform = (
+      res.linkedEventPlatform || (platform !== "direct" ? platform : "")
+    ).trim().toLowerCase();
+    let exactLinkedKey = linkedUid && sourcePlatform
+      ? linkedSourceKey(sourcePlatform, linkedUid)
+      : undefined;
+    let linkedRole = res.linkedEventRole || undefined;
+
+    if (exactLinkedKey) {
+      const source = sourceByKey.get(exactLinkedKey);
+      // Legacy rows have no durable role. Infer only against the exact
+      // platform+UID source; UID alone may collide across feeds.
+      if (!linkedRole && source) {
+        if (rangesOverlap(start, end, source.start, source.end)) linkedRole = "claim";
+        else if (end === source.start || start === source.end) linkedRole = "extension";
+      }
+      if (!source || !linkedRole) exactLinkedKey = undefined;
+    } else if (!linkedUid) {
+      // Narrow fallback for rows created before explicit linking existed:
+      // accept one and only one overlapping source on the same platform.
+      const candidates = Array.from(sourceByKey.entries()).filter(([, source]) =>
+        source.platform.trim().toLowerCase() === platform &&
+        rangesOverlap(start, end, source.start, source.end),
+      );
+      if (candidates.length === 1) {
+        exactLinkedKey = candidates[0][0];
+        linkedRole = "claim";
+      }
+    }
+
+    rawBookings.push({
+      start,
+      end,
+      name: res.name,
+      platform,
+      linkedSourceKey: exactLinkedKey,
+      linkedRole,
+    });
   }
 
+  // Collapse each exact linked family into connected components for
+  // cleaning purposes only. The Reservation and channel records remain
+  // separate everywhere else; this union simply removes the fake turnover
+  // at the internal source/Direct boundary.
+  const connectedBookings: Booking[] = [];
+  const consumed = new Set<Booking>();
+  for (const [sourceKey, source] of sourceByKey) {
+    const pending = rawBookings.filter(
+      (booking) =>
+        booking.linkedSourceKey === sourceKey &&
+        (booking.linkedRole === "claim" || booking.linkedRole === "extension"),
+    );
+    if (pending.length === 0) continue;
+
+    let start = source.start;
+    let end = source.end;
+    let name = source.name;
+    let connectedCount = 0;
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (let i = pending.length - 1; i >= 0; i--) {
+        const member = pending[i];
+        if (!rangesConnect(start, end, member.start, member.end)) continue;
+        if (member.start < start) start = member.start;
+        if (member.end > end) end = member.end;
+        if (!isGenericBookingName(member.name)) name = member.name;
+        consumed.add(member);
+        pending.splice(i, 1);
+        connectedCount += 1;
+        changed = true;
+      }
+    }
+
+    if (connectedCount > 0) {
+      consumed.add(source);
+      connectedBookings.push({ start, end, name, platform: source.platform });
+    }
+  }
+
+  const allBookings = [
+    ...rawBookings.filter((booking) => !consumed.has(booking)),
+    ...connectedBookings,
+  ];
   allBookings.sort((a, b) => a.start.localeCompare(b.start));
   const deduped: Booking[] = [];
   for (const b of allBookings) {

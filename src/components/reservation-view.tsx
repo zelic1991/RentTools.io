@@ -205,7 +205,15 @@ interface ReservationViewProps {
   propertyName?: string;
   onGuestsUpdated: () => void;
   onDeleteGuest: (id: number) => void;
-  onDeleteReservation: (id: number) => void | Promise<void>;
+  onDeleteReservation: (
+    id: number,
+  ) =>
+    | void
+    | Promise<
+        | void
+        | { ok: true }
+        | { ok: false; error: string }
+      >;
   onUpdateReservation: (
     id: number,
     data: {
@@ -236,6 +244,10 @@ export function ReservationView({
 }: ReservationViewProps) {
   const { locale, t: tr } = useI18n();
   const hint = HINT_COPY[locale];
+  const isDirectExtension = reservation.linkedEventRole === "extension";
+  const sourcePlatformLabel = reservation.linkedEventPlatform
+    ? platformShortLabel(reservation.linkedEventPlatform)
+    : "synced";
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -255,6 +267,8 @@ export function ReservationView({
   );
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<MessageTemplate | null>(null);
@@ -755,6 +769,41 @@ export function ReservationView({
     closeEditing();
   };
 
+  const handleDeleteReservation = async () => {
+    const confirmed = isDirectExtension
+      ? window.confirm(
+          tr("reservation.cancelExtensionConfirm", {
+            name: reservation.name,
+            platform: sourcePlatformLabel,
+          }),
+        )
+      : window.confirm(
+          `Delete reservation "${reservation.name}"? This removes the reservation and any guests / passport docs attached to it. If it was claimed from a synced booking, that synced event is removed too.`,
+        );
+    if (!confirmed) return;
+
+    setDeletePending(true);
+    setDeleteError(null);
+    try {
+      const result = await Promise.resolve(onDeleteReservation(reservation.id));
+      if (result && typeof result === "object" && "ok" in result && !result.ok) {
+        setDeleteError(
+          isDirectExtension
+            ? tr("reservation.cancelExtensionFailed")
+            : result.error,
+        );
+      }
+    } catch {
+      setDeleteError(
+        isDirectExtension
+          ? tr("reservation.cancelExtensionFailed")
+          : tr("reservation.saveFailed"),
+      );
+    } finally {
+      setDeletePending(false);
+    }
+  };
+
   const editDateRangeError = validateReservationDateRange(editCheckIn, editCheckOut);
   const editDateRangeMessage = (() => {
     switch (editDateRangeError) {
@@ -971,7 +1020,9 @@ export function ReservationView({
 
               {reservation.linkedEventUid && (
                 <p className="rounded-lg bg-sky-500/10 px-3 py-2 text-xs leading-relaxed text-sky-700 dark:text-sky-300">
-                  {tr("reservation.syncedDateHint")}
+                  {isDirectExtension
+                    ? tr("reservation.extensionSafetyHint")
+                    : tr("reservation.syncedDateHint")}
                 </p>
               )}
 
@@ -1020,28 +1071,43 @@ export function ReservationView({
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm(`Delete reservation "${reservation.name}"? This removes the reservation and any guests / passport docs attached to it. If it was claimed from a synced booking, that synced event is removed too.`)) {
-                      onDeleteReservation(reservation.id);
-                    }
-                  }}
-                  aria-label="Delete reservation"
-                  title="Delete reservation"
-                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/50"
+                  onClick={() => void handleDeleteReservation()}
+                  disabled={deletePending}
+                  aria-busy={deletePending}
+                  aria-label={isDirectExtension ? tr("reservation.cancelExtension") : "Delete reservation"}
+                  title={isDirectExtension ? tr("reservation.cancelExtension") : "Delete reservation"}
+                  className={`inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/50 disabled:cursor-wait disabled:opacity-60 ${
+                    isDirectExtension
+                      ? "border border-rose-500/30 text-xs font-medium text-rose-600 hover:bg-rose-500/10 dark:text-rose-400"
+                      : "w-11 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-500"
+                  }`}
                 >
                   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                   </svg>
+                  {isDirectExtension && <span>{tr("reservation.cancelExtension")}</span>}
                 </button>
               </div>
+              {deleteError && (
+                <p role="alert" className="mt-2 text-sm text-destructive">
+                  {deleteError}
+                </p>
+              )}
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
                   reservation.platform === "booking"
                     ? "bg-[#003580]/20 text-sky-500"
-                    : "bg-[var(--m-accent)]/10 text-[var(--m-accent)]"
+                    : reservation.platform === "airbnb"
+                      ? "bg-[var(--m-accent)]/10 text-[var(--m-accent)]"
+                      : "bg-slate-500/10 text-slate-600 dark:text-slate-300"
                 }`}>
-                  {reservation.platform === "booking" ? "Booking.com" : "Airbnb"}
+                  {platformShortLabel(reservation.platform)}
                 </span>
+                {isDirectExtension && (
+                  <span className="rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-xs font-medium text-sky-700 dark:text-sky-300">
+                    {tr("reservation.connectedToSource", { platform: sourcePlatformLabel })}
+                  </span>
+                )}
                 <span className="text-xs text-muted-foreground">
                   {formatDate(reservation.checkIn)} — {formatDate(reservation.checkOut)}
                 </span>
@@ -1066,6 +1132,16 @@ export function ReservationView({
                   </Badge>
                 )}
               </div>
+              {isDirectExtension && (
+                <div className="mt-3 rounded-xl border border-slate-500/20 bg-slate-500/5 px-3 py-2.5">
+                  <p className="text-sm font-medium text-foreground">
+                    {tr("reservation.directExtension")}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                    {tr("reservation.extensionSafetyHint")}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

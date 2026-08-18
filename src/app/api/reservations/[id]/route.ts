@@ -5,6 +5,7 @@ import { logAudit } from "@/lib/audit";
 import { canManageProperty } from "@/lib/ownership";
 import { normalizePhone } from "@/lib/sanitize";
 import { parseReservationDate } from "@/lib/reservation-dates";
+import { loadEffectiveLinkedStayRange } from "@/lib/linked-stay";
 
 async function loadManageableReservation(
   reservationId: number,
@@ -18,6 +19,8 @@ async function loadManageableReservation(
       propertyId: true,
       platform: true,
       linkedEventUid: true,
+      linkedEventPlatform: true,
+      linkedEventRole: true,
       checkIn: true,
       checkOut: true,
     },
@@ -61,9 +64,10 @@ export async function PATCH(
       data.checkOut = checkOut;
     }
     if (body.platform !== undefined) {
-      // The linked source is identified by (property, platform, uid).
-      // Changing only the local platform would leave linkedEventUid
-      // pointing at a different (or nonexistent) event.
+      // A linked row's channel is part of its durable semantics: claims use
+      // the source channel while manually paid extensions are Direct. Source
+      // identity lives in linkedEventPlatform and cannot be rewritten through
+      // this general reservation edit endpoint.
       if (owned.linkedEventUid && body.platform !== owned.platform) {
         return NextResponse.json(
           { error: "Linked booking platform cannot be changed" },
@@ -175,39 +179,57 @@ export async function PATCH(
         const currentEndStr = current.checkOut.toISOString().substring(0, 10);
         let sourceIdentity: { platform: string; uid: string } | null = null;
 
-        // linkedEventUid is used for both a claimed source booking
-        // (the ranges overlap) and a manual extension (they do not).
-        // Do not let a date edit silently flip between those meanings:
-        // DELETE and calendar rendering intentionally treat them
-        // differently. A claimed stay may still be extended earlier or
-        // later as long as it continues to overlap its source event.
+        // Explicit linkedEventRole makes claim vs extension durable even if
+        // the source platform later changes its dates. Legacy rows without
+        // the new fields retain the old geometry-based fallback.
         if (owned.linkedEventUid) {
+          const sourcePlatform = owned.linkedEventPlatform || owned.platform;
           const linkedSource = await prisma.calendarEvent.findFirst({
             where: {
               propertyId: current.propertyId,
-              platform: owned.platform,
+              platform: sourcePlatform,
               uid: owned.linkedEventUid,
             },
             select: { startDate: true, endDate: true },
           });
           if (linkedSource) {
+            const effectiveSource = await loadEffectiveLinkedStayRange({
+              propertyId: current.propertyId,
+              sourcePlatform,
+              sourceUid: owned.linkedEventUid,
+              source: linkedSource,
+            });
             sourceIdentity = {
-              platform: owned.platform,
+              platform: sourcePlatform,
               uid: owned.linkedEventUid,
             };
             const currentlyOverlapsSource =
-              linkedSource.startDate < currentEndStr &&
-              linkedSource.endDate > currentStartStr;
+              effectiveSource.startDate < currentEndStr &&
+              effectiveSource.endDate > currentStartStr;
+            const currentlyAdjacentToSource =
+              currentEndStr === effectiveSource.startDate ||
+              currentStartStr === effectiveSource.endDate;
             const nextOverlapsSource =
-              linkedSource.startDate < newEndStr &&
-              linkedSource.endDate > newStartStr;
+              effectiveSource.startDate < newEndStr &&
+              effectiveSource.endDate > newStartStr;
             const nextIsAdjacentToSource =
-              newEndStr === linkedSource.startDate ||
-              newStartStr === linkedSource.endDate;
-            if (
-              currentlyOverlapsSource !== nextOverlapsSource ||
-              (!nextOverlapsSource && !nextIsAdjacentToSource)
-            ) {
+              newEndStr === effectiveSource.startDate ||
+              newStartStr === effectiveSource.endDate;
+            const role =
+              owned.linkedEventRole ||
+              (currentlyOverlapsSource
+                ? "claim"
+                : currentlyAdjacentToSource
+                  ? "extension"
+                  : null);
+            const relationshipChanged =
+              role === "claim"
+                ? !nextOverlapsSource
+                : role === "extension"
+                  ? nextOverlapsSource || !nextIsAdjacentToSource
+                  : currentlyOverlapsSource !== nextOverlapsSource ||
+                    (!nextOverlapsSource && !nextIsAdjacentToSource);
+            if (relationshipChanged) {
               return NextResponse.json(
                 { error: "Linked booking relationship cannot be changed" },
                 { status: 409 },
@@ -337,31 +359,26 @@ export async function DELETE(
 
     await prisma.reservation.delete({ where: { id: numId } });
 
-    // If this reservation "claimed" a synced iCal event, delete that
-    // CalendarEvent too. Without this the cancelled booking keeps
-    // rendering as an (now unclaimed) bar after the host removes the
-    // reservation — the same orphan the sync prune cleans up, but for
-    // the manual-delete path. Only a CLAIM is removed: the reservation
-    // must link the event AND its dates must OVERLAP it. EXTENSIONS
-    // (direct-pay nights that merely ABUT a still-active event, linked
-    // for bar pairing) don't overlap their linked event, so the real
-    // booking is left intact.
-    if (owned.linkedEventUid) {
+    // Claims and direct extensions are now explicitly distinguished. Never
+    // infer a durable extension from today's overlap alone: an OTA may expand
+    // its event after the Direct segment was created, and cancelling those
+    // added nights must still leave the real source booking untouched.
+    // Null-role legacy rows are deliberately treated as ambiguous. Geometry
+    // can change after an OTA refresh, so deleting a cached source event is
+    // safe only for a durable, explicit claim. Preserving the source may make
+    // an old unclassified bar reappear, but can never erase the real booking.
+    if (owned.linkedEventUid && owned.linkedEventRole === "claim") {
+      const sourcePlatform = owned.linkedEventPlatform || owned.platform;
       const linked = await prisma.calendarEvent.findFirst({
         where: {
           propertyId: owned.propertyId,
-          platform: owned.platform,
+          platform: sourcePlatform,
           uid: owned.linkedEventUid,
         },
         select: { id: true, startDate: true, endDate: true },
       });
       if (linked) {
-        const overlaps =
-          owned.checkIn < new Date(linked.endDate) &&
-          owned.checkOut > new Date(linked.startDate);
-        if (overlaps) {
-          await prisma.calendarEvent.delete({ where: { id: linked.id } });
-        }
+        await prisma.calendarEvent.delete({ where: { id: linked.id } });
       }
     }
 

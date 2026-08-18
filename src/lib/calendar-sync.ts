@@ -174,8 +174,8 @@ export async function syncAllCalendars(opts?: {
 
         // Detect removed events (no longer in feed). Keep the full
         // event rows (not just uids) so the prune step below can read
-        // each event's date range when cleaning up any reservation
-        // that claimed it.
+        // each event's date range when migrating or unlinking every local
+        // claim/direct-extension segment attached to it.
         const removedEvents = existing.filter(
           (e) => !fetchedUIDs.has(e.uid) && e.endDate >= today
         );
@@ -263,8 +263,13 @@ export async function syncAllCalendars(opts?: {
                 const migrated = await prisma.reservation.updateMany({
                   where: {
                     propertyId,
-                    platform: link.platform,
                     linkedEventUid: ev.uid,
+                    OR: [
+                      { linkedEventPlatform: link.platform },
+                      // Compatibility for rows created before source platform
+                      // became independent from the booking channel.
+                      { linkedEventPlatform: null, platform: link.platform },
+                    ],
                   },
                   data: { linkedEventUid: candidateReissue.uid },
                 });
@@ -272,19 +277,23 @@ export async function syncAllCalendars(opts?: {
               } else {
                 // No reissue candidate — treat as a real cancellation.
                 // NEVER auto-delete a linked Reservation (it may carry
-                // guest passports and other host-entered data). Unlink
-                // it instead so the host can review, rename, or delete
-                // manually. The Reservation is now a "manual" one that
-                // still renders on the calendar with the platform tag.
+                // guest passports or a paid Direct extension). Clear the
+                // complete relationship on both claims and extensions so
+                // each local row survives as an independent manual entry.
                 const unlinked = await prisma.reservation.updateMany({
                   where: {
                     propertyId,
-                    platform: link.platform,
                     linkedEventUid: ev.uid,
-                    checkIn: { lt: new Date(ev.endDate) },
-                    checkOut: { gt: new Date(ev.startDate) },
+                    OR: [
+                      { linkedEventPlatform: link.platform },
+                      { linkedEventPlatform: null, platform: link.platform },
+                    ],
                   },
-                  data: { linkedEventUid: null },
+                  data: {
+                    linkedEventUid: null,
+                    linkedEventPlatform: null,
+                    linkedEventRole: null,
+                  },
                 });
                 unlinkedReservations += unlinked.count;
               }
@@ -351,24 +360,33 @@ export async function syncAllCalendars(opts?: {
     // the calendar as a manual entry the host can review, keep, or
     // delete themselves.
     try {
-      const claimedReservations = await prisma.reservation.findMany({
+      const linkedReservations = await prisma.reservation.findMany({
         where: {
           propertyId,
           linkedEventUid: { not: null },
         },
-        select: { id: true, platform: true, linkedEventUid: true },
+        select: {
+          id: true,
+          platform: true,
+          linkedEventUid: true,
+          linkedEventPlatform: true,
+        },
       });
 
-      if (claimedReservations.length > 0) {
+      if (linkedReservations.length > 0) {
         const linkedPairs = [
           ...new Map(
-            claimedReservations.map((reservation) => [
-              `${reservation.platform}\u0000${reservation.linkedEventUid}`,
-              {
-                platform: reservation.platform,
-                uid: reservation.linkedEventUid!,
-              },
-            ]),
+            linkedReservations.map((reservation) => {
+              const sourcePlatform =
+                reservation.linkedEventPlatform || reservation.platform;
+              return [
+                `${sourcePlatform}\u0000${reservation.linkedEventUid}`,
+                {
+                  platform: sourcePlatform,
+                  uid: reservation.linkedEventUid!,
+                },
+              ] as const;
+            }),
           ).values(),
         ];
         const existingEvents = await prisma.calendarEvent.findMany({
@@ -381,19 +399,24 @@ export async function syncAllCalendars(opts?: {
         const existingSourceSet = new Set(
           existingEvents.map((event) => `${event.platform}\u0000${event.uid}`),
         );
-        const orphanIds = claimedReservations
-          .filter(
-            (reservation) =>
-              !existingSourceSet.has(
-                `${reservation.platform}\u0000${reservation.linkedEventUid}`,
-              ),
-          )
+        const orphanIds = linkedReservations
+          .filter((reservation) => {
+            const sourcePlatform =
+              reservation.linkedEventPlatform || reservation.platform;
+            return !existingSourceSet.has(
+              `${sourcePlatform}\u0000${reservation.linkedEventUid}`,
+            );
+          })
           .map((reservation) => reservation.id);
 
         if (orphanIds.length > 0) {
           await prisma.reservation.updateMany({
             where: { id: { in: orphanIds } },
-            data: { linkedEventUid: null },
+            data: {
+              linkedEventUid: null,
+              linkedEventPlatform: null,
+              linkedEventRole: null,
+            },
           });
           await log(
             `${propertyName}: ${orphanIds.length} orphaned reservation(s) unlinked (linked event no longer exists — data preserved as manual reservation)`,

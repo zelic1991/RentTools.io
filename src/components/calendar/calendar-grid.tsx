@@ -2,8 +2,31 @@
 
 import { useMemo } from "react";
 import { useI18n } from "@/lib/i18n/context";
+import type { Locale } from "@/lib/i18n/translations";
 import { timeToPercent } from "./utils";
 import type { BarSegment, CalendarBar } from "./types";
+
+const DIRECT_COPY: Record<Locale, { label: string; connected: (platform: string) => string; open: string }> = {
+  en: { label: "Direct", connected: (p) => `Connected to ${p}`, open: "Open extension actions" },
+  ru: { label: "Напрямую", connected: (p) => `Связано с ${p}`, open: "Открыть действия продления" },
+  de: { label: "Direkt", connected: (p) => `Mit ${p} verbunden`, open: "Verlängerungsaktionen öffnen" },
+  fr: { label: "Direct", connected: (p) => `Liée à ${p}`, open: "Ouvrir les actions de prolongation" },
+  es: { label: "Directa", connected: (p) => `Conectada con ${p}`, open: "Abrir acciones de ampliación" },
+};
+
+function platformName(platform: string): string {
+  if (platform === "booking") return "Booking.com";
+  if (platform === "airbnb") return "Airbnb";
+  if (platform === "vrbo") return "Vrbo";
+  return platform || "iCal";
+}
+
+function platformColor(platform: string): string {
+  if (platform === "booking") return "#003580";
+  if (platform === "airbnb") return "#ff385c";
+  if (platform === "vrbo") return "#2c5da9";
+  return "#64748b";
+}
 
 /** Tiny inline broom-glyph used inside the cleaning chip. Inherits the
  *  surrounding text color so it works across the amber chip and the
@@ -58,6 +81,7 @@ interface CalendarGridProps {
   loading?: boolean;
   onSelectReservation: (id: number) => void;
   onClaimBar?: (bar: BarSegment, rect: DOMRect) => void;
+  onOpenExtension?: (bar: BarSegment, rect: DOMRect) => void;
   onCellClick: (dateStr: string, rect: DOMRect) => void;
 }
 
@@ -82,9 +106,11 @@ export function CalendarGrid({
   loading,
   onSelectReservation,
   onClaimBar,
+  onOpenExtension,
   onCellClick,
 }: CalendarGridProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const directCopy = DIRECT_COPY[locale];
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   let firstDayOffset = new Date(year, month, 1).getDay() - 1;
   if (firstDayOffset < 0) firstDayOffset = 6;
@@ -391,19 +417,36 @@ export function CalendarGrid({
                     const leftStyle = leftBleed > 0
                       ? `calc(${seg.leftPct}% - ${leftBleed}px)`
                       : `${seg.leftPct}%`;
+                    const sourcePlatform = seg.linkedEventPlatform || seg.platform;
+                    const directTitle = `${directCopy.label}: ${seg.name}. ${directCopy.connected(platformName(sourcePlatform))}. ${seg.startDate} ${checkInTime} → ${seg.endDate} ${checkOutTime}. ${directCopy.open}.`;
+                    const regularTitle = `${seg.name} · ${seg.startDate} ${checkInTime} → ${seg.endDate} ${checkOutTime}${isConflict ? " ⚠ CONFLICT" : ""}`;
+                    const activateBar = (element: HTMLElement) => {
+                      const rect = element.getBoundingClientRect();
+                      if (seg.isExtension && seg.reservationId && onOpenExtension) {
+                        onOpenExtension(seg, rect);
+                      } else if (seg.reservationId) {
+                        onSelectReservation(seg.reservationId);
+                      } else if (seg.eventUid && onClaimBar) {
+                        onClaimBar(seg, rect);
+                      }
+                    };
                     return (
                       <div
                         key={`seg-${si}-${seg.startDate}`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                          if (seg.reservationId) {
-                            onSelectReservation(seg.reservationId);
-                          } else if (seg.eventUid && onClaimBar) {
-                            onClaimBar(seg, rect);
-                          }
+                          activateBar(e.currentTarget as HTMLElement);
                         }}
-                        className={`absolute ${topClass} ${heightClass} flex items-center px-1.5 sm:px-2.5 text-[10.5px] sm:text-[12.5px] font-semibold text-white/95 truncate shadow-[0_1px_2px_rgba(0,0,0,0.06)] cursor-pointer ${radiusClass} ${
+                        onKeyDown={(e) => {
+                          if (e.key !== "Enter" && e.key !== " ") return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          activateBar(e.currentTarget as HTMLElement);
+                        }}
+                        role={(seg.reservationId || seg.eventUid) ? "button" : undefined}
+                        tabIndex={(seg.reservationId || seg.eventUid) ? 0 : undefined}
+                        aria-label={seg.isExtension ? directTitle : regularTitle}
+                        className={`absolute ${topClass} ${heightClass} flex items-center px-1.5 sm:px-2.5 text-[10.5px] sm:text-[12.5px] font-semibold text-white/95 truncate shadow-[0_1px_2px_rgba(0,0,0,0.06)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 ${radiusClass} ${
                           // Per-platform colour. Manual / direct / custom
                           // bookings get a neutral slate so they're visually
                           // distinct from Airbnb's coral — previously every
@@ -411,6 +454,7 @@ export function CalendarGrid({
                           // colour which made manual reservations look
                           // like Airbnb ones.
                           isConflict ? "bg-rose-500 ring-1 ring-rose-500/40" :
+                          seg.isExtension ? "bg-slate-600 ring-1 ring-slate-300/40" :
                           seg.platform === "booking" ? "bg-[#003580]" :
                           seg.platform === "airbnb" ? "bg-[var(--m-accent)]" :
                           seg.platform === "vrbo" ? "bg-[#2c5da9]" :
@@ -428,9 +472,16 @@ export function CalendarGrid({
                             ? "repeating-linear-gradient(-45deg, transparent 0 6px, rgba(255,255,255,0.22) 6px 8px)"
                             : undefined,
                         }}
-                        title={`${seg.name} · ${seg.startDate} ${checkInTime} → ${seg.endDate} ${checkOutTime}${isConflict ? " ⚠ CONFLICT" : ""}`}
+                        title={seg.isExtension ? directTitle : regularTitle}
                       >
-                        {seg.showLabel ? seg.name : ""}
+                        {seg.isExtension && (abutsLeftPartner || abutsRightPartner) && (
+                          <span
+                            aria-hidden="true"
+                            className={`pointer-events-none absolute inset-y-0 w-[3px] ${abutsLeftPartner ? "left-0" : "right-0"}`}
+                            style={{ backgroundColor: platformColor(sourcePlatform) }}
+                          />
+                        )}
+                        {seg.showLabel ? (seg.isExtension ? `${directCopy.label} · ${seg.name}` : seg.name) : ""}
                       </div>
                     );
                   })}

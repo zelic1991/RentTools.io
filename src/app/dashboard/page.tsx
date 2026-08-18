@@ -204,9 +204,17 @@ function AppContent({
   };
 
   const handleDeleteReservation = async (id: number) => {
-    await fetch(`/api/reservations/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/reservations/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({} as { error?: string }));
+      return {
+        ok: false as const,
+        error: body?.error || `Request failed (${res.status})`,
+      };
+    }
     if (selectedReservationId === id) setSelectedReservationId(null);
     await fetchProperties();
+    return { ok: true as const };
   };
 
   const handleDeleteGuest = async (id: number) => {

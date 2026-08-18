@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { StayPlan } from "@/components/calendar/stay-plan";
 import { getExtendedStayRange } from "@/components/calendar/extendable-bookings";
+import { referencesSyncedEvent } from "@/components/calendar/linked-bookings";
 import { useI18n } from "@/lib/i18n/context";
 import type { Locale } from "@/lib/i18n/translations";
 
@@ -460,6 +461,9 @@ export interface DateBarInfo {
   reservationId?: number;
   eventUid?: string;
   linkedEventUid?: string;
+  linkedEventPlatform?: string;
+  linkedEventRole?: "claim" | "extension";
+  isExtension?: boolean;
 }
 
 export interface ExtendableBooking {
@@ -471,11 +475,12 @@ export interface ExtendableBooking {
    *  the original and the added nights share one DB row + one
    *  visually continuous bar. */
   reservationId?: number;
-  /** Set when this entry mirrors an iCal-imported event. The
-   *  parent handler creates a new reservation with this as
-   *  linkedEventUid so the calendar pairs it with the source
-   *  bar. */
-  eventUid?: string;
+  /** Synced source for which the selected dates must be stored as a
+   *  separate Direct extension row. This is independent of reservationId:
+   *  a claimed iCal stay has both a manageable local row and a synced
+   *  source, and its added Direct nights must remain separately cancellable. */
+  sourceEventUid?: string;
+  sourcePlatform?: string;
   /** Original stay window of the booking we're appending to —
    *  shown in the panel so the host sees the full context (e.g.
    *  "Iain · May 3 → May 9") instead of the bare iCal SUMMARY. */
@@ -621,7 +626,7 @@ export function DateActionsPopover({
   const submitExtension = async (booking: ExtendableBooking, index: number) => {
     if (extendingRef.current) return;
     extendingRef.current = true;
-    const key = `${booking.platform}-${booking.reservationId ?? booking.eventUid ?? index}-${booking.side}`;
+    const key = `${booking.platform}-${booking.reservationId ?? booking.sourceEventUid ?? index}-${booking.side}`;
     setExtendingKey(key);
     setExtendError(null);
     try {
@@ -668,8 +673,7 @@ export function DateActionsPopover({
   })();
 
   const isLinkedPair = (a: DateBarInfo, b: DateBarInfo) =>
-    (!!a.eventUid && a.eventUid === b.linkedEventUid) ||
-    (!!b.eventUid && b.eventUid === a.linkedEventUid);
+    referencesSyncedEvent(a, b) || referencesSyncedEvent(b, a);
 
   const cleaningBetweenIndex = (() => {
     for (let i = 0; i < singleDateBars.length - 1; i++) {
@@ -1106,8 +1110,20 @@ export function DateActionsPopover({
         {singleDate && singleDateBars.length > 0 && (
           <div className="border-b border-[var(--line)] px-5 py-4 space-y-3">
             {singleDateBars.map((b, i) => {
-              const platformColor = b.platform === "booking" ? "#003580" : "#ff385c";
-              const platformLabel = b.platform === "booking" ? "Booking" : b.platform === "airbnb" ? "Airbnb" : b.platform;
+              const platformColor = b.isExtension
+                ? "#475569"
+                : b.platform === "booking"
+                  ? "#003580"
+                  : b.platform === "airbnb"
+                    ? "#ff385c"
+                    : "#64748b";
+              const platformLabel = b.isExtension
+                ? c.platformDirect
+                : b.platform === "booking"
+                  ? "Booking"
+                  : b.platform === "airbnb"
+                    ? "Airbnb"
+                    : b.platform;
               const roleLabel = b.role === "checkout"
                 ? c.checkingOut
                 : b.role === "checkin"
@@ -1269,7 +1285,7 @@ export function DateActionsPopover({
                   const platformLabel = b.platform === "booking" ? "Booking" : b.platform === "airbnb" ? "Airbnb" : b.platform;
                   const nights = selectedDates.length;
                   const sideLabel = b.side === "before" ? c.beforeCheckIn : c.afterCheckOut;
-                  const key = `${b.platform}-${b.reservationId ?? b.eventUid ?? i}-${b.side}`;
+                  const key = `${b.platform}-${b.reservationId ?? b.sourceEventUid ?? i}-${b.side}`;
                   const isExtending = extendingKey === key;
                   const extendedStay = getExtendedStayRange(
                     selectedDates[0],

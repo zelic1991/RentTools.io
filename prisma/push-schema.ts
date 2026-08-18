@@ -60,6 +60,9 @@ CREATE TABLE IF NOT EXISTS "Reservation" (
     "checkIn" DATETIME NOT NULL,
     "checkOut" DATETIME NOT NULL,
     "platform" TEXT NOT NULL DEFAULT 'airbnb',
+    "linkedEventUid" TEXT,
+    "linkedEventPlatform" TEXT,
+    "linkedEventRole" TEXT,
     "propertyId" INTEGER NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Reservation_propertyId_fkey" FOREIGN KEY ("propertyId") REFERENCES "Property" ("id") ON DELETE CASCADE ON UPDATE CASCADE
@@ -170,6 +173,13 @@ CREATE TABLE IF NOT EXISTS "SyncLog" (
     `ALTER TABLE "Property" ADD COLUMN "checkOutTime" TEXT NOT NULL DEFAULT '12:00'`,
     `ALTER TABLE "Property" ADD COLUMN "bookingWindow" INTEGER NOT NULL DEFAULT 365`,
     `ALTER TABLE "Reservation" ADD COLUMN "linkedEventUid" TEXT`,
+    // Durable identity + semantics for a synced-event relationship.
+    // linkedEventUid alone is not globally unique, and inferring claim vs
+    // extension from today's date overlap becomes unsafe if a platform later
+    // changes the source event's range.
+    `ALTER TABLE "Reservation" ADD COLUMN "linkedEventPlatform" TEXT`,
+    `ALTER TABLE "Reservation" ADD COLUMN "linkedEventRole" TEXT`,
+    `CREATE INDEX IF NOT EXISTS "Reservation_propertyId_linkedEventPlatform_linkedEventUid_idx" ON "Reservation"("propertyId", "linkedEventPlatform", "linkedEventUid")`,
     `ALTER TABLE "Property" ADD COLUMN "updatedAt" DATETIME`,
     `ALTER TABLE "Reservation" ADD COLUMN "updatedAt" DATETIME`,
     `ALTER TABLE "Guest" ADD COLUMN "updatedAt" DATETIME`,
@@ -283,6 +293,87 @@ CREATE INDEX IF NOT EXISTS "Feedback_userId_idx" ON "Feedback"("userId");
     } catch {
       // Column already exists
     }
+  }
+
+  // Backfill the durable linked-event metadata introduced above. Older rows
+  // overloaded Reservation.platform for both the booking channel and the
+  // linked iCal source, while claim/extension was inferred from geometry.
+  // Keep ambiguous/orphaned rows untouched apart from recording their legacy
+  // source platform; they continue through the API's compatibility fallback
+  // instead of being destructively reclassified.
+  try {
+    type LinkedReservationRow = {
+      id: number;
+      propertyId: number;
+      platform: string;
+      linkedEventUid: string;
+      linkedEventPlatform: string | null;
+      linkedEventRole: string | null;
+      checkIn: Date | string | number;
+      checkOut: Date | string | number;
+    };
+    type LinkedEventRow = { startDate: string; endDate: string };
+
+    const dateOnly = (value: Date | string | number): string => {
+      if (value instanceof Date) return value.toISOString().substring(0, 10);
+      const text = String(value);
+      if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.substring(0, 10);
+      return new Date(value).toISOString().substring(0, 10);
+    };
+
+    const linkedRows = await prisma.$queryRawUnsafe<LinkedReservationRow[]>(`
+      SELECT id, propertyId, platform, linkedEventUid,
+             linkedEventPlatform, linkedEventRole, checkIn, checkOut
+      FROM "Reservation"
+      WHERE linkedEventUid IS NOT NULL
+    `);
+
+    let backfilledLinks = 0;
+    for (const row of linkedRows) {
+      const sourcePlatform = row.linkedEventPlatform || row.platform;
+      let role = row.linkedEventRole;
+      const source = await prisma.$queryRawUnsafe<LinkedEventRow[]>(
+        `SELECT startDate, endDate FROM "CalendarEvent"
+         WHERE propertyId = ? AND platform = ? AND uid = ? LIMIT 1`,
+        row.propertyId,
+        sourcePlatform,
+        row.linkedEventUid,
+      );
+
+      if (!role && source.length > 0) {
+        const start = dateOnly(row.checkIn);
+        const end = dateOnly(row.checkOut);
+        const event = source[0];
+        const overlaps = event.startDate < end && event.endDate > start;
+        const abuts = end === event.startDate || start === event.endDate;
+        if (overlaps) role = "claim";
+        else if (abuts) role = "extension";
+      }
+
+      const bookingPlatform = role === "extension" ? "direct" : row.platform;
+      if (
+        row.linkedEventPlatform !== sourcePlatform ||
+        row.linkedEventRole !== role ||
+        row.platform !== bookingPlatform
+      ) {
+        await prisma.$executeRawUnsafe(
+          `UPDATE "Reservation"
+           SET linkedEventPlatform = ?, linkedEventRole = ?, platform = ?
+           WHERE id = ?`,
+          sourcePlatform,
+          role,
+          bookingPlatform,
+          row.id,
+        );
+        backfilledLinks++;
+      }
+    }
+    if (backfilledLinks > 0) {
+      console.log(`OK: backfilled ${backfilledLinks} linked reservation(s)`);
+    }
+  } catch (err) {
+    console.error("Linked reservation backfill failed:", err);
+    throw err;
   }
 
   // AuditLog table for mutation tracking
@@ -1079,5 +1170,11 @@ CREATE INDEX IF NOT EXISTS "EmailCode_email_purpose_idx" ON "EmailCode"("email",
 }
 
 main()
-  .catch(console.error)
+  .catch((error) => {
+    console.error(error);
+    // Deployment runs this script under `set -e`. A schema/backfill failure
+    // must stop the release instead of restarting the app against a partial
+    // database shape and surfacing production 500s.
+    process.exitCode = 1;
+  })
   .finally(() => prisma.$disconnect());

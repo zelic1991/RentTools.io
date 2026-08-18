@@ -3,6 +3,28 @@ import type { Property, CalendarLink, DateOverride, Reservation } from "@/lib/ty
 import { bookingWindowCutoff } from "@/lib/types";
 import { toDateStr, addDaysStr } from "./utils";
 import type { CalendarEvent, CalendarBar, ConflictInfo } from "./types";
+import {
+  calendarEventIdentity,
+  linkedSourcePlatform,
+  referencesSyncedEvent,
+} from "./linked-bookings";
+
+type LinkedReservation = Property["reservations"][number] & {
+  linkedEventPlatform?: string | null;
+  linkedEventRole?: "claim" | "extension" | null;
+};
+
+interface CalendarEntry {
+  name: string;
+  platform: string;
+  startDate: string;
+  endDate: string;
+  reservationId?: number;
+  eventUid?: string;
+  linkedEventUid?: string;
+  linkedEventPlatform?: string;
+  linkedEventRole?: "claim" | "extension";
+}
 
 export interface CalendarData {
   airbnbDates: Set<string>;
@@ -50,7 +72,7 @@ export function useCalendarData(
     const potential = new Set<string>();
     const unbookable = new Set<string>();
     const conflictSet = new Set<string>();
-    const evMap = new Map<string, { name: string; platform: string; startDate: string; endDate: string; reservationId?: number; eventUid?: string; linkedEventUid?: string }>();
+    const evMap = new Map<string, CalendarEntry>();
     const resMap = new Map<string, Reservation>();
     const allBooked = new Set<string>();
     const airbnbStay = new Set<string>();
@@ -101,15 +123,40 @@ export function useCalendarData(
       }
     }
 
-    for (const res of property.reservations) {
+    for (const rawReservation of property.reservations) {
+      const res = rawReservation as LinkedReservation;
       const start = toDateStr(new Date(res.checkIn));
       const end = toDateStr(new Date(res.checkOut));
       const platform = res.platform || "airbnb";
 
       let matchingEventStart: string | null = null;
+      const explicitSourcePlatform = linkedSourcePlatform(res);
       for (const [evStart, ev] of evMap) {
-        if (ev.platform !== platform) continue;
-        if (ev.startDate < end && ev.endDate > start) {
+        // Only synced entries can be claim/source partners. Standalone
+        // reservations are also accumulated in evMap later in this loop;
+        // never infer a relationship against one of those.
+        if (!ev.eventUid) continue;
+        const overlapsReservation = ev.startDate < end && ev.endDate > start;
+        if (!overlapsReservation) continue;
+
+        if (res.linkedEventUid) {
+          // Explicit links are exact (platform + UID). An extension role
+          // must remain its own Direct segment even if malformed legacy
+          // dates happen to overlap the source.
+          if (res.linkedEventRole === "extension") continue;
+          if (
+            explicitSourcePlatform === ev.platform &&
+            res.linkedEventUid === ev.eventUid
+          ) {
+            matchingEventStart = evStart;
+            break;
+          }
+          continue;
+        }
+
+        // Legacy claims predate linkedEventUid. Preserve the old
+        // same-platform overlap inference only for those unlinked rows.
+        if (ev.platform === platform) {
           matchingEventStart = evStart;
           break;
         }
@@ -205,6 +252,8 @@ export function useCalendarData(
           // when the user used "Extend booking" / "Add as extension"
           // in the popover.
           linkedEventUid: res.linkedEventUid ?? undefined,
+          linkedEventPlatform: res.linkedEventPlatform ?? undefined,
+          linkedEventRole: res.linkedEventRole ?? undefined,
         });
         allBookings.push({ start, end, platform, name: res.name });
       }
@@ -336,9 +385,15 @@ export function useCalendarData(
     // "needs cleaning" chip — the cleaning warning is only valid for
     // turnovers between different guests.
     const linkedBoundaryDates = new Set<string>();
-    for (const res of property.reservations) {
+    for (const rawReservation of property.reservations) {
+      const res = rawReservation as LinkedReservation;
       if (!res.linkedEventUid) continue;
-      const ev = syncedEvents.find((e) => e.uid === res.linkedEventUid);
+      const sourcePlatform = linkedSourcePlatform(res);
+      const ev = syncedEvents.find(
+        (e) =>
+          e.platform === sourcePlatform &&
+          e.uid === res.linkedEventUid,
+      );
       if (!ev) continue;
       const resStart = toDateStr(new Date(res.checkIn));
       const resEnd = toDateStr(new Date(res.checkOut));
@@ -462,7 +517,9 @@ export function useCalendarData(
 
       let label = ev.name;
       let resId = ev.reservationId;
-      const matchingResForExt = resId ? property.reservations.find(r => r.id === resId) : undefined;
+      const matchingResForExt = (
+        resId ? property.reservations.find(r => r.id === resId) : undefined
+      ) as LinkedReservation | undefined;
       // Hatched "manual extension" styling — a reservation the host
       // created via "Add 1 night before/after" that ABUTS an iCal
       // booking for the same guest (vs a "claim", which OVERLAPS an
@@ -478,18 +535,17 @@ export function useCalendarData(
       // linkedEventUid became a dangling reference and the bar stayed
       // striped forever — the Victoriya Tarakanova symptom.
       //
-      // Stable test: positively confirm an extension. It IS one only
-      // when the linkedEventUid event is actually present in the
-      // synced feed AND the reservation's dates ABUT (don't overlap)
-      // that event. If the linked event is missing — still loading,
-      // or deleted by a UID rotation — default to false (solid bar).
-      // Solid is the safe default: a fetched booking rendered solid
-      // is correct; the only cost is a genuine extension missing its
-      // hatch for the brief window before the feed finishes loading.
-      let isExtension = false;
+      // New rows carry an explicit role, so Direct styling is stable even
+      // while the source feed is loading. For legacy rows, infer the role
+      // only after finding the exact source platform + UID and confirming
+      // that the two ranges do not overlap.
+      let isExtension = ev.linkedEventRole === "extension";
       const extLinkedUid = matchingResForExt?.linkedEventUid;
-      if (extLinkedUid) {
-        const linkedEv = syncedEvents.find((e) => e.uid === extLinkedUid);
+      if (!isExtension && extLinkedUid && !matchingResForExt?.linkedEventRole) {
+        const sourcePlatform = linkedSourcePlatform(matchingResForExt);
+        const linkedEv = syncedEvents.find(
+          (e) => e.platform === sourcePlatform && e.uid === extLinkedUid,
+        );
         if (linkedEv) {
           const rStart = toDateStr(new Date(matchingResForExt!.checkIn));
           const rEnd = toDateStr(new Date(matchingResForExt!.checkOut));
@@ -518,10 +574,19 @@ export function useCalendarData(
         labelLower.includes("roomstatus") ||
         labelLower === "booked";
       if (isGenericSummary) {
-        const matchingRes = property.reservations.find(r => {
+        const matchingRes = property.reservations.find(rawReservation => {
+          const r = rawReservation as LinkedReservation;
           const rStart = toDateStr(new Date(r.checkIn));
           const rEnd = toDateStr(new Date(r.checkOut));
-          return rStart < ev.endDate && rEnd > ev.startDate;
+          if (!(rStart < ev.endDate && rEnd > ev.startDate)) return false;
+          if (r.linkedEventUid) {
+            return (
+              r.linkedEventRole !== "extension" &&
+              linkedSourcePlatform(r) === ev.platform &&
+              r.linkedEventUid === ev.eventUid
+            );
+          }
+          return r.platform === ev.platform;
         });
         if (matchingRes) {
           label = matchingRes.name;
@@ -560,6 +625,8 @@ export function useCalendarData(
         reservationId: resId,
         eventUid: ev.eventUid,
         linkedEventUid: ev.linkedEventUid,
+        linkedEventPlatform: ev.linkedEventPlatform,
+        linkedEventRole: ev.linkedEventRole,
         isExtension,
       });
     }
@@ -581,6 +648,8 @@ export function useCalendarData(
         }
         if (bar.linkedEventUid && !existing.linkedEventUid) {
           existing.linkedEventUid = bar.linkedEventUid;
+          existing.linkedEventPlatform = bar.linkedEventPlatform;
+          existing.linkedEventRole = bar.linkedEventRole;
         }
       } else {
         deduped.push({ ...bar });
@@ -594,11 +663,17 @@ export function useCalendarData(
     // rounding + 2 px gap between the pair so it reads as one stay.
     const eventUidToBar = new Map<string, CalendarBar>();
     for (const bar of deduped) {
-      if (bar.eventUid) eventUidToBar.set(bar.eventUid, bar);
+      if (bar.eventUid) {
+        eventUidToBar.set(calendarEventIdentity(bar.platform, bar.eventUid), bar);
+      }
     }
     for (const bar of deduped) {
       if (!bar.linkedEventUid) continue;
-      const partner = eventUidToBar.get(bar.linkedEventUid);
+      const sourcePlatform = linkedSourcePlatform(bar);
+      if (!sourcePlatform) continue;
+      const partner = eventUidToBar.get(
+        calendarEventIdentity(sourcePlatform, bar.linkedEventUid),
+      );
       if (!partner || partner === bar) continue;
       if (bar.endDate === partner.startDate) {
         // bar abuts before partner
@@ -647,7 +722,7 @@ export function useCalendarData(
       if (bar.linkedEventUid) {
         for (const other of sortedForRows) {
           if (other === bar) continue;
-          if (other.eventUid && other.eventUid === bar.linkedEventUid && assigned.has(other)) {
+          if (referencesSyncedEvent(bar, other) && assigned.has(other)) {
             inheritedIdx = assigned.get(other);
             break;
           }

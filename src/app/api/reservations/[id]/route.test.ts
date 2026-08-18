@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   logAudit: vi.fn(),
   reservationFindUnique: vi.fn(),
   reservationFindFirst: vi.fn(),
+  reservationFindMany: vi.fn(),
   reservationUpdate: vi.fn(),
   reservationDelete: vi.fn(),
   calendarEventFindFirst: vi.fn(),
@@ -31,6 +32,7 @@ vi.mock("@/lib/prisma", () => ({
     reservation: {
       findUnique: mocks.reservationFindUnique,
       findFirst: mocks.reservationFindFirst,
+      findMany: mocks.reservationFindMany,
       update: mocks.reservationUpdate,
       delete: mocks.reservationDelete,
     },
@@ -82,6 +84,7 @@ beforeEach(() => {
   // resolve an omitted date boundary. Both reads see the same row.
   mocks.reservationFindUnique.mockResolvedValue(original);
   mocks.reservationFindFirst.mockResolvedValue(null);
+  mocks.reservationFindMany.mockResolvedValue([]);
   mocks.calendarEventFindFirst.mockResolvedValue(null);
   mocks.reservationUpdate.mockImplementation(async ({ data }) => ({
     ...original,
@@ -362,6 +365,113 @@ describe("PATCH /api/reservations/:id — date edits", () => {
     expect(mocks.reservationUpdate).not.toHaveBeenCalled();
   });
 
+  it("edits an explicit Direct extension through its separate source platform", async () => {
+    const extension = {
+      ...original,
+      platform: "direct",
+      linkedEventPlatform: "airbnb",
+      linkedEventRole: "extension",
+      checkIn: new Date("2026-08-23T00:00:00.000Z"),
+      checkOut: new Date("2026-08-24T00:00:00.000Z"),
+    };
+    mocks.reservationFindUnique.mockResolvedValue(extension);
+    mocks.calendarEventFindFirst
+      .mockResolvedValueOnce(linkedSource)
+      .mockResolvedValueOnce(null);
+
+    const response = await PATCH(
+      patchRequest({ checkOut: "2026-08-25" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.calendarEventFindFirst).toHaveBeenNthCalledWith(1, {
+      where: {
+        propertyId,
+        platform: "airbnb",
+        uid: sourceEventUid,
+      },
+      select: { startDate: true, endDate: true },
+    });
+    expect(mocks.reservationUpdate).toHaveBeenCalledWith({
+      where: { id: reservationId },
+      data: { checkOut: new Date("2026-08-25T00:00:00.000Z") },
+    });
+  });
+
+  it("keeps an after-extension editable at a claim/source union boundary", async () => {
+    const extension = {
+      ...original,
+      platform: "direct",
+      linkedEventPlatform: "airbnb",
+      linkedEventRole: "extension",
+      checkIn: new Date("2026-08-25T00:00:00.000Z"),
+      checkOut: new Date("2026-08-26T00:00:00.000Z"),
+    };
+    mocks.reservationFindUnique.mockResolvedValue(extension);
+    mocks.reservationFindMany.mockResolvedValue([
+      {
+        platform: "airbnb",
+        linkedEventUid: sourceEventUid,
+        linkedEventPlatform: "airbnb",
+        linkedEventRole: "claim",
+        checkIn: new Date("2026-08-19T00:00:00.000Z"),
+        checkOut: new Date("2026-08-25T00:00:00.000Z"),
+      },
+      extension,
+    ]);
+    mocks.calendarEventFindFirst
+      .mockResolvedValueOnce(linkedSource)
+      .mockResolvedValueOnce(null);
+
+    const response = await PATCH(
+      patchRequest({ checkOut: "2026-08-27" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.reservationUpdate).toHaveBeenCalledWith({
+      where: { id: reservationId },
+      data: { checkOut: new Date("2026-08-27T00:00:00.000Z") },
+    });
+  });
+
+  it("keeps a before-extension editable at a legacy implicit/source union boundary", async () => {
+    const extension = {
+      ...original,
+      platform: "direct",
+      linkedEventPlatform: "airbnb",
+      linkedEventRole: "extension",
+      checkIn: new Date("2026-08-16T00:00:00.000Z"),
+      checkOut: new Date("2026-08-17T00:00:00.000Z"),
+    };
+    mocks.reservationFindUnique.mockResolvedValue(extension);
+    mocks.reservationFindMany.mockResolvedValue([
+      {
+        platform: "airbnb",
+        linkedEventUid: null,
+        linkedEventPlatform: null,
+        linkedEventRole: null,
+        checkIn: new Date("2026-08-17T00:00:00.000Z"),
+        checkOut: new Date("2026-08-23T00:00:00.000Z"),
+      },
+    ]);
+    mocks.calendarEventFindFirst
+      .mockResolvedValueOnce(linkedSource)
+      .mockResolvedValueOnce(null);
+
+    const response = await PATCH(
+      patchRequest({ checkIn: "2026-08-15" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.reservationUpdate).toHaveBeenCalledWith({
+      where: { id: reservationId },
+      data: { checkIn: new Date("2026-08-15T00:00:00.000Z") },
+    });
+  });
+
   it("rejects changing the platform of a linked reservation", async () => {
     const response = await PATCH(
       patchRequest({ platform: "booking" }),
@@ -439,6 +549,11 @@ describe("PATCH /api/reservations/:id — date edits", () => {
 
 describe("DELETE /api/reservations/:id — linked calendar source", () => {
   it("looks up and deletes only the exact property/platform/UID source", async () => {
+    mocks.reservationFindUnique.mockResolvedValue({
+      ...original,
+      linkedEventPlatform: "airbnb",
+      linkedEventRole: "claim",
+    });
     mocks.calendarEventFindFirst.mockResolvedValue({
       id: 41,
       startDate: "2026-08-19",
@@ -464,5 +579,84 @@ describe("DELETE /api/reservations/:id — linked calendar source", () => {
     expect(mocks.calendarEventDelete).toHaveBeenCalledWith({
       where: { id: 41 },
     });
+  });
+
+  it("preserves the source event for an ambiguous legacy linked row", async () => {
+    mocks.reservationFindUnique.mockResolvedValue({
+      ...original,
+      linkedEventPlatform: null,
+      linkedEventRole: null,
+    });
+
+    const response = await DELETE(
+      new NextRequest(`http://localhost/api/reservations/${reservationId}`, {
+        method: "DELETE",
+      }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.reservationDelete).toHaveBeenCalledWith({
+      where: { id: reservationId },
+    });
+    expect(mocks.calendarEventFindFirst).not.toHaveBeenCalled();
+    expect(mocks.calendarEventDelete).not.toHaveBeenCalled();
+  });
+
+  it("deletes only a Direct extension even if the source later expands over it", async () => {
+    mocks.reservationFindUnique.mockResolvedValue({
+      ...original,
+      platform: "direct",
+      linkedEventPlatform: "airbnb",
+      linkedEventRole: "extension",
+      checkIn: new Date("2026-08-23T00:00:00.000Z"),
+      checkOut: new Date("2026-08-25T00:00:00.000Z"),
+    });
+    // The OTA changed checkout from Aug 23 to Aug 24 after the extension
+    // was recorded, so geometry alone now looks like a claim.
+    mocks.calendarEventFindFirst.mockResolvedValue({
+      id: 41,
+      startDate: "2026-08-19",
+      endDate: "2026-08-24",
+    });
+
+    const response = await DELETE(
+      new NextRequest(`http://localhost/api/reservations/${reservationId}`, {
+        method: "DELETE",
+      }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.reservationDelete).toHaveBeenCalledWith({
+      where: { id: reservationId },
+    });
+    expect(mocks.calendarEventFindFirst).not.toHaveBeenCalled();
+    expect(mocks.calendarEventDelete).not.toHaveBeenCalled();
+  });
+
+  it("deletes an explicit claim source even after a local date correction", async () => {
+    mocks.reservationFindUnique.mockResolvedValue({
+      ...original,
+      linkedEventPlatform: "airbnb",
+      linkedEventRole: "claim",
+      checkIn: new Date("2026-08-10T00:00:00.000Z"),
+      checkOut: new Date("2026-08-12T00:00:00.000Z"),
+    });
+    mocks.calendarEventFindFirst.mockResolvedValue({
+      id: 41,
+      startDate: "2026-08-19",
+      endDate: "2026-08-23",
+    });
+
+    const response = await DELETE(
+      new NextRequest(`http://localhost/api/reservations/${reservationId}`, {
+        method: "DELETE",
+      }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.calendarEventDelete).toHaveBeenCalledWith({ where: { id: 41 } });
   });
 });

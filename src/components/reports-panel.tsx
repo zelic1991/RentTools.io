@@ -115,7 +115,7 @@ const COPY: Record<Locale, CopyShape> = {
     exportHelp: "Leave dates blank to export everything. UTF-8 BOM for Excel.",
     dataSources: "Data sources",
     dataSourcesHelp:
-      "Numbers are computed from your reservations + iCal events, deduped by uid. Past stays are preserved in our DB even after platforms drop them from their feeds.",
+      "Numbers combine your reservations + iCal events. A linked claim replaces its exact platform event; Direct extensions stay separate. Past stays remain in our DB after platforms drop them from their feeds.",
   },
   ru: {
     reports: "Отчёты",
@@ -163,7 +163,7 @@ const COPY: Record<Locale, CopyShape> = {
     exportHelp: "Пустые поля = выгрузить все. UTF-8 BOM для Excel.",
     dataSources: "Источники данных",
     dataSourcesHelp:
-      "Цифры считаются из ваших броней + iCal событий, дедуплицированных по uid. Прошлые брони сохраняются в нашей БД, даже если платформы убрали их из своих фидов.",
+      "Цифры считаются из ваших броней + событий iCal. Привязанная бронь заменяет точное событие платформы, а прямое продление учитывается отдельно. Прошлые брони сохраняются в нашей БД после удаления из фида.",
   },
   de: {
     reports: "Berichte",
@@ -213,7 +213,7 @@ const COPY: Record<Locale, CopyShape> = {
     exportHelp: "Daten leer lassen, um alles zu exportieren. UTF-8 BOM für Excel.",
     dataSources: "Datenquellen",
     dataSourcesHelp:
-      "Die Zahlen werden aus Ihren Buchungen + iCal-Events berechnet (per UID dedupliziert). Vergangene Buchungen bleiben in unserer DB erhalten, auch wenn Plattformen sie aus ihren Feeds entfernen.",
+      "Die Zahlen kombinieren Buchungen und iCal-Events. Eine verknüpfte Übernahme ersetzt nur ihr exaktes Plattform-Event; direkte Verlängerungen bleiben separat. Vergangene Buchungen bleiben in unserer DB erhalten.",
   },
   fr: {
     reports: "Rapports",
@@ -263,7 +263,7 @@ const COPY: Record<Locale, CopyShape> = {
     exportHelp: "Laissez les dates vides pour tout exporter. BOM UTF-8 pour Excel.",
     dataSources: "Sources de données",
     dataSourcesHelp:
-      "Les chiffres sont calculés à partir de vos réservations + événements iCal, dédupliqués par uid. Les séjours passés sont conservés dans notre base même quand les plateformes les retirent de leurs feeds.",
+      "Les chiffres combinent vos réservations et les événements iCal. Une réservation associée remplace son événement de plateforme exact ; les prolongations directes restent séparées. Les séjours passés restent dans notre base.",
   },
   es: {
     reports: "Informes",
@@ -313,7 +313,7 @@ const COPY: Record<Locale, CopyShape> = {
     exportHelp: "Deje las fechas vacías para exportarlo todo. UTF-8 BOM para Excel.",
     dataSources: "Fuentes de datos",
     dataSourcesHelp:
-      "Las cifras se calculan a partir de sus reservas + eventos iCal, deduplicados por uid. Las estancias pasadas se conservan en nuestra base aunque las plataformas las retiren de sus feeds.",
+      "Las cifras combinan sus reservas y eventos iCal. Una reserva vinculada sustituye solo su evento exacto de plataforma; las ampliaciones directas quedan separadas. Las estancias pasadas se conservan en nuestra base.",
   },
 };
 
@@ -349,7 +349,7 @@ interface ReportsPanelProps {
   properties: Property[];
 }
 
-interface CalendarEventRow {
+export interface CalendarEventRow {
   id: number;
   propertyId: number;
   uid: string;
@@ -386,11 +386,26 @@ function isoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-interface NormalizedStay {
+export interface NormalizedStay {
   start: string; // YYYY-MM-DD inclusive
   end: string;   // YYYY-MM-DD exclusive (checkout day not occupied)
   platform: string;
   propertyId: number;
+  /** Exact source identity used only to collapse internal checkout
+   *  boundaries for cleaning KPIs. Occupancy/channel KPIs still see each
+   *  source and Direct segment as its own booking. */
+  cleaningGroupKey?: string;
+}
+
+type LinkedEventRole = "claim" | "extension";
+
+function normalizedPlatform(value: string | null | undefined): string {
+  return (value || "").trim().toLowerCase();
+}
+
+/** Calendar-event UIDs are unique only inside one platform feed. */
+function linkedSourceKey(platform: string, uid: string): string {
+  return `${normalizedPlatform(platform)}\u0000${uid.trim()}`;
 }
 
 /**
@@ -523,41 +538,168 @@ function isGenericIcalName(summary: string): boolean {
 
 /** Build the deduped list of stays for one property. Three layers of
  *  dedup so the same real-world booking is never counted twice:
- *    1. linkedEventUid match (explicit claim) → drop the iCal twin.
+ *    1. An explicit linked `claim` replaces only its exact
+ *       platform+UID iCal source. A linked `extension` remains a
+ *       separate Direct segment and keeps the source in all KPIs.
+ *       Legacy null-role rows are inferred by overlap vs adjacency.
  *    2. Same start+end + generic iCal summary → drop the iCal twin
  *       (catches manually-entered Reservations whose iCal feed is
  *       still emitting an unclaimed twin).
  *    3. Airbnb host-blocks → filtered out (not real guests). */
-function buildStaysForProperty(prop: Property, events: CalendarEventRow[]): NormalizedStay[] {
-  const linkedUids = new Set(
-    prop.reservations.map((r) => r.linkedEventUid).filter((u): u is string => !!u)
-  );
+export function buildStaysForProperty(
+  prop: Property,
+  events: CalendarEventRow[],
+): NormalizedStay[] {
+  const propertyEvents = events.filter((event) => event.propertyId === prop.id);
+  const eventBySource = new Map<string, CalendarEventRow>();
+  for (const event of propertyEvents) {
+    if (event.uid) {
+      eventBySource.set(linkedSourceKey(event.platform, event.uid), event);
+    }
+  }
+
+  const linkedRoleByReservation = new Map<number, LinkedEventRole | null>();
+  const linkedSourceByReservation = new Map<number, string>();
+  const claimedSources = new Set<string>();
+  for (const reservation of prop.reservations) {
+    const explicitRole = reservation.linkedEventRole;
+    const uid = reservation.linkedEventUid?.trim();
+    const reservationPlatform = normalizedPlatform(reservation.platform);
+    const sourcePlatform = normalizedPlatform(
+      reservation.linkedEventPlatform ||
+        (reservationPlatform !== "direct" ? reservationPlatform : ""),
+    );
+
+    let role: LinkedEventRole | null = explicitRole || null;
+    const sourceKey = uid && sourcePlatform
+      ? linkedSourceKey(sourcePlatform, uid)
+      : null;
+
+    // Old rows have no role and used Reservation.platform as their
+    // linked-source platform. Infer only from the exact pair; never let
+    // a same-UID event from another feed decide whether this is a claim.
+    if (!role && sourceKey) {
+      const source = eventBySource.get(sourceKey);
+      if (source) {
+        const reservationStart = isoDate(new Date(reservation.checkIn));
+        const reservationEnd = isoDate(new Date(reservation.checkOut));
+        const overlapsSource =
+          reservationStart < source.endDate && reservationEnd > source.startDate;
+        const abutsSource =
+          reservationEnd === source.startDate || reservationStart === source.endDate;
+        if (overlapsSource) role = "claim";
+        else if (abutsSource) role = "extension";
+      }
+    }
+
+    linkedRoleByReservation.set(reservation.id, role);
+    if (role && sourceKey) linkedSourceByReservation.set(reservation.id, sourceKey);
+    if (role === "claim" && sourceKey) claimedSources.add(sourceKey);
+  }
+
   const reservationDateKeys = new Set<string>();
   for (const r of prop.reservations) {
-    reservationDateKeys.add(`${isoDate(new Date(r.checkIn))}|${isoDate(new Date(r.checkOut))}`);
+    // Role wins over the old same-date heuristic: extensions retain
+    // their source even if malformed legacy data overlaps it.
+    if (linkedRoleByReservation.get(r.id) === "extension") continue;
+    reservationDateKeys.add(
+      `${normalizedPlatform(r.platform)}\u0000${isoDate(new Date(r.checkIn))}|${isoDate(new Date(r.checkOut))}`,
+    );
   }
   const stays: NormalizedStay[] = [];
-  for (const ev of events) {
-    if (ev.propertyId !== prop.id) continue;
+  for (const ev of propertyEvents) {
     const platform = (ev.platform || "").toLowerCase();
     const isAirbnbBlock =
       platform === "airbnb" &&
       (ev.summary?.includes("Not available") || ev.summary?.includes("Blocked"));
     if (isAirbnbBlock) continue;
-    if (ev.uid && linkedUids.has(ev.uid)) continue;
-    const dateKey = `${ev.startDate}|${ev.endDate}`;
+    if (ev.uid && claimedSources.has(linkedSourceKey(ev.platform, ev.uid))) continue;
+    const dateKey = `${platform}\u0000${ev.startDate}|${ev.endDate}`;
     if (reservationDateKeys.has(dateKey) && isGenericIcalName(ev.summary || "")) continue;
-    stays.push({ start: ev.startDate, end: ev.endDate, platform, propertyId: prop.id });
+    stays.push({
+      start: ev.startDate,
+      end: ev.endDate,
+      platform,
+      propertyId: prop.id,
+      cleaningGroupKey: ev.uid
+        ? linkedSourceKey(ev.platform, ev.uid)
+        : undefined,
+    });
   }
   for (const r of prop.reservations) {
     stays.push({
       start: isoDate(new Date(r.checkIn)),
       end: isoDate(new Date(r.checkOut)),
-      platform: (r.platform || "direct").toLowerCase(),
+      platform:
+        linkedRoleByReservation.get(r.id) === "extension"
+          ? "direct"
+          : (r.platform || "direct").toLowerCase(),
       propertyId: prop.id,
+      cleaningGroupKey: linkedSourceByReservation.get(r.id),
     });
   }
   return stays;
+}
+
+/**
+ * Count actionable checkout boundaries while treating connected pieces of
+ * one exact linked stay as a single cleaning unit. This deliberately does
+ * not alter booking/channel counts: only the internal source→Direct seam is
+ * removed from the cleaning KPI.
+ */
+export function countUpcomingCleaningBoundaries(
+  stays: NormalizedStay[],
+  propertyId: number,
+  today: Date,
+  futureEndCap: Date,
+): number {
+  const grouped = new Map<string, NormalizedStay[]>();
+  let unlinkedCount = 0;
+
+  for (const stay of stays) {
+    if (stay.propertyId !== propertyId) continue;
+    const start = new Date(`${stay.start}T00:00:00`);
+    const end = new Date(`${stay.end}T00:00:00`);
+    if (end <= start) continue;
+
+    if (!stay.cleaningGroupKey) {
+      if (end > today && end <= futureEndCap) unlinkedCount += 1;
+      continue;
+    }
+
+    const key = `${propertyId}\u0000${stay.cleaningGroupKey}`;
+    const group = grouped.get(key);
+    if (group) group.push(stay);
+    else grouped.set(key, [stay]);
+  }
+
+  let linkedCount = 0;
+  for (const group of grouped.values()) {
+    const sorted = [...group].sort((a, b) =>
+      a.start.localeCompare(b.start) || a.end.localeCompare(b.end),
+    );
+    let componentEnd = sorted[0]?.end;
+    if (!componentEnd) continue;
+
+    for (let i = 1; i < sorted.length; i++) {
+      const stay = sorted[i];
+      // Half-open ranges form one continuous stay when the next segment
+      // begins no later than the current checkout (overlap or adjacency).
+      if (stay.start <= componentEnd) {
+        if (stay.end > componentEnd) componentEnd = stay.end;
+        continue;
+      }
+
+      const end = new Date(`${componentEnd}T00:00:00`);
+      if (end > today && end <= futureEndCap) linkedCount += 1;
+      componentEnd = stay.end;
+    }
+
+    const end = new Date(`${componentEnd}T00:00:00`);
+    if (end > today && end <= futureEndCap) linkedCount += 1;
+  }
+
+  return unlinkedCount + linkedCount;
 }
 
 /**
@@ -634,11 +776,15 @@ function computePropertyKpis(
       totalNightsAllTime += stayNights;
       perPlatform.set(s.platform, (perPlatform.get(s.platform) ?? 0) + stayNights);
       if (sEnd <= today) pastBookings += 1;
-      // Cleanings upcoming = stays whose checkout falls inside the
-      // forward window. One cleaning per checkout.
-      if (sEnd > today && sEnd <= futureEndCap) cleaningsUpcoming += 1;
     }
   }
+
+  cleaningsUpcoming = countUpcomingCleaningBoundaries(
+    stays,
+    prop.id,
+    today,
+    futureEndCap,
+  );
 
   const pastOccupancy = pastDays > 0 ? Math.round((100 * pastNights) / pastDays) : 0;
   const avgStayNights =

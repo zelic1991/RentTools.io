@@ -1,0 +1,112 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { parseICal } from "@/lib/ical";
+
+const mocks = vi.hoisted(() => ({
+  propertyFindUnique: vi.fn(),
+  calendarLinkFindMany: vi.fn(),
+  dateOverrideFindMany: vi.fn(),
+  calendarEventFindMany: vi.fn(),
+  reservationFindMany: vi.fn(),
+}));
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    property: { findUnique: mocks.propertyFindUnique },
+    calendarLink: { findMany: mocks.calendarLinkFindMany },
+    dateOverride: { findMany: mocks.dateOverrideFindMany },
+    calendarEvent: { findMany: mocks.calendarEventFindMany },
+    reservation: { findMany: mocks.reservationFindMany },
+  },
+}));
+
+import { generateFeed } from "./feed";
+
+const source = {
+  id: 1,
+  propertyId: 12,
+  platform: "airbnb",
+  uid: "source-booking",
+  summary: "Airbnb stay",
+  startDate: "2099-08-19",
+  endDate: "2099-08-23",
+};
+
+const extension = {
+  id: 2,
+  propertyId: 12,
+  name: "Direct extension",
+  checkIn: new Date("2099-08-23T00:00:00.000Z"),
+  checkOut: new Date("2099-08-25T00:00:00.000Z"),
+  platform: "direct",
+  linkedEventUid: source.uid,
+  linkedEventPlatform: "airbnb",
+  linkedEventRole: "extension",
+};
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  mocks.propertyFindUnique.mockResolvedValue({
+    name: "Apt 68",
+    minNights: 1,
+    bookingWindow: 36500,
+  });
+  mocks.calendarLinkFindMany.mockResolvedValue([
+    { platform: "airbnb", bufferBefore: 0, bufferAfter: 0 },
+    { platform: "booking", bufferBefore: 0, bufferAfter: 0 },
+  ]);
+  mocks.dateOverrideFindMany.mockResolvedValue([]);
+  mocks.calendarEventFindMany.mockResolvedValue([source]);
+  mocks.reservationFindMany.mockResolvedValue([extension]);
+});
+
+describe("generateFeed — Direct linked extensions", () => {
+  it("blocks the Direct nights back to the source platform", async () => {
+    const result = await generateFeed(12, "airbnb");
+    expect(result).not.toHaveProperty("error");
+    if ("error" in result) throw new Error(result.error);
+
+    const events = parseICal(result.ical).filter(
+      (event) => event.uid !== "renttools-placeholder",
+    );
+    expect(events).toEqual([
+      expect.objectContaining({
+        startDate: "2099-08-23",
+        endDate: "2099-08-25",
+      }),
+    ]);
+  });
+
+  it("merges the source stay and Direct segment for another platform", async () => {
+    const result = await generateFeed(12, "booking");
+    expect(result).not.toHaveProperty("error");
+    if ("error" in result) throw new Error(result.error);
+
+    const events = parseICal(result.ical).filter(
+      (event) => event.uid !== "renttools-placeholder",
+    );
+    expect(events).toEqual([
+      expect.objectContaining({
+        startDate: "2099-08-19",
+        endDate: "2099-08-25",
+      }),
+    ]);
+  });
+
+  it("routes an explicitly marked extension as Direct during migration", async () => {
+    mocks.reservationFindMany.mockResolvedValue([
+      { ...extension, platform: "airbnb" },
+    ]);
+
+    const result = await generateFeed(12, "airbnb");
+    if ("error" in result) throw new Error(result.error);
+    const events = parseICal(result.ical).filter(
+      (event) => event.uid !== "renttools-placeholder",
+    );
+    expect(events).toEqual([
+      expect.objectContaining({
+        startDate: "2099-08-23",
+        endDate: "2099-08-25",
+      }),
+    ]);
+  });
+});

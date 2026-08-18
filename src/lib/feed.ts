@@ -3,6 +3,17 @@ import { generateICal, generateBufferedEvents, generateBufferOnlyEvents, addDays
 
 export { parseFeedFilename } from "@/lib/feed-utils";
 
+/** Actual inventory channel for feed routing. The migration rewrites durable
+ *  extension rows to platform=direct; checking the explicit role as well keeps
+ *  an in-flight/legacy row safe if it is read before that backfill completes. */
+function reservationChannel(reservation: {
+  platform: string | null;
+  linkedEventRole?: string | null;
+}): string {
+  if (reservation.linkedEventRole === "extension") return "direct";
+  return reservation.platform || "airbnb";
+}
+
 /**
  * Empty-but-RFC-valid iCal — served at the onboarding-draft slug before
  * the user signs up so anything they paste into Airbnb / Booking still
@@ -107,10 +118,10 @@ export async function generateFeed(propertyId: number, forPlatform: string): Pro
     .filter(e => e.platform !== forPlatform)
     .map(e => ({ uid: e.uid, summary: e.summary || "Blocked", startDate: e.startDate, endDate: e.endDate }));
 
-  for (const res of allReservations.filter(r => (r.platform || "airbnb") !== forPlatform)) {
+  for (const res of allReservations.filter(r => reservationChannel(r) !== forPlatform)) {
     otherEvents.push({
       uid: `renttool-reservation-${res.id}`,
-      summary: `${res.name} (${res.platform})`,
+      summary: `${res.name} (${reservationChannel(res)})`,
       startDate: new Date(res.checkIn).toISOString().substring(0, 10),
       endDate: new Date(res.checkOut).toISOString().substring(0, 10),
     });
@@ -121,7 +132,7 @@ export async function generateFeed(propertyId: number, forPlatform: string): Pro
     .filter(e => e.platform === forPlatform)
     .map(e => ({ uid: `own-${e.uid}`, summary: "Buffer", startDate: e.startDate, endDate: e.endDate }));
 
-  for (const res of allReservations.filter(r => (r.platform || "airbnb") === forPlatform)) {
+  for (const res of allReservations.filter(r => reservationChannel(r) === forPlatform)) {
     sameEvents.push({
       uid: `own-res-${res.id}`,
       summary: "Buffer",

@@ -68,6 +68,9 @@ function buildDateBars(date: string, bars: CalendarBar[]): DateBarInfo[] {
         reservationId: b.reservationId,
         eventUid: b.eventUid,
         linkedEventUid: b.linkedEventUid,
+        linkedEventPlatform: b.linkedEventPlatform,
+        linkedEventRole: b.linkedEventRole,
+        isExtension: b.isExtension,
       };
     })
     .sort((a, b) => {

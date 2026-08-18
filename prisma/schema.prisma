@@ -275,8 +275,14 @@ model Reservation {
   name            String
   checkIn         DateTime
   checkOut        DateTime
-  platform        String   @default("airbnb")
-  linkedEventUid  String?  // UID of a synced CalendarEvent this reservation extends (for direct-pay extensions)
+  // Actual booking/payment channel. A host-entered extension of an
+  // Airbnb/Booking stay is "direct"; the source platform is kept
+  // separately in linkedEventPlatform so feeds and UI do not mistake the
+  // added nights for inventory owned by the source channel.
+  platform            String  @default("airbnb")
+  linkedEventUid      String? // UID is unique only inside one platform feed
+  linkedEventPlatform String? // exact source platform paired with linkedEventUid
+  linkedEventRole     String? // "claim" (overlaps source) | "extension" (abuts source)
   // Per-reservation messenger group chat. The host creates a one-off
   // group for THIS booking (different from User.tgGroupInviteUrl, which
   // is a host-wide invite link sent to every guest) and saves the URL
@@ -301,6 +307,8 @@ model Reservation {
   guestFormSubmissions GuestFormSubmission[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  @@index([propertyId, linkedEventPlatform, linkedEventUid])
 }
 
 model DateOverride {

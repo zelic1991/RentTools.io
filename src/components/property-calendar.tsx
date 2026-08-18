@@ -9,11 +9,18 @@ import type {
 import { CalendarGrid } from "@/components/calendar/calendar-grid";
 import { CalendarDatePopover } from "@/components/calendar/calendar-date-popover";
 import { BarClaimPopover, type ClaimableBar } from "@/components/calendar/bar-claim-popover";
+import {
+  ExtensionActionsPopover,
+  type CancelExtensionResult,
+  type ExtensionActionBar,
+} from "@/components/calendar/extension-actions-popover";
 import { ConflictBanner } from "@/components/calendar/conflict-banner";
 import { useCalendarFetch, SYNC_COOLDOWN_MS } from "@/components/calendar/use-calendar-fetch";
 import { useCalendarData } from "@/components/calendar/use-calendar-data";
-import { addDaysStr } from "@/components/calendar/utils";
-import { buildManualExtensionPatch } from "@/components/calendar/extendable-bookings";
+import {
+  buildManualExtensionPatch,
+  buildSyncedExtensionReservation,
+} from "@/components/calendar/extendable-bookings";
 import { EmptyState } from "@/components/empty-state";
 import { PropertySwitcher } from "@/components/property-switcher";
 import { useI18n } from "@/lib/i18n/context";
@@ -140,6 +147,8 @@ export function PropertyCalendar({
   const extensionRequestPendingRef = useRef(false);
   const [claimBar, setClaimBar] = useState<ClaimableBar | null>(null);
   const [claimAnchor, setClaimAnchor] = useState<DOMRect | null>(null);
+  const [extensionActionBar, setExtensionActionBar] = useState<ExtensionActionBar | null>(null);
+  const [extensionActionAnchor, setExtensionActionAnchor] = useState<DOMRect | null>(null);
 
   const { syncedEvents, links, overrides, loadingEvents, syncing, lastSyncAt, syncJustDone, refetchOverrides, handleSyncNow } =
     useCalendarFetch(property.id);
@@ -415,8 +424,8 @@ export function PropertyCalendar({
   ): Promise<ExtendBookingResult> => {
     // Two flavours of "extend":
     //
-    //   1. Manual reservation (booking.reservationId is set, no
-    //      eventUid). PATCH the existing reservation's checkIn /
+    //   1. Pure Direct/manual reservation (reservationId is set and no
+    //      sourceEventUid). PATCH the existing reservation's checkIn /
     //      checkOut so the original and the added nights share one
     //      DB row + one continuous bar. POSTing a separate extension
     //      reservation here would leave the host with two rows in the
@@ -424,8 +433,9 @@ export function PropertyCalendar({
     //      reservations don't have an eventUid for the bar dedup
     //      / linked-pair logic to hook into.
     //
-    //   2. iCal-sourced event (booking.eventUid is set, no
-    //      reservationId). The source feed can't be mutated, so POST
+    //   2. Any iCal-sourced stay (sourceEventUid is set). This includes
+    //      raw events AND claimed/implicitly matched local reservations.
+    //      The source feed can't be mutated, so POST
     //      a new reservation with linkedEventUid = the iCal event's
     //      uid. The calendar's linked-pair pass sees the matching
     //      uids, drops the gap between the two bars, and the host
@@ -434,7 +444,7 @@ export function PropertyCalendar({
     if (extensionRequestPendingRef.current) return { ok: false };
     extensionRequestPendingRef.current = true;
     try {
-      if (booking.reservationId) {
+      if (!booking.sourceEventUid && booking.reservationId) {
         const res = await fetch(`/api/reservations/${booking.reservationId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -446,7 +456,7 @@ export function PropertyCalendar({
           const data = await res.json().catch(() => ({} as { error?: string }));
           return { ok: false, error: data?.error };
         }
-      } else {
+      } else if (booking.sourceEventUid) {
         // For a contiguous selection covering N nights, the extension
         // reservation runs from the first selected date to the last + 1
         // day. linkedEventUid points at the iCal event so the calendar
@@ -454,20 +464,20 @@ export function PropertyCalendar({
         const res = await fetch(`/api/reservations`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: booking.name,
-            checkIn: rangeStart,
-            checkOut: addDaysStr(rangeEnd, 1),
-            platform: booking.platform,
-            propertyId: property.id,
-            linkedEventUid: booking.eventUid,
-          }),
+          body: JSON.stringify(
+            buildSyncedExtensionReservation(
+              rangeStart,
+              rangeEnd,
+              { ...booking, sourceEventUid: booking.sourceEventUid },
+              property.id,
+            ),
+          ),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({} as { error?: string }));
           return { ok: false, error: data?.error };
         }
-      }
+      } else return { ok: false };
 
       clearSelection();
       window.location.reload();
@@ -482,6 +492,32 @@ export function PropertyCalendar({
   const closeClaim = () => {
     setClaimBar(null);
     setClaimAnchor(null);
+  };
+
+  const closeExtensionActions = () => {
+    setExtensionActionBar(null);
+    setExtensionActionAnchor(null);
+  };
+
+  const cancelDirectExtension = async (
+    reservationId: number,
+  ): Promise<CancelExtensionResult> => {
+    try {
+      const response = await fetch(`/api/reservations/${reservationId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({} as { error?: string }));
+        return { ok: false, error: data?.error };
+      }
+
+      closeExtensionActions();
+      clearSelection();
+      window.location.reload();
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    }
   };
 
   // Trim an existing manual reservation by setting its checkOut to
@@ -523,6 +559,8 @@ export function PropertyCalendar({
         platform: claimBar.platform,
         propertyId: property.id,
         linkedEventUid: claimBar.eventUid,
+        linkedEventPlatform: claimBar.platform,
+        linkedEventRole: "claim",
       }),
     });
     closeClaim();
@@ -745,6 +783,7 @@ export function PropertyCalendar({
                   onSelectReservation={onSelectReservation}
                   onClaimBar={(seg, rect) => {
                     if (!seg.eventUid) return;
+                    closeExtensionActions();
                     setClaimBar({
                       eventUid: seg.eventUid,
                       startDate: seg.startDate,
@@ -753,6 +792,12 @@ export function PropertyCalendar({
                       defaultName: seg.name,
                     });
                     setClaimAnchor(rect);
+                  }}
+                  onOpenExtension={(seg, rect) => {
+                    if (!seg.reservationId) return;
+                    closeClaim();
+                    setExtensionActionBar({ ...seg, reservationId: seg.reservationId });
+                    setExtensionActionAnchor(rect);
                   }}
                   onCellClick={(dateStr) => toggleDate(dateStr)}
                 />
@@ -838,6 +883,15 @@ export function PropertyCalendar({
           anchorRect={claimAnchor}
           onClose={closeClaim}
           onSave={claimSyncedBooking}
+        />
+      )}
+      {extensionActionBar && extensionActionAnchor && (
+        <ExtensionActionsPopover
+          bar={extensionActionBar}
+          anchorRect={extensionActionAnchor}
+          onClose={closeExtensionActions}
+          onOpenReservation={onSelectReservation}
+          onCancelExtension={cancelDirectExtension}
         />
       )}
     </div>

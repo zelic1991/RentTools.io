@@ -2,16 +2,18 @@ import type { Property } from "@/lib/types";
 import type { ExtendableBooking } from "@/components/date-actions-popover";
 import { addDaysStr } from "./utils";
 import type { CalendarEvent } from "./types";
+import { calendarEventIdentity, linkedSourcePlatform } from "./linked-bookings";
+
+type LinkedReservation = Property["reservations"][number] & {
+  linkedEventPlatform?: string | null;
+  linkedEventRole?: "claim" | "extension" | null;
+};
 
 function reservationDate(value: string | Date): string {
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
     return value.slice(0, 10);
   }
   return new Date(value).toISOString().slice(0, 10);
-}
-
-function sourceKey(platform: string, uid: string): string {
-  return `${platform}\u0000${uid}`;
 }
 
 function isHostBlock(event: CalendarEvent): boolean {
@@ -62,26 +64,31 @@ export function getExtendableBookings(
   // Prefer a manageable local Reservation whenever it is the named
   // claim for an iCal event. Besides preserving the guest name, PATCHing
   // that row avoids creating a second linked extension for the same stay.
-  for (const reservation of reservations) {
+  for (const rawReservation of reservations) {
+    const reservation = rawReservation as LinkedReservation;
     const rStart = reservationDate(reservation.checkIn);
     const rEnd = reservationDate(reservation.checkOut);
     const platform = reservation.platform || "airbnb";
+    const sourcePlatform = linkedSourcePlatform(reservation);
     const linkedSource = reservation.linkedEventUid
       ? syncedEvents.find(
           (event) =>
-            event.platform === platform && event.uid === reservation.linkedEventUid,
+            event.platform === sourcePlatform && event.uid === reservation.linkedEventUid,
         )
       : undefined;
 
     if (
       linkedSource &&
-      overlaps(rStart, rEnd, linkedSource.startDate, linkedSource.endDate)
+      overlaps(rStart, rEnd, linkedSource.startDate, linkedSource.endDate) &&
+      reservation.linkedEventRole !== "extension"
     ) {
-      claimedSources.add(sourceKey(linkedSource.platform, linkedSource.uid));
+      claimedSources.add(calendarEventIdentity(linkedSource.platform, linkedSource.uid));
       pushAdjacentCandidates(result, startDate, dayAfterRange, {
         name: reservation.name,
-        platform,
+        platform: linkedSource.platform,
         reservationId: reservation.id,
+        sourceEventUid: linkedSource.uid,
+        sourcePlatform: linkedSource.platform,
         bookingStart:
           rStart < linkedSource.startDate ? rStart : linkedSource.startDate,
         bookingEnd: rEnd > linkedSource.endDate ? rEnd : linkedSource.endDate,
@@ -102,12 +109,14 @@ export function getExtendableBookings(
         )
       : undefined;
     if (implicitSource) {
-      const key = sourceKey(implicitSource.platform, implicitSource.uid);
+      const key = calendarEventIdentity(implicitSource.platform, implicitSource.uid);
       claimedSources.add(key);
       pushAdjacentCandidates(result, startDate, dayAfterRange, {
         name: reservation.name,
-        platform,
+        platform: implicitSource.platform,
         reservationId: reservation.id,
+        sourceEventUid: implicitSource.uid,
+        sourcePlatform: implicitSource.platform,
         bookingStart:
           rStart < implicitSource.startDate ? rStart : implicitSource.startDate,
         bookingEnd:
@@ -128,7 +137,7 @@ export function getExtendableBookings(
   }
 
   for (const event of syncedEvents) {
-    const key = sourceKey(event.platform, event.uid);
+    const key = calendarEventIdentity(event.platform, event.uid);
     if (claimedSources.has(key)) continue;
 
     if (isHostBlock(event)) continue;
@@ -138,7 +147,8 @@ export function getExtendableBookings(
         event.summary ||
         (event.platform === "airbnb" ? "Airbnb" : "Booking"),
       platform: event.platform,
-      eventUid: event.uid,
+      sourceEventUid: event.uid,
+      sourcePlatform: event.platform,
       bookingStart: event.startDate,
       bookingEnd: event.endDate,
     });
@@ -168,4 +178,23 @@ export function buildManualExtensionPatch(
   return booking.side === "before"
     ? { checkIn: extended.checkIn }
     : { checkOut: extended.checkOut };
+}
+
+/** POST body for Direct nights that remain linked to a synced source. */
+export function buildSyncedExtensionReservation(
+  rangeStart: string,
+  rangeEnd: string,
+  booking: ExtendableBooking & { sourceEventUid: string },
+  propertyId: number,
+) {
+  return {
+    name: booking.name,
+    checkIn: rangeStart,
+    checkOut: addDaysStr(rangeEnd, 1),
+    platform: "direct" as const,
+    propertyId,
+    linkedEventUid: booking.sourceEventUid,
+    linkedEventPlatform: booking.sourcePlatform ?? booking.platform,
+    linkedEventRole: "extension" as const,
+  };
 }

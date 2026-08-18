@@ -23,6 +23,12 @@ export interface CalendarBar {
    *  to pair this bar with the synced bar so the calendar can render
    *  them as one continuous stay. */
   linkedEventUid?: string;
+  /** Platform feed that owns linkedEventUid. UIDs are not globally unique,
+   *  so pairing must always use this platform + UID composite identity. */
+  linkedEventPlatform?: string;
+  /** Explicit relationship stored on newer Reservation rows. `extension`
+   *  stays visually Direct even while the source feed is loading. */
+  linkedEventRole?: "claim" | "extension";
   /** Set during bar building when this bar is paired with a linked
    *  partner bar that abuts on the LEFT. Tells the renderer to drop
    *  the left-edge rounding so the pair reads as one stay. */

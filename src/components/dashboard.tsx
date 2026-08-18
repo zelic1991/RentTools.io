@@ -220,7 +220,7 @@ function platformColor(slug: string): string {
   return PRESET_BY_SLUG.get(slug)?.color ?? FALLBACK_PLATFORM_COLOR;
 }
 
-interface CalendarEvent {
+export interface CalendarEvent {
   id: number;
   platform: string;
   uid?: string;
@@ -229,12 +229,23 @@ interface CalendarEvent {
   endDate: string;
 }
 
-interface UnifiedStay {
+export interface UnifiedStay {
   start: Date;
   end: Date;
   name: string;
   platform: string;
   reservationId?: number;
+}
+
+type LinkedEventRole = "claim" | "extension";
+
+function normalizedPlatform(value: string | null | undefined): string {
+  return (value || "").trim().toLowerCase();
+}
+
+/** Calendar-event UIDs are unique only inside one platform feed. */
+function linkedSourceKey(platform: string, uid: string): string {
+  return `${normalizedPlatform(platform)}\u0000${uid.trim()}`;
 }
 
 /** Local-date YYYY-MM-DD formatter. Crucial: do NOT use
@@ -284,8 +295,11 @@ function friendlyIcalName(summary: string | null | undefined, platform: string):
 /** Build a deduped list of stays for one property from Reservation rows
  *  + iCal-synced events. Three layers of dedup so the dashboard never
  *  double-counts the SAME booking represented in two places:
- *    1. iCal events whose uid matches a Reservation.linkedEventUid
- *       (the host explicitly claimed the bar) → drop the iCal side.
+ *    1. An explicit linked `claim` replaces only its exact
+ *       platform+UID iCal source. A linked `extension` is a separate
+ *       Direct segment, so both it and the original source remain.
+ *       Legacy rows without a role are inferred from overlap (claim)
+ *       versus adjacency (extension).
  *    2. iCal events with generic summaries (Reserved / Blocked / etc)
  *       whose start+end exactly match a Reservation's dates → drop
  *       the iCal side. This catches the very common case of a host
@@ -294,17 +308,63 @@ function friendlyIcalName(summary: string | null | undefined, platform: string):
  *    3. Airbnb host-blocks ("Not available" / "Blocked") are filtered
  *       out — they're not real guests.
  *  Sorted by start asc. */
-function buildUnifiedStays(p: Property, events: CalendarEvent[]): UnifiedStay[] {
-  const linkedUids = new Set(
-    p.reservations.map((r) => r.linkedEventUid).filter((u): u is string => !!u)
-  );
+export function buildUnifiedStays(p: Property, events: CalendarEvent[]): UnifiedStay[] {
+  const eventBySource = new Map<string, CalendarEvent>();
+  for (const event of events) {
+    if (event.uid) {
+      eventBySource.set(linkedSourceKey(event.platform, event.uid), event);
+    }
+  }
+
+  const linkedRoleByReservation = new Map<number, LinkedEventRole | null>();
+  const claimedSources = new Set<string>();
+  for (const reservation of p.reservations) {
+    const explicitRole = reservation.linkedEventRole;
+    const uid = reservation.linkedEventUid?.trim();
+    const sourcePlatform = normalizedPlatform(
+      reservation.linkedEventPlatform || reservation.platform,
+    );
+
+    let role: LinkedEventRole | null = explicitRole || null;
+    const sourceKey = uid && sourcePlatform
+      ? linkedSourceKey(sourcePlatform, uid)
+      : null;
+
+    // Backward compatibility for rows created before linkedEventRole:
+    // the old schema stored the source platform in Reservation.platform.
+    // Infer only against that exact platform+UID event so a reused UID in
+    // another feed cannot hide an unrelated booking.
+    if (!role && sourceKey) {
+      const source = eventBySource.get(sourceKey);
+      if (source) {
+        const reservationStart = toLocalDateStr(new Date(reservation.checkIn));
+        const reservationEnd = toLocalDateStr(new Date(reservation.checkOut));
+        const overlapsSource =
+          reservationStart < source.endDate && reservationEnd > source.startDate;
+        const abutsSource =
+          reservationEnd === source.startDate || reservationStart === source.endDate;
+        if (overlapsSource) role = "claim";
+        else if (abutsSource) role = "extension";
+      }
+    }
+
+    linkedRoleByReservation.set(reservation.id, role);
+    if (role === "claim" && sourceKey) claimedSources.add(sourceKey);
+  }
+
   // Reservation date-range keys — used to silently merge generic-named
-  // iCal events with the host's manual entry on identical dates.
+  // iCal events with the host's manual entry on identical dates. Include
+  // platform in the key: identical dates on two platforms are not proof
+  // that both events belong to the same local row.
   const reservationDateKeys = new Set<string>();
   for (const r of p.reservations) {
+    // An explicit/inferred extension must never suppress an iCal row,
+    // even if malformed legacy data happens to give both ranges the
+    // same dates. Its role is authoritative: source + Direct both stay.
+    if (linkedRoleByReservation.get(r.id) === "extension") continue;
     const start = toLocalDateStr(new Date(r.checkIn));
     const end = toLocalDateStr(new Date(r.checkOut));
-    reservationDateKeys.add(`${start}|${end}`);
+    reservationDateKeys.add(`${normalizedPlatform(r.platform)}\u0000${start}|${end}`);
   }
   const stays: UnifiedStay[] = [];
   for (const r of p.reservations) {
@@ -316,12 +376,18 @@ function buildUnifiedStays(p: Property, events: CalendarEvent[]): UnifiedStay[] 
       start,
       end,
       name: r.name,
-      platform: r.platform || "direct",
+      // A direct-pay extension is deliberately its own source segment,
+      // even for legacy rows whose platform column still names Airbnb /
+      // Booking because it doubled as linked-source identity.
+      platform:
+        linkedRoleByReservation.get(r.id) === "extension"
+          ? "direct"
+          : r.platform || "direct",
       reservationId: r.id,
     });
   }
   for (const ev of events) {
-    if (ev.uid && linkedUids.has(ev.uid)) continue;
+    if (ev.uid && claimedSources.has(linkedSourceKey(ev.platform, ev.uid))) continue;
     // Host-blocks are NEVER real guest reservations — they're dates
     // the host blocked manually in the platform's own calendar. Each
     // platform marks them differently: Airbnb uses "Not available" /
@@ -334,7 +400,7 @@ function buildUnifiedStays(p: Property, events: CalendarEvent[]): UnifiedStay[] 
     if (ev.platform === "airbnb" && (ev.summary?.includes("Not available") || ev.summary?.includes("Blocked"))) continue;
     if (/^\s*CLOSED\b/i.test(ev.summary || "")) continue;
     // Same-dates + generic-summary heuristic: drop the iCal twin.
-    const dateKey = `${ev.startDate}|${ev.endDate}`;
+    const dateKey = `${normalizedPlatform(ev.platform)}\u0000${ev.startDate}|${ev.endDate}`;
     if (reservationDateKeys.has(dateKey) && isGenericIcalName(ev.summary || "")) continue;
     const start = new Date(ev.startDate);
     start.setHours(0, 0, 0, 0);
