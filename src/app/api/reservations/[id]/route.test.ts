@@ -1,0 +1,359 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
+
+const mocks = vi.hoisted(() => ({
+  getSession: vi.fn(),
+  canManageProperty: vi.fn(),
+  logAudit: vi.fn(),
+  reservationFindUnique: vi.fn(),
+  reservationFindFirst: vi.fn(),
+  reservationUpdate: vi.fn(),
+  calendarEventFindFirst: vi.fn(),
+  dateOverrideDeleteMany: vi.fn(),
+}));
+
+vi.mock("@/lib/auth", () => ({
+  getSession: mocks.getSession,
+}));
+
+vi.mock("@/lib/ownership", () => ({
+  canManageProperty: mocks.canManageProperty,
+}));
+
+vi.mock("@/lib/audit", () => ({
+  logAudit: mocks.logAudit,
+}));
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    reservation: {
+      findUnique: mocks.reservationFindUnique,
+      findFirst: mocks.reservationFindFirst,
+      update: mocks.reservationUpdate,
+    },
+    calendarEvent: {
+      findFirst: mocks.calendarEventFindFirst,
+    },
+    dateOverride: {
+      deleteMany: mocks.dateOverrideDeleteMany,
+    },
+  },
+}));
+
+import { PATCH } from "./route";
+
+const reservationId = 7;
+const propertyId = 12;
+const sourceEventUid = "airbnb-source-uid";
+const original = {
+  id: reservationId,
+  propertyId,
+  platform: "airbnb",
+  linkedEventUid: sourceEventUid,
+  checkIn: new Date("2026-08-19T00:00:00.000Z"),
+  checkOut: new Date("2026-08-23T00:00:00.000Z"),
+};
+const linkedSource = {
+  startDate: "2026-08-19",
+  endDate: "2026-08-23",
+};
+
+function patchRequest(body: Record<string, unknown>) {
+  return new NextRequest(`http://localhost/api/reservations/${reservationId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+function patchParams(id = String(reservationId)) {
+  return { params: Promise.resolve({ id }) };
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  mocks.getSession.mockResolvedValue({ userId: 3, role: "user" });
+  mocks.canManageProperty.mockResolvedValue(true);
+  // PATCH loads the reservation once for authorization and once to
+  // resolve an omitted date boundary. Both reads see the same row.
+  mocks.reservationFindUnique.mockResolvedValue(original);
+  mocks.reservationFindFirst.mockResolvedValue(null);
+  mocks.calendarEventFindFirst.mockResolvedValue(null);
+  mocks.reservationUpdate.mockImplementation(async ({ data }) => ({
+    ...original,
+    ...data,
+  }));
+  mocks.dateOverrideDeleteMany.mockResolvedValue({ count: 0 });
+  mocks.logAudit.mockResolvedValue(undefined);
+});
+
+describe("PATCH /api/reservations/:id — date edits", () => {
+  it.each([
+    ["checkIn", "not-a-date", "Invalid checkIn date"],
+    ["checkOut", "not-a-date", "Invalid checkOut date"],
+  ])("rejects an invalid %s without writing", async (field, value, error) => {
+    const response = await PATCH(patchRequest({ [field]: value }), patchParams());
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ error });
+    expect(mocks.reservationUpdate).not.toHaveBeenCalled();
+    expect(mocks.calendarEventFindFirst).not.toHaveBeenCalled();
+    expect(mocks.dateOverrideDeleteMany).not.toHaveBeenCalled();
+    expect(mocks.logAudit).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["equal", "2026-08-21", "2026-08-21"],
+    ["reversed", "2026-08-22", "2026-08-21"],
+  ])("rejects an %s date range without writing", async (_label, checkIn, checkOut) => {
+    const response = await PATCH(
+      patchRequest({ checkIn, checkOut }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "checkOut must be after checkIn",
+    });
+    expect(mocks.reservationUpdate).not.toHaveBeenCalled();
+    expect(mocks.calendarEventFindFirst).not.toHaveBeenCalled();
+    expect(mocks.dateOverrideDeleteMany).not.toHaveBeenCalled();
+    expect(mocks.logAudit).not.toHaveBeenCalled();
+  });
+
+  it("excludes only the reservation's exact linked source from the synced-overlap query", async () => {
+    mocks.calendarEventFindFirst
+      .mockResolvedValueOnce(linkedSource)
+      .mockResolvedValueOnce(null);
+
+    const response = await PATCH(
+      patchRequest({ checkIn: "2026-08-18" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.calendarEventFindFirst).toHaveBeenNthCalledWith(1, {
+      where: {
+        propertyId,
+        platform: "airbnb",
+        uid: sourceEventUid,
+      },
+      select: { startDate: true, endDate: true },
+    });
+    expect(mocks.calendarEventFindFirst).toHaveBeenNthCalledWith(2, {
+      where: {
+        propertyId,
+        startDate: { lt: "2026-08-23" },
+        endDate: { gt: "2026-08-18" },
+        NOT: {
+          platform: "airbnb",
+          uid: sourceEventUid,
+        },
+      },
+      select: {
+        summary: true,
+        platform: true,
+        startDate: true,
+        endDate: true,
+      },
+    });
+  });
+
+  it("still rejects a same-UID event from another platform", async () => {
+    mocks.calendarEventFindFirst
+      .mockResolvedValueOnce(linkedSource)
+      .mockResolvedValueOnce({
+        summary: "Other guest",
+        platform: "booking",
+        uid: sourceEventUid,
+        startDate: "2026-08-18",
+        endDate: "2026-08-20",
+      });
+
+    const response = await PATCH(
+      patchRequest({ checkIn: "2026-08-18" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Overlapping booking from another platform",
+      existing: {
+        name: "Other guest",
+        checkIn: "2026-08-18",
+        checkOut: "2026-08-20",
+        platform: "booking",
+      },
+    });
+    expect(mocks.calendarEventFindFirst).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          NOT: { platform: "airbnb", uid: sourceEventUid },
+        }),
+      }),
+    );
+    expect(mocks.reservationUpdate).not.toHaveBeenCalled();
+    expect(mocks.dateOverrideDeleteMany).not.toHaveBeenCalled();
+    expect(mocks.logAudit).not.toHaveBeenCalled();
+  });
+
+  it("does not add a source exclusion for a purely manual reservation", async () => {
+    mocks.reservationFindUnique.mockResolvedValue({
+      ...original,
+      linkedEventUid: null,
+    });
+
+    const response = await PATCH(
+      patchRequest({ checkIn: "2026-08-18" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    const syncedWhere = mocks.calendarEventFindFirst.mock.calls[0][0].where;
+    expect(syncedWhere).not.toHaveProperty("NOT");
+  });
+
+  it("does not let an adjacent manual extension become a claimed source booking", async () => {
+    const extension = {
+      ...original,
+      checkIn: new Date("2026-08-17T00:00:00.000Z"),
+      checkOut: new Date("2026-08-19T00:00:00.000Z"),
+    };
+    mocks.reservationFindUnique.mockResolvedValue(extension);
+    mocks.calendarEventFindFirst.mockResolvedValueOnce(linkedSource);
+
+    const response = await PATCH(
+      patchRequest({ checkOut: "2026-08-20" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Linked booking relationship cannot be changed",
+    });
+    expect(mocks.calendarEventFindFirst).toHaveBeenCalledTimes(1);
+    expect(mocks.reservationUpdate).not.toHaveBeenCalled();
+    expect(mocks.dateOverrideDeleteMany).not.toHaveBeenCalled();
+    expect(mocks.logAudit).not.toHaveBeenCalled();
+  });
+
+  it("keeps an edited manual extension adjacent to its linked source", async () => {
+    const extension = {
+      ...original,
+      checkIn: new Date("2026-08-17T00:00:00.000Z"),
+      checkOut: new Date("2026-08-19T00:00:00.000Z"),
+    };
+    mocks.reservationFindUnique.mockResolvedValue(extension);
+    mocks.calendarEventFindFirst
+      .mockResolvedValueOnce(linkedSource)
+      .mockResolvedValueOnce(null);
+
+    const response = await PATCH(
+      patchRequest({ checkIn: "2026-08-16" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.reservationUpdate).toHaveBeenCalledWith({
+      where: { id: reservationId },
+      data: { checkIn: new Date("2026-08-16T00:00:00.000Z") },
+    });
+  });
+
+  it("rejects detaching a manual extension from its linked source", async () => {
+    const extension = {
+      ...original,
+      checkIn: new Date("2026-08-17T00:00:00.000Z"),
+      checkOut: new Date("2026-08-19T00:00:00.000Z"),
+    };
+    mocks.reservationFindUnique.mockResolvedValue(extension);
+    mocks.calendarEventFindFirst.mockResolvedValueOnce(linkedSource);
+
+    const response = await PATCH(
+      patchRequest({ checkIn: "2026-08-10", checkOut: "2026-08-12" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Linked booking relationship cannot be changed",
+    });
+    expect(mocks.calendarEventFindFirst).toHaveBeenCalledTimes(1);
+    expect(mocks.reservationUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects changing the platform of a linked reservation", async () => {
+    const response = await PATCH(
+      patchRequest({ platform: "booking" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Linked booking platform cannot be changed",
+    });
+    expect(mocks.reservationFindUnique).toHaveBeenCalledTimes(1);
+    expect(mocks.reservationUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects an overlap with another manual reservation before writing", async () => {
+    mocks.reservationFindFirst.mockResolvedValue({
+      name: "Existing stay",
+      checkIn: new Date("2026-08-18T00:00:00.000Z"),
+      checkOut: new Date("2026-08-20T00:00:00.000Z"),
+    });
+
+    const response = await PATCH(
+      patchRequest({ checkIn: "2026-08-18" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Overlapping reservation exists",
+      existing: { name: "Existing stay" },
+    });
+    expect(mocks.calendarEventFindFirst).not.toHaveBeenCalled();
+    expect(mocks.reservationUpdate).not.toHaveBeenCalled();
+  });
+
+  it("moves check-in earlier and clears only open/closed overrides on occupied nights", async () => {
+    mocks.calendarEventFindFirst
+      .mockResolvedValueOnce(linkedSource)
+      .mockResolvedValueOnce(null);
+
+    const response = await PATCH(
+      patchRequest({ checkIn: "2026-08-18" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.reservationUpdate).toHaveBeenCalledWith({
+      where: { id: reservationId },
+      data: { checkIn: new Date("2026-08-18T00:00:00.000Z") },
+    });
+    expect(mocks.dateOverrideDeleteMany).toHaveBeenCalledWith({
+      where: {
+        propertyId,
+        date: {
+          in: [
+            "2026-08-18",
+            "2026-08-19",
+            "2026-08-20",
+            "2026-08-21",
+            "2026-08-22",
+          ],
+        },
+        type: { in: ["open", "closed"] },
+      },
+    });
+    expect(mocks.logAudit).toHaveBeenCalledWith(
+      3,
+      "update",
+      "reservation",
+      reservationId,
+      { checkIn: new Date("2026-08-18T00:00:00.000Z") },
+    );
+  });
+});

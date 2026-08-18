@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { canManageProperty } from "@/lib/ownership";
 import { normalizePhone } from "@/lib/sanitize";
+import { parseReservationDate } from "@/lib/reservation-dates";
 
 async function loadManageableReservation(
   reservationId: number,
@@ -15,6 +16,7 @@ async function loadManageableReservation(
     select: {
       id: true,
       propertyId: true,
+      platform: true,
       linkedEventUid: true,
       checkIn: true,
       checkOut: true,
@@ -44,9 +46,32 @@ export async function PATCH(
     const data: Record<string, unknown> = {};
 
     if (body.name !== undefined) data.name = body.name;
-    if (body.checkIn !== undefined) data.checkIn = new Date(body.checkIn);
-    if (body.checkOut !== undefined) data.checkOut = new Date(body.checkOut);
-    if (body.platform !== undefined) data.platform = body.platform;
+    if (body.checkIn !== undefined) {
+      const checkIn = parseReservationDate(body.checkIn);
+      if (!checkIn) {
+        return NextResponse.json({ error: "Invalid checkIn date" }, { status: 400 });
+      }
+      data.checkIn = checkIn;
+    }
+    if (body.checkOut !== undefined) {
+      const checkOut = parseReservationDate(body.checkOut);
+      if (!checkOut) {
+        return NextResponse.json({ error: "Invalid checkOut date" }, { status: 400 });
+      }
+      data.checkOut = checkOut;
+    }
+    if (body.platform !== undefined) {
+      // The linked source is identified by (property, platform, uid).
+      // Changing only the local platform would leave linkedEventUid
+      // pointing at a different (or nonexistent) event.
+      if (owned.linkedEventUid && body.platform !== owned.platform) {
+        return NextResponse.json(
+          { error: "Linked booking platform cannot be changed" },
+          { status: 409 },
+        );
+      }
+      data.platform = body.platform;
+    }
 
     // Host-editable group-chat name override. Empty string / whitespace
     // clears it (back to the auto-generated name); otherwise store the
@@ -146,11 +171,66 @@ export async function PATCH(
         // another platform.
         const newStartStr = newCheckIn.toISOString().substring(0, 10);
         const newEndStr = newCheckOut.toISOString().substring(0, 10);
+
+        // linkedEventUid is used for both a claimed source booking
+        // (the ranges overlap) and a manual extension (they do not).
+        // Do not let a date edit silently flip between those meanings:
+        // DELETE and calendar rendering intentionally treat them
+        // differently. A claimed stay may still be extended earlier or
+        // later as long as it continues to overlap its source event.
+        if (owned.linkedEventUid) {
+          const linkedSource = await prisma.calendarEvent.findFirst({
+            where: {
+              propertyId: current.propertyId,
+              platform: owned.platform,
+              uid: owned.linkedEventUid,
+            },
+            select: { startDate: true, endDate: true },
+          });
+          if (linkedSource) {
+            const currentStartStr = current.checkIn.toISOString().substring(0, 10);
+            const currentEndStr = current.checkOut.toISOString().substring(0, 10);
+            const currentlyOverlapsSource =
+              linkedSource.startDate < currentEndStr &&
+              linkedSource.endDate > currentStartStr;
+            const nextOverlapsSource =
+              linkedSource.startDate < newEndStr &&
+              linkedSource.endDate > newStartStr;
+            const nextIsAdjacentToSource =
+              newEndStr === linkedSource.startDate ||
+              newStartStr === linkedSource.endDate;
+            if (
+              currentlyOverlapsSource !== nextOverlapsSource ||
+              (!nextOverlapsSource && !nextIsAdjacentToSource)
+            ) {
+              return NextResponse.json(
+                { error: "Linked booking relationship cannot be changed" },
+                { status: 409 },
+              );
+            }
+          }
+        }
+
         const syncedOverlap = await prisma.calendarEvent.findFirst({
           where: {
             propertyId: current.propertyId,
             startDate: { lt: newEndStr },
             endDate: { gt: newStartStr },
+            // A claimed iCal booking has a local Reservation row for
+            // guest details and a linked CalendarEvent for the source
+            // platform. The calendar intentionally renders the UNION
+            // of their ranges, so the host can correct or extend dates
+            // that the source feed truncated. Do not let that source
+            // event conflict with its own local reservation; every
+            // other synced event must still block the edit.
+            ...(owned.linkedEventUid
+              ? {
+                  NOT: {
+                    platform: owned.platform,
+                    uid: owned.linkedEventUid,
+                  },
+                }
+              : {}),
           },
           select: { summary: true, platform: true, startDate: true, endDate: true },
         });

@@ -9,6 +9,11 @@ import { GuestCards } from "@/components/guest-cards";
 import { useI18n } from "@/lib/i18n/context";
 import type { Locale } from "@/lib/i18n/translations";
 import type { Guest, Reservation } from "@/lib/types";
+import {
+  reservationNights,
+  toReservationDateInput,
+  validateReservationDateRange,
+} from "@/lib/reservation-dates";
 
 // Pre-arrival discovery hint — localized in all 5 supported locales.
 // The rest of this component is still English-only; see GitHub issue
@@ -242,6 +247,14 @@ export function ReservationView({
   } | null>(null);
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(reservation.name);
+  const [editCheckIn, setEditCheckIn] = useState(() =>
+    toReservationDateInput(reservation.checkIn),
+  );
+  const [editCheckOut, setEditCheckOut] = useState(() =>
+    toReservationDateInput(reservation.checkOut),
+  );
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
   const [activeTemplate, setActiveTemplate] = useState<MessageTemplate | null>(null);
@@ -298,6 +311,46 @@ export function ReservationView({
   } | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
   const templateMenuRef = useRef<HTMLDivElement>(null);
+  const editNameInputRef = useRef<HTMLInputElement>(null);
+  const editCheckInInputRef = useRef<HTMLInputElement>(null);
+  const editNameTriggerRef = useRef<HTMLButtonElement>(null);
+  const editDatesTriggerRef = useRef<HTMLButtonElement>(null);
+  const editInitialFocusRef = useRef<"name" | "dates">("name");
+  const editReturnFocusRef = useRef<"name" | "dates">("name");
+  const shouldRestoreEditFocusRef = useRef(false);
+
+  // Keep the drafts aligned with a refetch after a successful PATCH,
+  // while never overwriting what the host is currently typing.
+  useEffect(() => {
+    if (editing) return;
+    setEditName(reservation.name);
+    setEditCheckIn(toReservationDateInput(reservation.checkIn));
+    setEditCheckOut(toReservationDateInput(reservation.checkOut));
+  }, [editing, reservation.name, reservation.checkIn, reservation.checkOut]);
+
+  // Opening the inline editor removes the invoking button from the DOM.
+  // Move focus into the relevant field, then return it to the same
+  // trigger after Cancel or a successful save.
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      if (editing) {
+        const field =
+          editInitialFocusRef.current === "dates"
+            ? editCheckInInputRef.current
+            : editNameInputRef.current;
+        field?.focus();
+        return;
+      }
+      if (!shouldRestoreEditFocusRef.current) return;
+      shouldRestoreEditFocusRef.current = false;
+      const trigger =
+        editReturnFocusRef.current === "dates"
+          ? editDatesTriggerRef.current
+          : editNameTriggerRef.current;
+      trigger?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [editing]);
 
   useEffect(() => {
     let cancelled = false;
@@ -681,11 +734,95 @@ export function ReservationView({
     checkIn: reservationCheckInDate,
   });
 
-  // Name-only edit. Dates and platform are managed from the calendar
-  // view — editing them here would be a second, conflicting surface.
-  const handleSaveEdit = () => {
-    onUpdateReservation(reservation.id, { name: editName });
+  const beginEditing = (target: "name" | "dates") => {
+    setEditName(reservation.name);
+    setEditCheckIn(toReservationDateInput(reservation.checkIn));
+    setEditCheckOut(toReservationDateInput(reservation.checkOut));
+    setEditError(null);
+    editInitialFocusRef.current = target;
+    editReturnFocusRef.current = target;
+    setEditing(true);
+  };
+
+  const closeEditing = () => {
+    shouldRestoreEditFocusRef.current = true;
     setEditing(false);
+  };
+
+  const cancelEditing = () => {
+    if (editSaving) return;
+    setEditError(null);
+    closeEditing();
+  };
+
+  const editDateRangeError = validateReservationDateRange(editCheckIn, editCheckOut);
+  const editDateRangeMessage = (() => {
+    switch (editDateRangeError) {
+      case "required":
+        return tr("reservation.dateRangeRequired");
+      case "invalid-check-in":
+        return tr("reservation.invalidCheckIn");
+      case "invalid-check-out":
+        return tr("reservation.invalidCheckOut");
+      case "invalid-range":
+        return tr("reservation.invalidDateRange");
+      default:
+        return null;
+    }
+  })();
+
+  const localizeEditError = (message: string) => {
+    if (message === "Overlapping reservation exists") {
+      return tr("reservation.manualOverlap");
+    }
+    if (message === "Overlapping booking from another platform") {
+      return tr("reservation.syncedOverlap");
+    }
+    if (message === "Linked booking relationship cannot be changed") {
+      return tr("reservation.linkedRelationship");
+    }
+    if (message === "checkOut must be after checkIn") {
+      return tr("reservation.invalidDateRange");
+    }
+    if (message === "Invalid checkIn date") {
+      return tr("reservation.invalidCheckIn");
+    }
+    if (message === "Invalid checkOut date") {
+      return tr("reservation.invalidCheckOut");
+    }
+    return tr("reservation.saveFailed");
+  };
+
+  const handleSaveEdit = async () => {
+    if (editDateRangeError || !editName.trim()) return;
+
+    const data: Parameters<typeof onUpdateReservation>[1] = {};
+    const nextName = editName.trim();
+    const currentCheckIn = toReservationDateInput(reservation.checkIn);
+    const currentCheckOut = toReservationDateInput(reservation.checkOut);
+    if (nextName !== reservation.name) data.name = nextName;
+    if (editCheckIn !== currentCheckIn) data.checkIn = editCheckIn;
+    if (editCheckOut !== currentCheckOut) data.checkOut = editCheckOut;
+
+    if (Object.keys(data).length === 0) {
+      closeEditing();
+      return;
+    }
+
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const result = await Promise.resolve(onUpdateReservation(reservation.id, data));
+      if (result && typeof result === "object" && "ok" in result && !result.ok) {
+        setEditError(localizeEditError(result.error));
+        return;
+      }
+      closeEditing();
+    } catch {
+      setEditError(tr("reservation.saveFailed"));
+    } finally {
+      setEditSaving(false);
+    }
   };
 
   const formatDate = (dateStr: string) => {
@@ -749,9 +886,7 @@ export function ReservationView({
   };
 
   const stayNights = () => {
-    const d1 = new Date(reservation.checkIn);
-    const d2 = new Date(reservation.checkOut);
-    return Math.max(0, Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)));
+    return reservationNights(reservation.checkIn, reservation.checkOut);
   };
   const stayDays = () => stayNights() + 1;
 
@@ -762,26 +897,109 @@ export function ReservationView({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           {editing ? (
-            <div className="space-y-3 rounded-xl border border-border/60 bg-card/50 p-4">
-              <input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSaveEdit();
-                  if (e.key === "Escape") setEditing(false);
-                }}
-                autoFocus
-                className="w-full rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-lg font-bold outline-none focus:border-primary/50"
-              />
-              <div className="flex gap-2">
-                <Button size="sm" className="rounded-lg text-xs" onClick={handleSaveEdit}>
-                  Save
+            <form
+              className="space-y-4 rounded-xl border border-border/60 bg-card/50 p-4"
+              aria-busy={editSaving}
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleSaveEdit();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") cancelEditing();
+              }}
+            >
+              <div>
+                <h2 className="text-base font-semibold">{tr("reservation.edit")}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {tr("reservation.editDescription")}
+                </p>
+              </div>
+
+              <label className="block space-y-1.5" htmlFor={`reservation-name-${reservation.id}`}>
+                <span className="text-sm font-medium">{tr("reservation.name")}</span>
+                <input
+                  ref={editNameInputRef}
+                  id={`reservation-name-${reservation.id}`}
+                  value={editName}
+                  onChange={(e) => {
+                    setEditName(e.target.value);
+                    setEditError(null);
+                  }}
+                  required
+                  disabled={editSaving}
+                  className="h-11 w-full rounded-lg border border-border/60 bg-background px-3 text-base font-semibold outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60 sm:text-sm"
+                />
+              </label>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="block min-w-0 space-y-1.5" htmlFor={`reservation-check-in-${reservation.id}`}>
+                  <span className="text-sm font-medium">{tr("reservation.checkIn")}</span>
+                  <input
+                    ref={editCheckInInputRef}
+                    id={`reservation-check-in-${reservation.id}`}
+                    type="date"
+                    value={editCheckIn}
+                    max={editCheckOut || undefined}
+                    onChange={(e) => {
+                      setEditCheckIn(e.target.value);
+                      setEditError(null);
+                    }}
+                    required
+                    disabled={editSaving}
+                    aria-invalid={editDateRangeError === "invalid-check-in" || editDateRangeError === "invalid-range"}
+                    className="h-11 w-full min-w-0 rounded-lg border border-border/60 bg-background px-3 text-base outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60 sm:text-sm"
+                  />
+                </label>
+                <label className="block min-w-0 space-y-1.5" htmlFor={`reservation-check-out-${reservation.id}`}>
+                  <span className="text-sm font-medium">{tr("reservation.checkOut")}</span>
+                  <input
+                    id={`reservation-check-out-${reservation.id}`}
+                    type="date"
+                    value={editCheckOut}
+                    min={editCheckIn || undefined}
+                    onChange={(e) => {
+                      setEditCheckOut(e.target.value);
+                      setEditError(null);
+                    }}
+                    required
+                    disabled={editSaving}
+                    aria-invalid={editDateRangeError === "invalid-check-out" || editDateRangeError === "invalid-range"}
+                    className="h-11 w-full min-w-0 rounded-lg border border-border/60 bg-background px-3 text-base outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60 sm:text-sm"
+                  />
+                </label>
+              </div>
+
+              {reservation.linkedEventUid && (
+                <p className="rounded-lg bg-sky-500/10 px-3 py-2 text-xs leading-relaxed text-sky-700 dark:text-sky-300">
+                  {tr("reservation.syncedDateHint")}
+                </p>
+              )}
+
+              {(editError || editDateRangeMessage) && (
+                <p role="alert" className="text-sm text-destructive">
+                  {editError || editDateRangeMessage}
+                </p>
+              )}
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-11 rounded-lg px-4"
+                  onClick={cancelEditing}
+                  disabled={editSaving}
+                >
+                  {tr("common.cancel")}
                 </Button>
-                <Button variant="ghost" size="sm" className="rounded-lg text-xs" onClick={() => setEditing(false)}>
-                  Cancel
+                <Button
+                  type="submit"
+                  className="h-11 rounded-lg px-4"
+                  disabled={editSaving || !!editDateRangeError || !editName.trim()}
+                >
+                  {editSaving ? tr("reservation.saving") : tr("common.save")}
                 </Button>
               </div>
-            </div>
+            </form>
           ) : (
             <div>
               <div className="flex items-center gap-1.5">
@@ -789,16 +1007,19 @@ export function ReservationView({
                   {reservation.name}
                 </h1>
                 <button
-                  onClick={() => setEditing(true)}
-                  aria-label="Edit reservation"
-                  title="Edit"
-                  className="rounded-md p-1 text-muted-foreground/60 transition-all hover:bg-muted/50 hover:text-foreground"
+                  ref={editNameTriggerRef}
+                  type="button"
+                  onClick={() => beginEditing("name")}
+                  aria-label={tr("reservation.edit")}
+                  title={tr("reservation.edit")}
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
                 >
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                   </svg>
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     if (window.confirm(`Delete reservation "${reservation.name}"? This removes the reservation and any guests / passport docs attached to it. If it was claimed from a synced booking, that synced event is removed too.`)) {
                       onDeleteReservation(reservation.id);
@@ -806,9 +1027,9 @@ export function ReservationView({
                   }}
                   aria-label="Delete reservation"
                   title="Delete reservation"
-                  className="rounded-md p-1 text-muted-foreground/60 transition-all hover:bg-rose-500/10 hover:text-rose-500"
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-rose-500/10 hover:text-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/50"
                 >
-                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                   </svg>
                 </button>
@@ -827,6 +1048,18 @@ export function ReservationView({
                 <Badge variant="outline" className="rounded-md text-xs">
                   {stayNights()} {stayNights() === 1 ? "night" : "nights"} · {stayDays()} {stayDays() === 1 ? "day" : "days"}
                 </Badge>
+                <Button
+                  ref={editDatesTriggerRef}
+                  type="button"
+                  variant="outline"
+                  onClick={() => beginEditing("dates")}
+                  className="h-11 rounded-lg px-3 text-xs"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3.75 8.25h16.5M5.25 4.5h13.5a1.5 1.5 0 011.5 1.5v12.75a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5V6a1.5 1.5 0 011.5-1.5zM14.25 12.75l3-3m-2.25 5.25l-2.25.75.75-2.25 3-3 1.5 1.5-3 3z" />
+                  </svg>
+                  {tr("reservation.editDates")}
+                </Button>
                 {guests.length > 0 && (
                   <Badge variant="secondary" className="rounded-md text-xs">
                     {guests.length} guest{guests.length !== 1 && "s"}
