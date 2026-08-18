@@ -8,7 +8,9 @@ const mocks = vi.hoisted(() => ({
   reservationFindUnique: vi.fn(),
   reservationFindFirst: vi.fn(),
   reservationUpdate: vi.fn(),
+  reservationDelete: vi.fn(),
   calendarEventFindFirst: vi.fn(),
+  calendarEventDelete: vi.fn(),
   dateOverrideDeleteMany: vi.fn(),
 }));
 
@@ -30,9 +32,11 @@ vi.mock("@/lib/prisma", () => ({
       findUnique: mocks.reservationFindUnique,
       findFirst: mocks.reservationFindFirst,
       update: mocks.reservationUpdate,
+      delete: mocks.reservationDelete,
     },
     calendarEvent: {
       findFirst: mocks.calendarEventFindFirst,
+      delete: mocks.calendarEventDelete,
     },
     dateOverride: {
       deleteMany: mocks.dateOverrideDeleteMany,
@@ -40,7 +44,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { PATCH } from "./route";
+import { DELETE, PATCH } from "./route";
 
 const reservationId = 7;
 const propertyId = 12;
@@ -83,6 +87,8 @@ beforeEach(() => {
     ...original,
     ...data,
   }));
+  mocks.reservationDelete.mockResolvedValue(original);
+  mocks.calendarEventDelete.mockResolvedValue({ id: 41 });
   mocks.dateOverrideDeleteMany.mockResolvedValue({ count: 0 });
   mocks.logAudit.mockResolvedValue(undefined);
 });
@@ -210,8 +216,81 @@ describe("PATCH /api/reservations/:id — date edits", () => {
     );
 
     expect(response.status).toBe(200);
-    const syncedWhere = mocks.calendarEventFindFirst.mock.calls[0][0].where;
+    expect(mocks.calendarEventFindFirst).toHaveBeenNthCalledWith(1, {
+      where: {
+        propertyId,
+        platform: "airbnb",
+        startDate: { lt: "2026-08-23" },
+        endDate: { gt: "2026-08-19" },
+      },
+      select: { uid: true, startDate: true, endDate: true },
+    });
+    const syncedWhere = mocks.calendarEventFindFirst.mock.calls[1][0].where;
     expect(syncedWhere).not.toHaveProperty("NOT");
+  });
+
+  it("extends a legacy implicit claim from its unioned calendar edge", async () => {
+    mocks.reservationFindUnique.mockResolvedValue({
+      ...original,
+      linkedEventUid: null,
+      checkOut: new Date("2026-08-25T00:00:00.000Z"),
+    });
+    mocks.calendarEventFindFirst
+      .mockResolvedValueOnce({
+        uid: sourceEventUid,
+        startDate: "2026-08-19",
+        endDate: "2026-08-23",
+      })
+      .mockResolvedValueOnce(null);
+
+    const response = await PATCH(
+      patchRequest({ checkOut: "2026-08-26" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.calendarEventFindFirst).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: expect.objectContaining({
+          NOT: { platform: "airbnb", uid: sourceEventUid },
+        }),
+      }),
+    );
+    expect(mocks.reservationUpdate).toHaveBeenCalledWith({
+      where: { id: reservationId },
+      data: { checkOut: new Date("2026-08-26T00:00:00.000Z") },
+    });
+  });
+
+  it("allows an unlinked legacy row to move away from its inferred source", async () => {
+    mocks.reservationFindUnique.mockResolvedValue({
+      ...original,
+      linkedEventUid: null,
+    });
+    mocks.calendarEventFindFirst
+      .mockResolvedValueOnce({
+        uid: sourceEventUid,
+        startDate: "2026-08-19",
+        endDate: "2026-08-23",
+      })
+      .mockResolvedValueOnce(null);
+
+    const response = await PATCH(
+      patchRequest({ checkIn: "2026-08-26", checkOut: "2026-08-28" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    const syncedWhere = mocks.calendarEventFindFirst.mock.calls[1][0].where;
+    expect(syncedWhere).not.toHaveProperty("NOT");
+    expect(mocks.reservationUpdate).toHaveBeenCalledWith({
+      where: { id: reservationId },
+      data: {
+        checkIn: new Date("2026-08-26T00:00:00.000Z"),
+        checkOut: new Date("2026-08-28T00:00:00.000Z"),
+      },
+    });
   });
 
   it("does not let an adjacent manual extension become a claimed source booking", async () => {
@@ -355,5 +434,35 @@ describe("PATCH /api/reservations/:id — date edits", () => {
       reservationId,
       { checkIn: new Date("2026-08-18T00:00:00.000Z") },
     );
+  });
+});
+
+describe("DELETE /api/reservations/:id — linked calendar source", () => {
+  it("looks up and deletes only the exact property/platform/UID source", async () => {
+    mocks.calendarEventFindFirst.mockResolvedValue({
+      id: 41,
+      startDate: "2026-08-19",
+      endDate: "2026-08-23",
+    });
+
+    const response = await DELETE(
+      new NextRequest(`http://localhost/api/reservations/${reservationId}`, {
+        method: "DELETE",
+      }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.calendarEventFindFirst).toHaveBeenCalledWith({
+      where: {
+        propertyId,
+        platform: "airbnb",
+        uid: sourceEventUid,
+      },
+      select: { id: true, startDate: true, endDate: true },
+    });
+    expect(mocks.calendarEventDelete).toHaveBeenCalledWith({
+      where: { id: 41 },
+    });
   });
 });

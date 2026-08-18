@@ -188,7 +188,7 @@ export const translations = {
   "dateActions.addCleaning": { en: "Schedule cleaning here", ru: "Назначить уборку", de: "Reinigung hier einplanen", fr: "Planifier un ménage ici", es: "Programar limpieza aquí" },
   "dateActions.removeCleaning": { en: "Remove cleaning", ru: "Убрать уборку", de: "Reinigung entfernen", fr: "Retirer le ménage", es: "Quitar limpieza" },
   "dateActions.removeOverride": { en: "Remove override", ru: "Отменить переопределение", de: "Override aufheben", fr: "Retirer le forçage", es: "Retirar override" },
-  "dateActions.extendBooking": { en: "Extend booking", ru: "Продлить бронирование", de: "Buchung verlängern", fr: "Prolonger la réservation", es: "Ampliar reserva" },
+  "dateActions.extendBooking": { en: "Extend reservation", ru: "Продлить бронь", de: "Buchung verlängern", fr: "Prolonger la réservation", es: "Ampliar reserva" },
   "dateActions.extendDesc": { en: "Add as direct-pay day linked to:", ru: "Добавить как день прямой оплаты к:", de: "Als Direktzahlungstag hinzufügen, verknüpft mit:", fr: "Ajouter comme jour en paiement direct, rattaché à :", es: "Añadir como día de pago directo, vinculado a:" },
   "dateActions.extensionAdded": { en: "Extension", ru: "Расширение", de: "Verlängerung", fr: "Prolongation", es: "Ampliación" },
   "dateActions.cantModifyBooked": { en: "Real bookings cannot be modified", ru: "Реальные бронирования изменить нельзя", de: "Echte Buchungen lassen sich nicht ändern", fr: "Les réservations réelles ne peuvent pas être modifiées", es: "Las reservas reales no se pueden modificar" },

@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { canManageProperty, listAccessiblePropertyIds } from "@/lib/ownership";
+import { normalizePlatformSlug } from "@/lib/platforms";
+import { parseReservationDate } from "@/lib/reservation-dates";
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,20 +34,28 @@ export async function POST(request: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { name, checkIn, checkOut, platform, propertyId, linkedEventUid } = await request.json();
-    if (!name?.trim() || !checkIn || !checkOut || !propertyId) {
-      return NextResponse.json({ error: "All fields required" }, { status: 400 });
+    if (
+      typeof name !== "string" ||
+      !name.trim() ||
+      typeof checkIn !== "string" ||
+      typeof checkOut !== "string" ||
+      !Number.isInteger(propertyId) ||
+      propertyId <= 0 ||
+      (platform !== undefined && typeof platform !== "string")
+    ) {
+      return NextResponse.json({ error: "Invalid reservation data" }, { status: 400 });
     }
 
     if (!(await canManageProperty(propertyId, session.userId, session.role))) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
-    const checkInDate = new Date(checkIn);
-    const checkOutDate = new Date(checkOut);
-    if (isNaN(checkInDate.getTime())) {
+    const checkInDate = parseReservationDate(checkIn);
+    const checkOutDate = parseReservationDate(checkOut);
+    if (!checkInDate) {
       return NextResponse.json({ error: "Invalid checkIn date" }, { status: 400 });
     }
-    if (isNaN(checkOutDate.getTime())) {
+    if (!checkOutDate) {
       return NextResponse.json({ error: "Invalid checkOut date" }, { status: 400 });
     }
     if (checkOutDate <= checkInDate) {
@@ -88,18 +98,75 @@ export async function POST(request: NextRequest) {
     // EXCEPT when the new reservation IS a claim of one specific iCal
     // event (linkedEventUid in the request body). The bar-claim flow
     // POSTs with the same dates as the iCal event being named, so the
-    // event would always match its own overlap check and 409. Excluding
-    // the linked event by uid lets the claim succeed while still
-    // catching genuine double-bookings against OTHER overlapping
-    // events.
+    // event would always match its own overlap check and 409. A UID is
+    // only unique within a property's platform feed, so validate and
+    // exclude the exact (property, platform, uid) source. Another
+    // platform can legitimately emit the same UID and must still be
+    // treated as a conflicting booking.
+    const hasLinkedSource =
+      linkedEventUid !== undefined &&
+      linkedEventUid !== null &&
+      linkedEventUid !== "";
     const startDateStr = checkInDate.toISOString().substring(0, 10);
     const endDateStr = checkOutDate.toISOString().substring(0, 10);
+    let reservationPlatform = platform || "airbnb";
+    let sourceIdentity: { platform: string; uid: string } | null = null;
+
+    if (hasLinkedSource) {
+      if (typeof platform !== "string" || typeof linkedEventUid !== "string") {
+        return NextResponse.json(
+          { error: "Invalid linked calendar event" },
+          { status: 400 },
+        );
+      }
+
+      const normalizedPlatform = normalizePlatformSlug(platform);
+      const normalizedUid = linkedEventUid.trim();
+      if (!normalizedPlatform || !normalizedUid) {
+        return NextResponse.json(
+          { error: "Invalid linked calendar event" },
+          { status: 400 },
+        );
+      }
+
+      const linkedSource = await prisma.calendarEvent.findFirst({
+        where: {
+          propertyId,
+          platform: normalizedPlatform,
+          uid: normalizedUid,
+        },
+        select: { id: true, startDate: true, endDate: true },
+      });
+      if (!linkedSource) {
+        return NextResponse.json(
+          { error: "Linked calendar event not found" },
+          { status: 409 },
+        );
+      }
+
+      const overlapsSource =
+        linkedSource.startDate < endDateStr &&
+        linkedSource.endDate > startDateStr;
+      const abutsSource =
+        endDateStr === linkedSource.startDate ||
+        startDateStr === linkedSource.endDate;
+      if (!overlapsSource && !abutsSource) {
+        return NextResponse.json(
+          { error: "Linked booking relationship cannot be changed" },
+          { status: 409 },
+        );
+      }
+
+      reservationPlatform = normalizedPlatform;
+      sourceIdentity = { platform: normalizedPlatform, uid: normalizedUid };
+    }
+
     const syncedOverlap = await prisma.calendarEvent.findFirst({
       where: {
         propertyId,
         startDate: { lt: endDateStr },
         endDate: { gt: startDateStr },
-        ...(linkedEventUid ? { uid: { not: linkedEventUid } } : {}),
+        ...(sourceIdentity ? { NOT: sourceIdentity } : {}),
       },
       select: { summary: true, platform: true, startDate: true, endDate: true },
     });
@@ -123,8 +190,8 @@ export async function POST(request: NextRequest) {
         name: name.trim(),
         checkIn: checkInDate,
         checkOut: checkOutDate,
-        platform: platform || "airbnb",
-        linkedEventUid: linkedEventUid || null,
+        platform: reservationPlatform,
+        linkedEventUid: sourceIdentity?.uid || null,
         propertyId,
       },
     });

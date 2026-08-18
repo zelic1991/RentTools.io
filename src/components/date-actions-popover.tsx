@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { StayPlan } from "@/components/calendar/stay-plan";
+import { getExtendedStayRange } from "@/components/calendar/extendable-bookings";
 import { useI18n } from "@/lib/i18n/context";
 import type { Locale } from "@/lib/i18n/translations";
 
@@ -67,10 +68,11 @@ interface CopyShape {
   checkInLabel: string;
   checkOutLabel: string;
   nightsParenthetical: (count: number) => string;
-  linkToBooking: string;
+  newStayLabel: string;
+  extendingBooking: string;
+  linkedSourceMissing: string;
   beforeCheckIn: string;
   afterCheckOut: string;
-  stayLabel: string;
   addNights: (nights: number, side: string) => string;
   cancel: string;
   saving: string;
@@ -141,10 +143,11 @@ const COPY: Record<Locale, CopyShape> = {
     checkInLabel: "Check-in:",
     checkOutLabel: "Check-out:",
     nightsParenthetical: (count) => `(${count} ${count === 1 ? "night" : "nights"})`,
-    linkToBooking: "Link to an existing booking",
+    newStayLabel: "New stay",
+    extendingBooking: "Extending…",
+    linkedSourceMissing: "This synced booking changed or disappeared. Refresh the calendar and try again.",
     beforeCheckIn: "before check-in",
     afterCheckOut: "after check-out",
-    stayLabel: "Stay",
     addNights: (nights, side) =>
       `Add ${nights} ${nights === 1 ? "night" : "nights"} ${side}`,
     cancel: "Cancel",
@@ -209,10 +212,11 @@ const COPY: Record<Locale, CopyShape> = {
     checkInLabel: "Заезд:",
     checkOutLabel: "Выезд:",
     nightsParenthetical: (count) => `(${count} ${count === 1 ? "ночь" : "ночей"})`,
-    linkToBooking: "Привязать к существующей броне",
+    newStayLabel: "Новые даты",
+    extendingBooking: "Продлеваю…",
+    linkedSourceMissing: "Синхронизированная бронь изменилась или исчезла. Обновите календарь и попробуйте снова.",
     beforeCheckIn: "перед заездом",
     afterCheckOut: "после выезда",
-    stayLabel: "Бронь",
     addNights: (nights, side) =>
       `Добавить ${nights} ${nights === 1 ? "ночь" : "ночей"} ${side}`,
     cancel: "Отмена",
@@ -277,10 +281,11 @@ const COPY: Record<Locale, CopyShape> = {
     checkInLabel: "Check-in:",
     checkOutLabel: "Check-out:",
     nightsParenthetical: (count) => `(${count} ${count === 1 ? "Nacht" : "Nächte"})`,
-    linkToBooking: "Mit bestehender Buchung verknüpfen",
+    newStayLabel: "Neuer Aufenthalt",
+    extendingBooking: "Wird verlängert…",
+    linkedSourceMissing: "Die synchronisierte Buchung wurde geändert oder entfernt. Aktualisieren Sie den Kalender und versuchen Sie es erneut.",
     beforeCheckIn: "vor Check-in",
     afterCheckOut: "nach Check-out",
-    stayLabel: "Aufenthalt",
     addNights: (nights, side) =>
       `${nights} ${nights === 1 ? "Nacht" : "Nächte"} ${side} hinzufügen`,
     cancel: "Abbrechen",
@@ -345,10 +350,11 @@ const COPY: Record<Locale, CopyShape> = {
     checkInLabel: "Arrivée :",
     checkOutLabel: "Départ :",
     nightsParenthetical: (count) => `(${count} ${count === 1 ? "nuit" : "nuits"})`,
-    linkToBooking: "Rattacher à une réservation existante",
+    newStayLabel: "Nouveau séjour",
+    extendingBooking: "Prolongation…",
+    linkedSourceMissing: "La réservation synchronisée a changé ou disparu. Actualisez le calendrier et réessayez.",
     beforeCheckIn: "avant l’arrivée",
     afterCheckOut: "après le départ",
-    stayLabel: "Séjour",
     addNights: (nights, side) =>
       `Ajouter ${nights} ${nights === 1 ? "nuit" : "nuits"} ${side}`,
     cancel: "Annuler",
@@ -413,10 +419,11 @@ const COPY: Record<Locale, CopyShape> = {
     checkInLabel: "Entrada:",
     checkOutLabel: "Salida:",
     nightsParenthetical: (count) => `(${count} ${count === 1 ? "noche" : "noches"})`,
-    linkToBooking: "Vincular a una reserva existente",
+    newStayLabel: "Nueva estancia",
+    extendingBooking: "Ampliando…",
+    linkedSourceMissing: "La reserva sincronizada cambió o desapareció. Actualice el calendario e inténtelo de nuevo.",
     beforeCheckIn: "antes de la entrada",
     afterCheckOut: "después de la salida",
-    stayLabel: "Estancia",
     addNights: (nights, side) =>
       `Añadir ${nights} ${nights === 1 ? "noche" : "noches"} ${side}`,
     cancel: "Cancelar",
@@ -477,6 +484,10 @@ export interface ExtendableBooking {
   side: "before" | "after";
 }
 
+export type ExtendBookingResult =
+  | { ok: true }
+  | { ok: false; error?: string };
+
 interface BulkCounts {
   booked: number;
   openOverride: number;
@@ -519,7 +530,7 @@ interface DateActionsPanelProps {
   onOpenDate: () => void;
   onScheduleCleaning: () => void;
   onRemoveOverride: () => void;
-  onExtendBooking: (booking: ExtendableBooking) => void;
+  onExtendBooking: (booking: ExtendableBooking) => Promise<ExtendBookingResult>;
   onCreateReservation: (data: { name: string; platform: string; checkOut: string }) => void;
   /** Shrink an existing manual reservation by setting its checkOut to
    *  `newCheckOut` (YYYY-MM-DD). Surfaced when the host clicks one date
@@ -568,10 +579,13 @@ export function DateActionsPopover({
   const { t, locale } = useI18n();
   const c = COPY[locale];
   const popRef = useRef<HTMLDivElement>(null);
+  const extendingRef = useRef(false);
   const [creating, setCreating] = useState(false);
   const [resName, setResName] = useState("");
   const [resPlatform, setResPlatform] = useState<string>("airbnb");
   const [submitting, setSubmitting] = useState(false);
+  const [extendingKey, setExtendingKey] = useState<string | null>(null);
+  const [extendError, setExtendError] = useState<string | null>(null);
 
   // Reset the create-reservation form whenever the selection changes
   // (e.g. user added another date). Otherwise typed name would carry
@@ -581,7 +595,45 @@ export function DateActionsPopover({
     setResName("");
     setResPlatform("airbnb");
     setSubmitting(false);
+    if (!extendingRef.current) setExtendingKey(null);
+    setExtendError(null);
   }, [selectedDates.join(",")]);
+
+  const localizeExtendError = (error?: string) => {
+    if (error === "Overlapping reservation exists") {
+      return t("reservation.manualOverlap");
+    }
+    if (error === "Overlapping booking from another platform") {
+      return t("reservation.syncedOverlap");
+    }
+    if (error === "Linked booking relationship cannot be changed") {
+      return t("reservation.linkedRelationship");
+    }
+    if (
+      error === "Linked calendar event not found" ||
+      error === "Invalid linked calendar event"
+    ) {
+      return c.linkedSourceMissing;
+    }
+    return t("reservation.saveFailed");
+  };
+
+  const submitExtension = async (booking: ExtendableBooking, index: number) => {
+    if (extendingRef.current) return;
+    extendingRef.current = true;
+    const key = `${booking.platform}-${booking.reservationId ?? booking.eventUid ?? index}-${booking.side}`;
+    setExtendingKey(key);
+    setExtendError(null);
+    try {
+      const result = await onExtendBooking(booking);
+      if (!result.ok) setExtendError(localizeExtendError(result.error));
+    } catch {
+      setExtendError(t("reservation.saveFailed"));
+    } finally {
+      extendingRef.current = false;
+      setExtendingKey(null);
+    }
+  };
 
   // Use the contiguous-range flag passed in by the wrapper (shared
   // with the extendable computation so they stay consistent).
@@ -951,8 +1003,10 @@ export function DateActionsPopover({
       actions.map((a) => (
         <button
           key={a.kind + a.label}
+          type="button"
           onClick={a.onClick}
-          className={`w-full flex items-start gap-2.5 rounded-md px-3 py-2.5 text-left transition-colors ${a.tone === "primary" ? "" : "text-[var(--ink)]"} ${toneClass(a.tone)}`}
+          disabled={!!extendingKey}
+          className={`w-full flex items-start gap-2.5 rounded-md px-3 py-2.5 text-left transition-colors disabled:cursor-wait disabled:opacity-50 ${a.tone === "primary" ? "" : "text-[var(--ink)]"} ${toneClass(a.tone)}`}
         >
           <span className={`mt-0.5 shrink-0 ${a.tone === "primary" ? "text-white" : ""}`}>{iconFor(a.kind)}</span>
           <span className="flex-1 min-w-0">
@@ -1030,9 +1084,11 @@ export function DateActionsPopover({
           )}
         </div>
         <button
+          type="button"
           onClick={onClose}
+          disabled={!!extendingKey}
           aria-label={c.close}
-          className="shrink-0 rounded-full p-1.5 text-[var(--ink-3)] hover:bg-[var(--bg-3)] hover:text-[var(--ink)] transition-colors"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[var(--ink-3)] transition-colors hover:bg-[var(--bg-3)] hover:text-[var(--ink)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-accent)] disabled:cursor-wait disabled:opacity-50"
         >
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1107,8 +1163,10 @@ export function DateActionsPopover({
               {selectedDates.map((d) => (
                 <button
                   key={d}
+                  type="button"
                   onClick={() => onToggleDate(d)}
-                  className="group inline-flex items-center gap-1 rounded-full border border-[var(--m-accent)]/30 bg-[var(--m-accent)]/10 px-2 py-1 text-[11px] font-medium text-[var(--m-accent)] hover:bg-[var(--m-accent)]/20 transition-colors"
+                  disabled={!!extendingKey}
+                  className="group inline-flex items-center gap-1 rounded-full border border-[var(--m-accent)]/30 bg-[var(--m-accent)]/10 px-2 py-1 text-[11px] font-medium text-[var(--m-accent)] hover:bg-[var(--m-accent)]/20 transition-colors disabled:cursor-wait disabled:opacity-50"
                   title={c.removeFromSelection}
                 >
                   {formatShort(d)}
@@ -1192,28 +1250,40 @@ export function DateActionsPopover({
         ) : (
           /* Action list */
           <div className="px-2.5 py-2.5">
-            {singleDate ? renderActionsList(singleActions) : renderActionsList(bulkActions)}
-
             {/* Extend booking — works for single-date OR multi-date
-                contiguous selection. Each card shows the platform
-                pill, the guest name, the original stay window and a
-                "Extend by N nights" CTA so the host knows exactly
-                what they're appending to before clicking. */}
+                contiguous selection. It is deliberately the FIRST
+                action: choosing a free checkout / pre-arrival night
+                is the strongest signal that the host wants to extend
+                the adjacent stay, while Create / Block / Cleaning
+                remain available immediately below it. */}
             {extendable.length > 0 && bulkCounts.booked === 0 && isContiguous && (
-              <div className="mt-2 border-t border-[var(--line)] pt-2 px-1.5">
-                <div className="px-1.5 py-1.5 text-[11px] uppercase tracking-wide text-[var(--ink-4)]">
-                  {c.linkToBooking}
+              <div className="mb-3 rounded-xl border border-[var(--m-accent)]/25 bg-[var(--m-accent)]/5 p-2">
+                <div className="flex items-center gap-2 px-1.5 pb-2 pt-0.5 text-[11px] font-semibold uppercase tracking-wide text-[var(--m-accent)]">
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m6-6H6" />
+                  </svg>
+                  {t("dateActions.extendBooking")}
                 </div>
                 {extendable.map((b, i) => {
                   const platformColor = b.platform === "booking" ? "#003580" : "#ff385c";
                   const platformLabel = b.platform === "booking" ? "Booking" : b.platform === "airbnb" ? "Airbnb" : b.platform;
                   const nights = selectedDates.length;
                   const sideLabel = b.side === "before" ? c.beforeCheckIn : c.afterCheckOut;
+                  const key = `${b.platform}-${b.reservationId ?? b.eventUid ?? i}-${b.side}`;
+                  const isExtending = extendingKey === key;
+                  const extendedStay = getExtendedStayRange(
+                    selectedDates[0],
+                    selectedDates[selectedDates.length - 1],
+                    b,
+                  );
                   return (
                     <button
-                      key={i}
-                      onClick={() => onExtendBooking(b)}
-                      className="w-full mb-1.5 last:mb-0 rounded-lg border border-[var(--line-2)] bg-[var(--bg-2)] px-3 py-2.5 text-left transition-colors hover:bg-[var(--bg-3)]"
+                      key={key}
+                      type="button"
+                      onClick={() => submitExtension(b, i)}
+                      disabled={!!extendingKey}
+                      aria-busy={isExtending}
+                      className="mb-1.5 min-h-11 w-full rounded-lg border border-[var(--m-accent)]/25 bg-[var(--bg-2)] px-3 py-2.5 text-left transition-colors last:mb-0 hover:border-[var(--m-accent)]/45 hover:bg-[var(--m-accent)]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--m-accent)] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
                     >
                       <div className="flex items-center gap-2">
                         <span
@@ -1223,21 +1293,38 @@ export function DateActionsPopover({
                           {platformLabel}
                         </span>
                         <span className="flex-1 min-w-0 truncate text-sm font-medium text-[var(--ink)]">{b.name}</span>
-                        <svg className="h-3.5 w-3.5 shrink-0 text-[var(--ink-4)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d={b.side === "before" ? "M8.25 4.5l7.5 7.5-7.5 7.5" : "M15.75 19.5L8.25 12l7.5-7.5"} />
-                        </svg>
-                      </div>
-                      <div className="mt-1 text-[11px] text-[var(--ink-3)]">
-                        {c.stayLabel}: <span className="text-[var(--ink-2)]">{formatShort(b.bookingStart)} → {formatShort(b.bookingEnd)}</span>
+                        {isExtending ? (
+                          <svg className="h-4 w-4 shrink-0 animate-spin text-[var(--m-accent)]" viewBox="0 0 24 24" fill="none">
+                            <circle className="opacity-25" cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" />
+                            <path className="opacity-90" d="M21 12a9 9 0 00-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                          </svg>
+                        ) : (
+                          <svg className="h-3.5 w-3.5 shrink-0 text-[var(--m-accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d={b.side === "before" ? "M8.25 4.5l7.5 7.5-7.5 7.5" : "M15.75 19.5L8.25 12l7.5-7.5"} />
+                          </svg>
+                        )}
                       </div>
                       <div className="mt-0.5 text-[11px] font-medium text-[var(--m-accent)]">
-                        {c.addNights(nights, sideLabel)}
+                        {isExtending ? c.extendingBooking : c.addNights(nights, sideLabel)}
+                      </div>
+                      <div className="mt-1 text-[11px] leading-snug text-[var(--ink-3)]">
+                        {c.newStayLabel}: <span className="font-medium text-[var(--ink-2)]">{formatShort(extendedStay.checkIn)} → {formatShort(extendedStay.checkOut)}</span>
                       </div>
                     </button>
                   );
                 })}
+                {extendError && (
+                  <div
+                    role="alert"
+                    className="mx-1.5 mt-2 rounded-md bg-rose-500/10 px-2.5 py-2 text-xs leading-snug text-rose-600 dark:text-rose-400"
+                  >
+                    {extendError}
+                  </div>
+                )}
               </div>
             )}
+
+            {singleDate ? renderActionsList(singleActions) : renderActionsList(bulkActions)}
           </div>
         )}
       </div>

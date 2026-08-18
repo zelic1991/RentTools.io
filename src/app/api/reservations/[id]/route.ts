@@ -171,6 +171,9 @@ export async function PATCH(
         // another platform.
         const newStartStr = newCheckIn.toISOString().substring(0, 10);
         const newEndStr = newCheckOut.toISOString().substring(0, 10);
+        const currentStartStr = current.checkIn.toISOString().substring(0, 10);
+        const currentEndStr = current.checkOut.toISOString().substring(0, 10);
+        let sourceIdentity: { platform: string; uid: string } | null = null;
 
         // linkedEventUid is used for both a claimed source booking
         // (the ranges overlap) and a manual extension (they do not).
@@ -188,8 +191,10 @@ export async function PATCH(
             select: { startDate: true, endDate: true },
           });
           if (linkedSource) {
-            const currentStartStr = current.checkIn.toISOString().substring(0, 10);
-            const currentEndStr = current.checkOut.toISOString().substring(0, 10);
+            sourceIdentity = {
+              platform: owned.platform,
+              uid: owned.linkedEventUid,
+            };
             const currentlyOverlapsSource =
               linkedSource.startDate < currentEndStr &&
               linkedSource.endDate > currentStartStr;
@@ -209,6 +214,38 @@ export async function PATCH(
               );
             }
           }
+        } else {
+          // Older data can contain a locally named Reservation that
+          // overlaps an iCal row without linkedEventUid. The calendar
+          // already renders those as one unioned stay. Recognize that
+          // implicit claim while editing so extending the visible bar
+          // does not conflict with its own source event. The updated
+          // range must continue to overlap the source; every other event
+          // is still checked below.
+          const implicitSource = await prisma.calendarEvent.findFirst({
+            where: {
+              propertyId: current.propertyId,
+              platform: owned.platform,
+              startDate: { lt: currentEndStr },
+              endDate: { gt: currentStartStr },
+            },
+            select: { uid: true, startDate: true, endDate: true },
+          });
+          if (implicitSource) {
+            const nextOverlapsSource =
+              implicitSource.startDate < newEndStr &&
+              implicitSource.endDate > newStartStr;
+            // Unlike an explicit linked claim, this legacy association
+            // is only inferred. If the host moves the manual row away,
+            // let it become independent again; the normal new-range
+            // overlap query below will still reject any real conflict.
+            if (nextOverlapsSource) {
+              sourceIdentity = {
+                platform: owned.platform,
+                uid: implicitSource.uid,
+              };
+            }
+          }
         }
 
         const syncedOverlap = await prisma.calendarEvent.findFirst({
@@ -223,14 +260,7 @@ export async function PATCH(
             // that the source feed truncated. Do not let that source
             // event conflict with its own local reservation; every
             // other synced event must still block the edit.
-            ...(owned.linkedEventUid
-              ? {
-                  NOT: {
-                    platform: owned.platform,
-                    uid: owned.linkedEventUid,
-                  },
-                }
-              : {}),
+            ...(sourceIdentity ? { NOT: sourceIdentity } : {}),
           },
           select: { summary: true, platform: true, startDate: true, endDate: true },
         });
@@ -318,7 +348,11 @@ export async function DELETE(
     // booking is left intact.
     if (owned.linkedEventUid) {
       const linked = await prisma.calendarEvent.findFirst({
-        where: { propertyId: owned.propertyId, uid: owned.linkedEventUid },
+        where: {
+          propertyId: owned.propertyId,
+          platform: owned.platform,
+          uid: owned.linkedEventUid,
+        },
         select: { id: true, startDate: true, endDate: true },
       });
       if (linked) {

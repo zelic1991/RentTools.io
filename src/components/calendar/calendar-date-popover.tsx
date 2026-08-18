@@ -1,7 +1,12 @@
 "use client";
 
 import type { Property } from "@/lib/types";
-import { DateActionsPopover, type DateBarInfo, type ExtendableBooking } from "@/components/date-actions-popover";
+import {
+  DateActionsPopover,
+  type DateBarInfo,
+  type ExtendableBooking,
+  type ExtendBookingResult,
+} from "@/components/date-actions-popover";
 import { getExtendableBookings } from "./extendable-bookings";
 import { planStay } from "./stay-plan";
 import { addDaysStr } from "./utils";
@@ -31,7 +36,11 @@ interface CalendarDatePopoverProps {
   onRemoveSingleOverride: (dateStr: string) => void;
   onSetBulkOverride: (type: "open" | "closed" | "cleaning") => void;
   onRemoveBulkOverride: () => void;
-  onExtendBooking: (rangeStart: string, rangeEnd: string, b: ExtendableBooking) => void;
+  onExtendBooking: (
+    rangeStart: string,
+    rangeEnd: string,
+    b: ExtendableBooking,
+  ) => Promise<ExtendBookingResult>;
   onCreateReservation: (data: { name: string; platform: string; checkOut: string }) => void;
   /** Trim a manual reservation's checkOut. Wired to PATCH
    *  /api/reservations/:id by the parent. */
@@ -215,8 +224,8 @@ export function CalendarDatePopover({
       }
       onExtendBooking={(b) =>
         // For multi-day, use the full selected range. For single
-        // date, this collapses to (date, date+1) — same 1-night
-        // extension as before.
+        // date both bounds are that selected night; the handler turns
+        // the inclusive last night into checkout by adding one day.
         onExtendBooking(sortedDates[0], sortedDates[sortedDates.length - 1], b)
       }
       onCreateReservation={onCreateReservation}

@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Property } from "@/lib/types";
-import type { ExtendableBooking } from "@/components/date-actions-popover";
+import type {
+  ExtendableBooking,
+  ExtendBookingResult,
+} from "@/components/date-actions-popover";
 import { CalendarGrid } from "@/components/calendar/calendar-grid";
 import { CalendarDatePopover } from "@/components/calendar/calendar-date-popover";
 import { BarClaimPopover, type ClaimableBar } from "@/components/calendar/bar-claim-popover";
@@ -10,6 +13,7 @@ import { ConflictBanner } from "@/components/calendar/conflict-banner";
 import { useCalendarFetch, SYNC_COOLDOWN_MS } from "@/components/calendar/use-calendar-fetch";
 import { useCalendarData } from "@/components/calendar/use-calendar-data";
 import { addDaysStr } from "@/components/calendar/utils";
+import { buildManualExtensionPatch } from "@/components/calendar/extendable-bookings";
 import { EmptyState } from "@/components/empty-state";
 import { PropertySwitcher } from "@/components/property-switcher";
 import { useI18n } from "@/lib/i18n/context";
@@ -133,6 +137,7 @@ export function PropertyCalendar({
   const { locale, t } = useI18n();
   const c = COPY[locale];
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
+  const extensionRequestPendingRef = useRef(false);
   const [claimBar, setClaimBar] = useState<ClaimableBar | null>(null);
   const [claimAnchor, setClaimAnchor] = useState<DOMRect | null>(null);
 
@@ -311,6 +316,7 @@ export function PropertyCalendar({
 
   // Selection helpers ----------------------------------------------
   const toggleDate = (dateStr: string) => {
+    if (extensionRequestPendingRef.current) return;
     setSelectedDates((prev) => {
       const next = new Set(prev);
       if (next.has(dateStr)) next.delete(dateStr);
@@ -322,7 +328,11 @@ export function PropertyCalendar({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && selectedDates.size > 0) {
+      if (
+        e.key === "Escape" &&
+        selectedDates.size > 0 &&
+        !extensionRequestPendingRef.current
+      ) {
         clearSelection();
       }
     };
@@ -398,7 +408,11 @@ export function PropertyCalendar({
     clearSelection();
   };
 
-  const extendBooking = async (rangeStart: string, rangeEnd: string, booking: ExtendableBooking) => {
+  const extendBooking = async (
+    rangeStart: string,
+    rangeEnd: string,
+    booking: ExtendableBooking,
+  ): Promise<ExtendBookingResult> => {
     // Two flavours of "extend":
     //
     //   1. Manual reservation (booking.reservationId is set, no
@@ -417,42 +431,52 @@ export function PropertyCalendar({
     //      uids, drops the gap between the two bars, and the host
     //      sees one continuous stay even though there are two rows
     //      under the hood.
-    if (booking.reservationId) {
-      const patchBody = booking.side === "before"
-        ? { checkIn: rangeStart }
-        : { checkOut: rangeEnd };
-      const res = await fetch(`/api/reservations/${booking.reservationId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patchBody),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({} as { error?: string }));
-        window.alert(data?.error || "Couldn't extend reservation");
-        return;
+    if (extensionRequestPendingRef.current) return { ok: false };
+    extensionRequestPendingRef.current = true;
+    try {
+      if (booking.reservationId) {
+        const res = await fetch(`/api/reservations/${booking.reservationId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            buildManualExtensionPatch(rangeStart, rangeEnd, booking),
+          ),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({} as { error?: string }));
+          return { ok: false, error: data?.error };
+        }
+      } else {
+        // For a contiguous selection covering N nights, the extension
+        // reservation runs from the first selected date to the last + 1
+        // day. linkedEventUid points at the iCal event so the calendar
+        // pairs them as one continuous stay.
+        const res = await fetch(`/api/reservations`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: booking.name,
+            checkIn: rangeStart,
+            checkOut: addDaysStr(rangeEnd, 1),
+            platform: booking.platform,
+            propertyId: property.id,
+            linkedEventUid: booking.eventUid,
+          }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({} as { error?: string }));
+          return { ok: false, error: data?.error };
+        }
       }
+
       clearSelection();
       window.location.reload();
-      return;
+      return { ok: true };
+    } catch {
+      return { ok: false };
+    } finally {
+      extensionRequestPendingRef.current = false;
     }
-    // For a contiguous selection covering N nights, the extension
-    // reservation runs from the first selected date to the last + 1
-    // day. linkedEventUid points at the iCal event so the calendar
-    // pairs them as one continuous stay.
-    await fetch(`/api/reservations`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: booking.name,
-        checkIn: rangeStart,
-        checkOut: addDaysStr(rangeEnd, 1),
-        platform: booking.platform,
-        propertyId: property.id,
-        linkedEventUid: booking.eventUid,
-      }),
-    });
-    clearSelection();
-    window.location.reload();
   };
 
   const closeClaim = () => {

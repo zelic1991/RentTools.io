@@ -261,7 +261,11 @@ export async function syncAllCalendars(opts?: {
 
               if (candidateReissue) {
                 const migrated = await prisma.reservation.updateMany({
-                  where: { propertyId, linkedEventUid: ev.uid },
+                  where: {
+                    propertyId,
+                    platform: link.platform,
+                    linkedEventUid: ev.uid,
+                  },
                   data: { linkedEventUid: candidateReissue.uid },
                 });
                 migratedReservations += migrated.count;
@@ -275,6 +279,7 @@ export async function syncAllCalendars(opts?: {
                 const unlinked = await prisma.reservation.updateMany({
                   where: {
                     propertyId,
+                    platform: link.platform,
                     linkedEventUid: ev.uid,
                     checkIn: { lt: new Date(ev.endDate) },
                     checkOut: { gt: new Date(ev.startDate) },
@@ -351,24 +356,39 @@ export async function syncAllCalendars(opts?: {
           propertyId,
           linkedEventUid: { not: null },
         },
-        select: { id: true, linkedEventUid: true },
+        select: { id: true, platform: true, linkedEventUid: true },
       });
 
       if (claimedReservations.length > 0) {
-        const linkedUids = [
-          ...new Set(claimedReservations.map((r) => r.linkedEventUid!)),
+        const linkedPairs = [
+          ...new Map(
+            claimedReservations.map((reservation) => [
+              `${reservation.platform}\u0000${reservation.linkedEventUid}`,
+              {
+                platform: reservation.platform,
+                uid: reservation.linkedEventUid!,
+              },
+            ]),
+          ).values(),
         ];
         const existingEvents = await prisma.calendarEvent.findMany({
           where: {
             propertyId,
-            uid: { in: linkedUids },
+            OR: linkedPairs,
           },
-          select: { uid: true },
+          select: { platform: true, uid: true },
         });
-        const existingUidSet = new Set(existingEvents.map((e) => e.uid));
+        const existingSourceSet = new Set(
+          existingEvents.map((event) => `${event.platform}\u0000${event.uid}`),
+        );
         const orphanIds = claimedReservations
-          .filter((r) => !existingUidSet.has(r.linkedEventUid!))
-          .map((r) => r.id);
+          .filter(
+            (reservation) =>
+              !existingSourceSet.has(
+                `${reservation.platform}\u0000${reservation.linkedEventUid}`,
+              ),
+          )
+          .map((reservation) => reservation.id);
 
         if (orphanIds.length > 0) {
           await prisma.reservation.updateMany({
