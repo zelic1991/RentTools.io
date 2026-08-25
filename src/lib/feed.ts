@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { generateICal, generateBufferedEvents, generateBufferOnlyEvents, addDays, type ICalEvent } from "@/lib/ical";
+import { createHash } from "node:crypto";
 
 export { parseFeedFilename } from "@/lib/feed-utils";
 
@@ -12,6 +13,18 @@ function reservationChannel(reservation: {
 }): string {
   if (reservation.linkedEventRole === "extension") return "direct";
   return reservation.platform || "airbnb";
+}
+
+/**
+ * Public iCal feeds are bearer-readable. Keep their VEVENT identifiers stable
+ * without exposing an imported platform UID or an internal database ID.
+ */
+function opaqueEventUid(...parts: Array<string | number | null | undefined>): string {
+  const digest = createHash("sha256")
+    .update(parts.map((part) => String(part ?? "")).join("\u001f"))
+    .digest("hex")
+    .slice(0, 32);
+  return `rt-${digest}`;
 }
 
 /**
@@ -116,12 +129,17 @@ export async function generateFeed(propertyId: number, forPlatform: string): Pro
   // Other-platform events (block dates + buffer)
   const otherEvents: ICalEvent[] = allEvents
     .filter(e => e.platform !== forPlatform)
-    .map(e => ({ uid: e.uid, summary: e.summary || "Blocked", startDate: e.startDate, endDate: e.endDate }));
+    .map(e => ({
+      uid: opaqueEventUid("calendar-event", propertyId, e.platform, e.uid),
+      summary: "Blocked",
+      startDate: e.startDate,
+      endDate: e.endDate,
+    }));
 
   for (const res of allReservations.filter(r => reservationChannel(r) !== forPlatform)) {
     otherEvents.push({
-      uid: `renttool-reservation-${res.id}`,
-      summary: `${res.name} (${reservationChannel(res)})`,
+      uid: opaqueEventUid("reservation", propertyId, res.id),
+      summary: "Blocked",
       startDate: new Date(res.checkIn).toISOString().substring(0, 10),
       endDate: new Date(res.checkOut).toISOString().substring(0, 10),
     });
@@ -130,11 +148,16 @@ export async function generateFeed(propertyId: number, forPlatform: string): Pro
   // Same-platform events (buffer-only)
   const sameEvents: ICalEvent[] = allEvents
     .filter(e => e.platform === forPlatform)
-    .map(e => ({ uid: `own-${e.uid}`, summary: "Buffer", startDate: e.startDate, endDate: e.endDate }));
+    .map(e => ({
+      uid: opaqueEventUid("same-platform-event", propertyId, e.platform, e.uid),
+      summary: "Buffer",
+      startDate: e.startDate,
+      endDate: e.endDate,
+    }));
 
   for (const res of allReservations.filter(r => reservationChannel(r) === forPlatform)) {
     sameEvents.push({
-      uid: `own-res-${res.id}`,
+      uid: opaqueEventUid("same-platform-reservation", propertyId, res.id),
       summary: "Buffer",
       startDate: new Date(res.checkIn).toISOString().substring(0, 10),
       endDate: new Date(res.checkOut).toISOString().substring(0, 10),
@@ -210,6 +233,16 @@ export async function generateFeed(propertyId: number, forPlatform: string): Pro
     });
   }
 
-  const ical = generateICal(finalEvents, `RentTool - Blocked for ${forPlatform}`);
+  // The buffer/merge helpers intentionally rebuild UIDs from their inputs.
+  // Re-key the final public events once more so neither dates, source UIDs nor
+  // internal IDs leak through the bearer-readable feed. The date range is part
+  // of the hash input, keeping the opaque identifier stable across refreshes.
+  const publicEvents = finalEvents.map((event) => ({
+    ...event,
+    uid: opaqueEventUid("feed-event", propertyId, forPlatform, event.startDate, event.endDate),
+    summary: "Blocked",
+  }));
+
+  const ical = generateICal(publicEvents, `RentTool - Blocked for ${forPlatform}`);
   return { ical };
 }
