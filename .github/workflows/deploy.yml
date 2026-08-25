@@ -34,10 +34,9 @@ concurrency:
 jobs:
   build:
     name: Build on runner
-    # The deployment target is Oracle A1 (ARM64), so native build outputs must
-    # be produced on the same architecture. The deploy job below only uses
-    # SCP/SSH and intentionally stays on the standard x64 runner.
-    runs-on: ubuntu-24.04-arm
+    # DigitalOcean's Basic Ubuntu image is x64. Build native outputs on the
+    # matching standard hosted runner; the deploy job below also stays x64.
+    runs-on: ubuntu-latest
 
     # Normal pushes stay inert until a host is wired. A manual dispatch may run
     # this ARM64 build as a pre-deployment compatibility gate; the deploy job
@@ -84,11 +83,11 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: ARM64 runtime dependency smoke
+      - name: x64 runtime dependency smoke
         run: |
           node --input-type=module <<'NODE'
           const [major, minor] = process.versions.node.split(".").map(Number);
-          if (process.arch !== "arm64") throw new Error(`Expected arm64, got ${process.arch}`);
+          if (process.arch !== "x64") throw new Error(`Expected x64, got ${process.arch}`);
           if (major < 22 || (major === 22 && minor < 12)) {
             throw new Error(`Node >=22.12 required, got ${process.versions.node}`);
           }
@@ -113,7 +112,7 @@ jobs:
           await jwtVerify(token, key);
 
           await import("@prisma/adapter-libsql");
-          console.log(`ARM64 smoke OK: node=${process.versions.node} arch=${process.arch}`);
+          console.log(`x64 smoke OK: node=${process.versions.node} arch=${process.arch}`);
           NODE
 
       - name: SQLite and Prisma schema smoke
