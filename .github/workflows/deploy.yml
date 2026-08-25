@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
 
     # Normal pushes stay inert until a host is wired. A manual dispatch may run
-    # this ARM64 build as a pre-deployment compatibility gate; the deploy job
+    # this build as a pre-deployment compatibility gate; the deploy job
     # remains separately blocked while DROPLET_HOST is empty.
     if: ${{ vars.DROPLET_HOST != '' || github.event_name == 'workflow_dispatch' }}
 
@@ -99,13 +99,13 @@ jobs:
           if (image.length === 0) throw new Error("sharp produced an empty image");
 
           const bcrypt = (await import("bcryptjs")).default;
-          const hash = await bcrypt.hash("synthetic-arm64-pilot", 10);
-          if (!(await bcrypt.compare("synthetic-arm64-pilot", hash))) {
+          const hash = await bcrypt.hash("synthetic-runtime-pilot", 10);
+          if (!(await bcrypt.compare("synthetic-runtime-pilot", hash))) {
             throw new Error("bcrypt verification failed");
           }
 
           const { SignJWT, jwtVerify } = await import("jose");
-          const key = new TextEncoder().encode("synthetic-arm64-jose-key-32-bytes");
+          const key = new TextEncoder().encode("synthetic-jose-key-exactly-32-bytes");
           const token = await new SignJWT({ scope: "pilot" })
             .setProtectedHeader({ alg: "HS256" })
             .sign(key);
