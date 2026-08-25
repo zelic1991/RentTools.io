@@ -41,6 +41,13 @@ export async function POST(request: NextRequest) {
     }
     userId = session.userId;
 
+    if (process.env.NEXT_PUBLIC_LEGACY_PASSPORT_OCR_ENABLED !== "true") {
+      return NextResponse.json(
+        { error: "Legacy passport OCR is disabled pending a verified retention and deletion lifecycle" },
+        { status: 503 },
+      );
+    }
+
     // Daily per-user quota — count successful + failed attempts in the last 24h
     // and reject before doing any Gemini work if the user is at or above the
     // configured limit. "0" or non-numeric disables the gate.

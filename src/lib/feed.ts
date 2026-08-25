@@ -129,6 +129,8 @@ export async function generateFeed(propertyId: number, forPlatform: string): Pro
   // Other-platform events (block dates + buffer)
   const otherEvents: ICalEvent[] = allEvents
     .filter(e => e.platform !== forPlatform)
+    // Imported summaries commonly contain guest names. Public iCal URLs are
+    // bearer links, so outgoing feeds must expose inventory only, never PII.
     .map(e => ({
       uid: opaqueEventUid("calendar-event", propertyId, e.platform, e.uid),
       summary: "Blocked",
