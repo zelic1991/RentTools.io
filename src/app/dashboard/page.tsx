@@ -388,6 +388,7 @@ function AppContent({
                 reservation={selectedReservation}
                 guests={guests}
                 propertyName={selectedProperty.name}
+                bookingWindow={selectedProperty.bookingWindow || 365}
                 onGuestsUpdated={handleGuestsUpdated}
                 onDeleteGuest={handleDeleteGuest}
                 onDeleteReservation={handleDeleteReservation}

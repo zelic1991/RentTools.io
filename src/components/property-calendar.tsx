@@ -25,6 +25,11 @@ import { EmptyState } from "@/components/empty-state";
 import { PropertySwitcher } from "@/components/property-switcher";
 import { useI18n } from "@/lib/i18n/context";
 import type { Locale } from "@/lib/i18n/translations";
+import {
+  DEFAULT_PROPERTY_TIME_ZONE,
+  getOwnerCalendarWindow,
+  ownerCalendarMonthStarts,
+} from "@/lib/owner-calendar-window";
 
 interface CopyShape {
   weekdays: string[];
@@ -119,20 +124,6 @@ interface PropertyCalendarProps {
   }) => void;
 }
 
-// How many months to render in the vertical stack. The user scrolls
-// through them airbnb-style instead of paging via prev/next arrows.
-//
-// Past months matter for: looking up a returning guest's stay, auditing
-// a cleaner's previous schedule, copy-pasting an old reservation,
-// reviewing how a buffer rule played out historically. Six months back
-// covers most "recent past" lookups; deeper history lives in the
-// reservation list / reports views, not the calendar.
-//
-// Future months: 12 covers the typical Airbnb 12-month booking window.
-const PAST_MONTHS = 6;
-const FUTURE_MONTHS = 12;
-const VISIBLE_MONTHS = PAST_MONTHS + FUTURE_MONTHS;
-
 export function PropertyCalendar({
   property,
   properties,
@@ -170,29 +161,40 @@ export function PropertyCalendar({
   void nowTick;
   const syncDisabled = syncing || syncCooldownRemaining > 0;
 
+  const calendarWindow = useMemo(
+    () => getOwnerCalendarWindow({
+      bookingWindowDays: property.bookingWindow || 365,
+      timeZone: DEFAULT_PROPERTY_TIME_ZONE,
+    }),
+    [property.bookingWindow],
+  );
+
   const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }, []);
+    const [year, month, day] = calendarWindow.today.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }, [calendarWindow.today]);
 
   const months = useMemo(() => {
-    // Build a contiguous month list spanning [today - PAST_MONTHS,
-    // today + FUTURE_MONTHS). Index `PAST_MONTHS` is today's month —
-    // we scroll to it on mount so the default view stays "today first"
-    // even with past months rendered above.
-    return Array.from({ length: VISIBLE_MONTHS }, (_, i) =>
-      new Date(today.getFullYear(), today.getMonth() - PAST_MONTHS + i, 1)
-    );
-  }, [today]);
+    return ownerCalendarMonthStarts(calendarWindow).map((monthStart) => {
+      const [year, month] = monthStart.split("-").map(Number);
+      return new Date(year, month - 1, 1);
+    });
+  }, [calendarWindow]);
+
+  const todayMonthIdx = useMemo(
+    () => Math.max(0, months.findIndex(
+      (month) => month.getFullYear() === today.getFullYear() && month.getMonth() === today.getMonth(),
+    )),
+    [months, today],
+  );
 
   // Single static sticky header at the top of the calendar column. The
   // weekday row and sync button literally never move — only the month
   // label inside <h2> swaps as the user scrolls. activeMonthIdx tracks
   // which month section is currently visible just below the sticky.
-  // Initial active month is today's, which lives at index PAST_MONTHS
-  // after the past-months extension above.
-  const [activeMonthIdx, setActiveMonthIdx] = useState(PAST_MONTHS);
+  // Initial active month is today's month inside the canonical rolling
+  // window. The final month may be partial rather than a fixed count.
+  const [activeMonthIdx, setActiveMonthIdx] = useState(todayMonthIdx);
   const sectionRefs = useRef<(HTMLElement | null)[]>([]);
   const stickyHeaderRef = useRef<HTMLDivElement>(null);
 
@@ -243,29 +245,29 @@ export function PropertyCalendar({
     if (!stickyEl) return;
     const main = stickyEl.closest("main");
     if (!main) return;
-    const todayMonthEl = sectionRefs.current[PAST_MONTHS];
+    const todayMonthEl = sectionRefs.current[todayMonthIdx];
     if (!todayMonthEl) return;
     const stickyHeight = stickyEl.getBoundingClientRect().height;
     const sectionTop = todayMonthEl.getBoundingClientRect().top;
     const mainTop = main.getBoundingClientRect().top;
     const targetScroll = main.scrollTop + (sectionTop - mainTop) - stickyHeight;
     main.scrollTo({ top: targetScroll, behavior });
-  }, []);
+  }, [todayMonthIdx]);
 
   const didInitialScrollRef = useRef(false);
   useEffect(() => {
     if (didInitialScrollRef.current) return;
-    if (!sectionRefs.current[PAST_MONTHS]) return;
+    if (!sectionRefs.current[todayMonthIdx]) return;
     scrollToToday("instant" as ScrollBehavior);
     didInitialScrollRef.current = true;
-  }, [months.length, scrollToToday]);
+  }, [months.length, scrollToToday, todayMonthIdx]);
 
   // Preserve scroll position across re-renders. On mobile Safari,
   // various things can drop the main scroll container back to 0 after
   // the initial scroll ran — closing a full-screen popover portal,
   // address-bar collapse triggering viewport reflow, keyboard show/
   // hide, or a content-height change from a data refetch. When that
-  // happens the user finds themselves back at PAST_MONTHS months in
+  // happens the user finds themselves back several months in
   // the past (January if today is July), which is the reported bug.
   //
   // Track the last-known non-zero scrollTop while the user scrolls,
@@ -660,7 +662,7 @@ export function PropertyCalendar({
                     anywhere in the past/future scroll range. Hidden
                     while the user is already viewing today's month so
                     it doesn't clutter the chrome on first load. */}
-                {activeMonthIdx !== PAST_MONTHS && (
+                {activeMonthIdx !== todayMonthIdx && (
                   <button
                     onClick={() => scrollToToday("smooth")}
                     title={c.today}
@@ -749,13 +751,13 @@ export function PropertyCalendar({
                   header, this label scrolls behind it (the header is
                   opaque + z-30) and the frozen header's <h2> already
                   shows the same name — no visual duplication.
-                  Skipped only for today's month (PAST_MONTHS index)
+                  Skipped only for today's month
                   because the calendar lands there on initial scroll
                   and the frozen header already shows the same name —
                   rendering it again at scroll=0 is a redundant
                   duplicate. Past months and future months always get
                   their in-flow label. */}
-              {i !== PAST_MONTHS && (
+              {i !== todayMonthIdx && (
                 <h3 className="mb-2 sm:mb-3 text-base sm:text-xl font-semibold tracking-tight text-[var(--ink-2)]">
                   {monthLabel}
                 </h3>
@@ -765,6 +767,8 @@ export function PropertyCalendar({
                   year={m.getFullYear()}
                   month={m.getMonth()}
                   today={today}
+                  visibleFrom={calendarWindow.visibleFrom}
+                  visibleUntil={calendarWindow.visibleUntil}
                   minNights={property.minNights || 3}
                   checkInTime={property.checkInTime || "14:00"}
                   checkOutTime={property.checkOutTime || "12:00"}
@@ -779,7 +783,7 @@ export function PropertyCalendar({
                   cleaningOverrides={data.cleaningOverrides}
                   defaultCleanerName={defaultCleanerName}
                   selectedDates={selectedDates}
-                  loading={loadingEvents && i === 0}
+                  loading={loadingEvents && i === todayMonthIdx}
                   onSelectReservation={onSelectReservation}
                   onClaimBar={(seg, rect) => {
                     if (!seg.eventUid) return;

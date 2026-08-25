@@ -6,6 +6,11 @@ import { canManageProperty, listAccessiblePropertyIds } from "@/lib/ownership";
 import { normalizePlatformSlug } from "@/lib/platforms";
 import { parseReservationDate } from "@/lib/reservation-dates";
 import { loadEffectiveLinkedStayRange } from "@/lib/linked-stay";
+import {
+  DEFAULT_PROPERTY_TIME_ZONE,
+  getOwnerCalendarWindow,
+  isReservationRangeInOwnerCalendarWindow,
+} from "@/lib/owner-calendar-window";
 
 export async function GET(request: NextRequest) {
   try {
@@ -69,6 +74,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    const property = await prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { bookingWindow: true },
+    });
+    if (!property) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     const checkInDate = parseReservationDate(checkIn);
     const checkOutDate = parseReservationDate(checkOut);
     if (!checkInDate) {
@@ -79,6 +92,20 @@ export async function POST(request: NextRequest) {
     }
     if (checkOutDate <= checkInDate) {
       return NextResponse.json({ error: "checkOut must be after checkIn" }, { status: 400 });
+    }
+    const ownerCalendarWindow = getOwnerCalendarWindow({
+      bookingWindowDays: property.bookingWindow || 365,
+      timeZone: DEFAULT_PROPERTY_TIME_ZONE,
+    });
+    if (!isReservationRangeInOwnerCalendarWindow(
+      checkInDate.toISOString().slice(0, 10),
+      checkOutDate.toISOString().slice(0, 10),
+      ownerCalendarWindow,
+    )) {
+      return NextResponse.json(
+        { error: "Reservation dates are outside the owner calendar window" },
+        { status: 400 },
+      );
     }
 
     // Check overlap with existing RentTools reservations on the same
