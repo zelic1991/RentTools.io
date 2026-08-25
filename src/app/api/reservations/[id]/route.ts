@@ -42,6 +42,9 @@ export async function PATCH(
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (session.impersonatorId) {
+      return NextResponse.json({ error: "Impersonation is read-only" }, { status: 403 });
+    }
 
     const { id } = await params;
     const numId = parseInt(id);
@@ -392,6 +395,9 @@ export async function DELETE(
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (session.impersonatorId) {
+      return NextResponse.json({ error: "Impersonation is read-only" }, { status: 403 });
+    }
 
     const { id } = await params;
     const numId = parseInt(id);

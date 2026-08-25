@@ -93,6 +93,19 @@ afterEach(() => {
 });
 
 describe("POST /api/reservations — owner calendar window", () => {
+  it("rejects writes during support impersonation", async () => {
+    mocks.getSession.mockResolvedValue({
+      userId: 3,
+      role: "user",
+      impersonatorId: 99,
+    });
+
+    const response = await POST(postRequest());
+
+    expect(response.status).toBe(403);
+    expect(mocks.reservationCreate).not.toHaveBeenCalled();
+  });
+
   it("accepts the final occupiable day with checkout on the following day", async () => {
     const window = getOwnerCalendarWindow({ bookingWindowDays: 365 });
     const response = await POST(postRequest({

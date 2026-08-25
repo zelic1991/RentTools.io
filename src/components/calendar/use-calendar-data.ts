@@ -1,18 +1,55 @@
 import { useMemo } from "react";
-import type { Property, CalendarLink, DateOverride, Reservation } from "@/lib/types";
+import type { Reservation } from "@/lib/types";
 import { bookingWindowCutoff } from "@/lib/types";
 import { toDateStr, addDaysStr } from "./utils";
-import type { CalendarEvent, CalendarBar, ConflictInfo } from "./types";
+import type { CalendarBar, ConflictInfo } from "./types";
 import {
   calendarEventIdentity,
   linkedSourcePlatform,
   referencesSyncedEvent,
 } from "./linked-bookings";
 
-type LinkedReservation = Property["reservations"][number] & {
+type LinkedReservation = CalendarComputationProperty["reservations"][number] & {
   linkedEventPlatform?: string | null;
   linkedEventRole?: "claim" | "extension" | null;
 };
+
+export interface CalendarComputationProperty {
+  minNights: number;
+  bookingWindow: number;
+  cleaningEnabled: boolean;
+  reservations: Array<Pick<Reservation,
+    | "id"
+    | "name"
+    | "checkIn"
+    | "checkOut"
+    | "platform"
+    | "linkedEventUid"
+    | "linkedEventPlatform"
+    | "linkedEventRole"
+  >>;
+}
+
+type CalendarReservationInput = CalendarComputationProperty["reservations"][number];
+
+export interface CalendarComputationEvent {
+  platform: string;
+  uid: string;
+  summary: string;
+  startDate: string;
+  endDate: string;
+}
+
+export interface CalendarComputationLink {
+  platform: string;
+  bufferBefore: number;
+  bufferAfter: number;
+}
+
+export interface CalendarComputationOverride {
+  date: string;
+  type: "open" | "closed" | "cleaning";
+}
 
 interface CalendarEntry {
   name: string;
@@ -43,14 +80,14 @@ export interface CalendarData {
    *  "Manual cleaning" chip so the host can tell their own scheduled
    *  cleanings apart from generic blocks or auto-detected buffers. */
   cleaningOverrides: Set<string>;
-  dateToReservation: Map<string, Reservation>;
+  dateToReservation: Map<string, CalendarReservationInput>;
 }
 
 export function useCalendarData(
-  property: Property,
-  syncedEvents: CalendarEvent[],
-  links: CalendarLink[],
-  overrides: DateOverride[]
+  property: CalendarComputationProperty,
+  syncedEvents: CalendarComputationEvent[],
+  links: CalendarComputationLink[],
+  overrides: CalendarComputationOverride[]
 ): CalendarData {
   const { openOverrides, closedOverrides, cleaningOverrides } = useMemo(() => {
     const open = new Set<string>();
@@ -73,7 +110,7 @@ export function useCalendarData(
     const unbookable = new Set<string>();
     const conflictSet = new Set<string>();
     const evMap = new Map<string, CalendarEntry>();
-    const resMap = new Map<string, Reservation>();
+    const resMap = new Map<string, CalendarReservationInput>();
     const allBooked = new Set<string>();
     const airbnbStay = new Set<string>();
     const bookingStay = new Set<string>();

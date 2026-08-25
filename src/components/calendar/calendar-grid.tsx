@@ -81,6 +81,12 @@ interface CalendarGridProps {
    *  date detail view, multiple dates opens the bulk-action view. */
   selectedDates: Set<string>;
   loading?: boolean;
+  /** Render the grid as a pure visual overview. Mobile uses a separate
+   *  44px reservation list for navigation instead of tiny calendar bars. */
+  readOnly?: boolean;
+  /** Mobile operations can hide all cleaning workflow while still
+   *  rendering deliberately configured buffer days as availability blocks. */
+  bufferPresentation?: "cleaning" | "blocked";
   onSelectReservation: (id: number) => void;
   onClaimBar?: (bar: BarSegment, rect: DOMRect) => void;
   onOpenExtension?: (bar: BarSegment, rect: DOMRect) => void;
@@ -108,6 +114,8 @@ export function CalendarGrid({
   defaultCleanerName,
   selectedDates,
   loading,
+  readOnly = false,
+  bufferPresentation = "cleaning",
   onSelectReservation,
   onClaimBar,
   onOpenExtension,
@@ -318,11 +326,11 @@ export function CalendarGrid({
                 <div
                   key={`day-${year}-${month}-${dayNum}`}
                   onClick={(e) => {
-                    if (isOutsideWindow) return;
+                    if (readOnly || isOutsideWindow) return;
                     onCellClick(ds, (e.currentTarget as HTMLElement).getBoundingClientRect());
                   }}
                   aria-disabled={isOutsideWindow || undefined}
-                  className={`relative ${cellHeightClass} border-r border-[var(--line)] last:border-r-0 transition-colors ${bg} ${isOutsideWindow ? "cursor-not-allowed opacity-35" : "cursor-pointer"} ${isSelected ? "bg-[var(--m-accent)]/10 ring-2 ring-inset ring-[var(--m-accent)]" : isOutsideWindow ? "" : "hover:bg-[var(--bg-3)]/60"} ${isOpen && !isSelected ? "ring-1 ring-inset ring-emerald-500/40" : ""} ${isClosed && !isSelected ? "ring-1 ring-inset ring-rose-500/40" : ""}`}
+                  className={`relative ${cellHeightClass} border-r border-[var(--line)] last:border-r-0 transition-colors ${bg} ${isOutsideWindow ? "cursor-not-allowed opacity-35" : readOnly ? "cursor-default" : "cursor-pointer"} ${isSelected ? "bg-[var(--m-accent)]/10 ring-2 ring-inset ring-[var(--m-accent)]" : isOutsideWindow || readOnly ? "" : "hover:bg-[var(--bg-3)]/60"} ${isOpen && !isSelected ? "ring-1 ring-inset ring-emerald-500/40" : ""} ${isClosed && !isSelected ? "ring-1 ring-inset ring-rose-500/40" : ""}`}
                 >
                   <div className="absolute top-1 left-1.5 sm:top-1.5 sm:left-2 z-20 pointer-events-none">
                     <span className={`text-[12px] sm:text-sm font-medium leading-none ${
@@ -352,9 +360,9 @@ export function CalendarGrid({
                         </div>
                       )}
                       {isBuffer && !isOpen && !isClosed && (
-                        <div title={defaultCleanerName ? `${t("calendar.cleaning")} · ${defaultCleanerName}` : undefined} className="rounded px-1 h-5 flex items-center gap-0.5 text-[10px] font-medium text-[var(--cleaning-fg)] bg-[var(--cleaning-bg)] border border-[var(--cleaning-border)]">
-                          <CleaningIcon />
-                          <span className="truncate max-w-[80px] sm:max-w-none">{defaultCleanerName ?? t("calendar.cleaning")}</span>
+                        <div title={bufferPresentation === "blocked" ? "Bewusster Puffertag" : defaultCleanerName ? `${t("calendar.cleaning")} · ${defaultCleanerName}` : undefined} className="rounded px-1 h-5 flex items-center gap-0.5 text-[10px] font-medium text-[var(--cleaning-fg)] bg-[var(--cleaning-bg)] border border-[var(--cleaning-border)]">
+                          {bufferPresentation === "cleaning" && <CleaningIcon />}
+                          <span className="truncate max-w-[80px] sm:max-w-none">{bufferPresentation === "blocked" ? "Puffer" : defaultCleanerName ?? t("calendar.cleaning")}</span>
                         </div>
                       )}
                       {isBuffer && isClosed && (
@@ -437,23 +445,30 @@ export function CalendarGrid({
                         onClaimBar(seg, rect);
                       }
                     };
+                    const actionable = !readOnly && Boolean(
+                      (seg.isExtension && seg.reservationId && onOpenExtension)
+                      || seg.reservationId
+                      || (seg.eventUid && onClaimBar),
+                    );
                     return (
                       <div
                         key={`seg-${si}-${seg.startDate}`}
                         onClick={(e) => {
                           e.stopPropagation();
+                          if (!actionable) return;
                           activateBar(e.currentTarget as HTMLElement);
                         }}
                         onKeyDown={(e) => {
+                          if (!actionable) return;
                           if (e.key !== "Enter" && e.key !== " ") return;
                           e.preventDefault();
                           e.stopPropagation();
                           activateBar(e.currentTarget as HTMLElement);
                         }}
-                        role={(seg.reservationId || seg.eventUid) ? "button" : undefined}
-                        tabIndex={(seg.reservationId || seg.eventUid) ? 0 : undefined}
+                        role={actionable ? "button" : undefined}
+                        tabIndex={actionable ? 0 : undefined}
                         aria-label={seg.isExtension ? directTitle : regularTitle}
-                        className={`absolute ${topClass} ${heightClass} flex items-center px-1.5 sm:px-2.5 text-[10.5px] sm:text-[12.5px] font-semibold text-white/95 truncate shadow-[0_1px_2px_rgba(0,0,0,0.06)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 ${radiusClass} ${
+                        className={`absolute ${topClass} ${heightClass} flex items-center px-1.5 sm:px-2.5 text-[10.5px] sm:text-[12.5px] font-semibold text-white/95 truncate shadow-[0_1px_2px_rgba(0,0,0,0.06)] ${actionable ? "cursor-pointer" : "cursor-default"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 ${radiusClass} ${
                           // Per-platform colour. Manual / direct / custom
                           // bookings get a neutral slate so they're visually
                           // distinct from Airbnb's coral — previously every
@@ -470,7 +485,7 @@ export function CalendarGrid({
                           // see at a glance "this is mine, not from a
                           // platform feed".
                           "bg-slate-500 ring-1 ring-slate-300/30"
-                        } ${(seg.reservationId || seg.eventUid) ? "hover:brightness-110" : ""} ${seg.isExtension ? "ring-1 ring-white/30 ring-dashed" : ""}`}
+                        } ${actionable ? "hover:brightness-110" : ""} ${seg.isExtension ? "ring-1 ring-white/30 ring-dashed" : ""}`}
                         style={{
                           left: leftStyle,
                           width: widthStyle,

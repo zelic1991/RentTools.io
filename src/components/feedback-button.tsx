@@ -15,7 +15,7 @@ const EMAIL_MAX = 200;
 //   - /admin — superadmin shouldn't be sending feedback to themselves.
 // Dashboard intentionally INCLUDED — signed-in hosts are the people whose
 // feedback we most want to capture (they hit real product friction).
-const HIDE_ON_PREFIXES = ["/g/", "/invite/", "/dashboard/admin", "/admin/"];
+const HIDE_ON_PREFIXES = ["/g/", "/invite/", "/dashboard/admin", "/admin/", "/mobile"];
 
 interface CopyShape {
   trigger: string;

@@ -85,6 +85,9 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (session.impersonatorId) {
+      return NextResponse.json({ error: "Impersonation is read-only" }, { status: 403 });
+    }
 
     const dryRun = request.nextUrl.searchParams.get("dryRun") === "true";
 
