@@ -6,15 +6,15 @@
 #
 # Layout:
 #   /home/app/backups/
-#     daily/   — last 14 nightly snapshots
-#     weekly/  — last 8 Sunday snapshots (hardlinked into daily/)
-#     monthly/ — last 6 first-of-month snapshots (hardlinked into daily/)
+#     daily/   — last 7 nightly snapshots
+#     weekly/  — last 4 Sunday snapshots (hardlinked into daily/)
+#     monthly/ — last 3 first-of-month snapshots (hardlinked into daily/)
 #     latest -> daily/prod-YYYYMMDD-HHMM.db   (symlink for easy access)
 #
 # Hardlinks across tiers mean rotation in `daily/` doesn't actually free
 # disk space if the same backup is also referenced from weekly/monthly —
-# the inode stays alive until ALL references are removed. So you keep
-# at most ~14 + 8 + 6 = 28 distinct on-disk snapshots.
+# the inode stays alive until ALL references are removed. The compact
+# single-property profile keeps at most ~7 + 4 + 3 = 14 distinct snapshots.
 #
 # Wired up by deploy/cron/rent-tool.cron at 03:15 every day.
 #
@@ -76,8 +76,8 @@ prune_tier() {
   )
 }
 
-prune_tier "$DEST/daily" 14
-prune_tier "$DEST/weekly" 8
-prune_tier "$DEST/monthly" 6
+prune_tier "$DEST/daily" 7
+prune_tier "$DEST/weekly" 4
+prune_tier "$DEST/monthly" 3
 
 echo "[$(date -Is)] OK $DAILY ($(stat -c %s "$DAILY") bytes)"

@@ -20,7 +20,7 @@ MAILTO=""
 # enforces a configurable per-account frequency, so over-firing is safe).
 */10 * * * * /home/app/rent-tool/scripts/cron-sync.sh >> /home/app/logs/rent-tool-cron.log 2>&1
 
-# Daily SQLite backup at 03:15 with tiered retention (14 daily / 8 weekly / 6 monthly).
+# Daily SQLite backup at 03:15 with compact retention (7 daily / 4 weekly / 3 monthly).
 15 3 * * * /home/app/rent-tool/scripts/backup-db.sh >> /home/app/logs/rent-tool-backup.log 2>&1
 
 # Hourly resource check — alerts on RAM > RAM_WARN_PCT% or disk > DISK_WARN_PCT%.
