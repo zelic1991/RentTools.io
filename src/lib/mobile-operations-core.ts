@@ -150,7 +150,7 @@ export function canAccessMobileSection(
   section: MobileSection,
 ): boolean {
   if (access === "owner") return true;
-  if (access === "manager") return section !== "portals";
+  if (access === "manager") return MOBILE_SECTIONS.includes(section);
   return false;
 }
 

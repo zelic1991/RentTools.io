@@ -372,10 +372,10 @@ export async function loadMobileOperations(options: {
       openGuestTasks,
       ownerReviews,
       openEVisitor,
-      portalProblems: access === "owner" ? portals.filter((portal) => portal.hasError).length : 0,
+      portalProblems: portals.filter((portal) => portal.hasError).length,
     },
     guests: canReadPii ? upcomingCards : [],
-    portals: access === "owner" ? portals : [],
+    portals,
     calendar: {
       property: calendarProperty,
       events: calendarEvents,

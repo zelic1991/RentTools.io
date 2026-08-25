@@ -153,7 +153,7 @@ function StartScreen({ data }: { data: MobileOperationsData }) {
                 ...(configuredBufferLinks > 0
                   ? [["Puffertage aktiv", configuredBufferLinks, "/mobile/calendar"]]
                   : []),
-                ...(data.access === "owner"
+                ...(data.start.portalProblems > 0
                   ? [["Portal-/Feedproblem", data.start.portalProblems, "/mobile/portals"]]
                   : []),
               ].map(([label, count, href]) => (

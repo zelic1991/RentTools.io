@@ -122,14 +122,14 @@ describe("mobile guest state", () => {
 });
 
 describe("mobile role boundary", () => {
-  it("keeps portal diagnostics owner-only", () => {
+  it("allows managers to read every mobile section", () => {
     for (const section of ["start", "calendar", "guests", "portals"] as const) {
       expect(canAccessMobileSection("owner", section)).toBe(true);
     }
     expect(canAccessMobileSection("manager", "start")).toBe(true);
     expect(canAccessMobileSection("manager", "calendar")).toBe(true);
     expect(canAccessMobileSection("manager", "guests")).toBe(true);
-    expect(canAccessMobileSection("manager", "portals")).toBe(false);
+    expect(canAccessMobileSection("manager", "portals")).toBe(true);
   });
 
   it("keeps the optional cleaner role out of this PWA", () => {
