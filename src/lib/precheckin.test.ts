@@ -73,7 +73,11 @@ describe("precheckin validation", () => {
   });
 
   it("flags missing non-EU border data without inventing it", () => {
-    const result = validatePrecheckinPayload(payload([{ ...traveler, citizenshipCountry: "US" }]), {
+    const result = validatePrecheckinPayload(payload([{
+      ...traveler,
+      citizenshipCountry: "HR",
+      residenceCountry: "US",
+    }]), {
       checkIn: "2027-05-16",
       checkOut: "2027-05-28",
     });

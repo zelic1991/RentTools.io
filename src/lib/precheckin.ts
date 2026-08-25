@@ -38,6 +38,9 @@ const EU_COUNTRY_CODES = new Set(
 );
 
 export interface PrecheckinTraveler {
+  /** Server-issued stable ID. It is added only at final submission and is
+   * never accepted from the public draft as an authority value. */
+  guestId?: string;
   clientId: string;
   isLead: boolean;
   firstName: string;
@@ -123,8 +126,10 @@ export function suggestTaxCategory(
   return "STANDARD_ADULT";
 }
 
-export function requiresNonEuBorderFields(citizenshipCountry: string): boolean {
-  return COUNTRY_CODE_SET.has(citizenshipCountry) && !EU_COUNTRY_CODES.has(citizenshipCountry);
+export function requiresNonEuBorderFields(residenceCountry: string): boolean {
+  // eVisitor's CheckInTourist validation keys this requirement to the
+  // tourist's country of residence, not citizenship.
+  return COUNTRY_CODE_SET.has(residenceCountry) && !EU_COUNTRY_CODES.has(residenceCountry);
 }
 
 function normalizeTraveler(raw: unknown, checkIn: string): PrecheckinTraveler | null {
@@ -132,6 +137,7 @@ function normalizeTraveler(raw: unknown, checkIn: string): PrecheckinTraveler | 
   const input = raw as Record<string, unknown>;
   const string = (key: string) => (typeof input[key] === "string" ? input[key].trim() : "");
   const citizenshipCountry = string("citizenshipCountry").toUpperCase();
+  const residenceCountry = string("residenceCountry").toUpperCase();
   const traveler: PrecheckinTraveler = {
     clientId: string("clientId").slice(0, 80),
     isLead: input.isLead === true,
@@ -142,14 +148,14 @@ function normalizeTraveler(raw: unknown, checkIn: string): PrecheckinTraveler | 
     citizenshipCountry,
     birthCountry: string("birthCountry").toUpperCase(),
     birthPlace: string("birthPlace").slice(0, 160),
-    residenceCountry: string("residenceCountry").toUpperCase(),
+    residenceCountry,
     residencePlace: string("residencePlace").slice(0, 160),
     residenceAddress: string("residenceAddress").slice(0, 240),
     documentType: string("documentType") as DocumentType,
     documentNumber: string("documentNumber").replace(/\s+/g, "").slice(0, 80),
     taxCategorySuggestion: suggestTaxCategory(string("dateOfBirth"), checkIn) ?? undefined,
   };
-  if (requiresNonEuBorderFields(citizenshipCountry)) {
+  if (requiresNonEuBorderFields(residenceCountry)) {
     traveler.borderEntryDate = string("borderEntryDate");
     traveler.borderEntryPlace = string("borderEntryPlace").slice(0, 160);
     traveler.borderEntryPoint = string("borderEntryPoint").slice(0, 160);
@@ -248,7 +254,7 @@ export function validatePrecheckinPayload(
     if (!DOCUMENT_TYPES.includes(traveler.documentType)) errors.push(`${prefix}: invalid document type`);
     if (traveler.documentNumber.length < 2) errors.push(`${prefix}: document number is required`);
 
-    if (requiresNonEuBorderFields(traveler.citizenshipCountry)) {
+    if (requiresNonEuBorderFields(traveler.residenceCountry)) {
       if (traveler.borderEntryDate && !isIsoDate(traveler.borderEntryDate)) {
         errors.push(`${prefix}: invalid border entry date`);
       }
@@ -300,7 +306,7 @@ export function validatePrecheckinPayload(
 export function precheckinWarnings(payload: PrecheckinPayload): string[] {
   const warnings: string[] = [];
   for (const traveler of payload.travelers) {
-    if (requiresNonEuBorderFields(traveler.citizenshipCountry)) {
+    if (requiresNonEuBorderFields(traveler.residenceCountry)) {
       if (!traveler.borderEntryDate || !traveler.borderEntryPlace || !traveler.borderEntryPoint) {
         warnings.push(`${traveler.firstName} ${traveler.lastName}: non-EU border data incomplete`);
       }

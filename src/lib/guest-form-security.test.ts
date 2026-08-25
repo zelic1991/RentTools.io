@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({ prisma: {} }));
 
@@ -8,6 +8,13 @@ import {
   publicSubmissionState,
   sameOriginRequest,
 } from "@/lib/guest-form-security";
+
+const previousPublicAppUrl = process.env.PUBLIC_APP_URL;
+
+afterEach(() => {
+  if (previousPublicAppUrl === undefined) delete process.env.PUBLIC_APP_URL;
+  else process.env.PUBLIC_APP_URL = previousPublicAppUrl;
+});
 
 describe("guest-form public-link security", () => {
   it("mints an opaque token and expires it after checkout", () => {
@@ -35,6 +42,36 @@ describe("guest-form public-link security", () => {
     }))).toBe(true);
     expect(sameOriginRequest(new Request("https://renttools.test/api/g/token/draft", {
       headers: { origin: "https://attacker.test" },
+    }))).toBe(false);
+    expect(sameOriginRequest(new Request("https://renttools.test/api/g/token/draft")))
+      .toBe(false);
+    expect(sameOriginRequest(new Request("https://renttools.test/api/g/token/draft", {
+      headers: { origin: "null" },
+    }))).toBe(false);
+  });
+
+  it("uses the configured public origin behind a reverse proxy", () => {
+    process.env.PUBLIC_APP_URL = "https://renttools.io";
+    const proxyUrl = "http://renttools-app:3000/api/g/token/draft";
+    expect(sameOriginRequest(new Request(proxyUrl, {
+      headers: {
+        origin: "https://renttools.io",
+        forwarded: "for=192.0.2.1;proto=https;host=renttools.io",
+        "x-forwarded-proto": "https",
+        "x-forwarded-host": "renttools.io",
+      },
+    }))).toBe(true);
+  });
+
+  it("does not let forwarded host headers redefine the trusted origin", () => {
+    process.env.PUBLIC_APP_URL = "https://renttools.io";
+    expect(sameOriginRequest(new Request("http://renttools-app:3000/api/g/token/draft", {
+      headers: {
+        origin: "https://attacker.test",
+        forwarded: "for=192.0.2.1;proto=https;host=attacker.test",
+        "x-forwarded-proto": "https",
+        "x-forwarded-host": "attacker.test",
+      },
     }))).toBe(false);
   });
 });

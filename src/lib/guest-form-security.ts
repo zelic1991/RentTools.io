@@ -66,9 +66,24 @@ export function decryptOwnerShareToken(tokenCiphertext: string | null): string |
 
 export function sameOriginRequest(request: Request): boolean {
   const origin = request.headers.get("origin");
-  if (!origin) return true;
+  // Browser writes to a bearer-token URL must carry an Origin header. A
+  // missing/opaque origin is not treated as same-origin: accepting it would
+  // make the protection disappear for malformed proxy traffic and non-browser
+  // replays.
+  if (!origin || origin === "null") return false;
   try {
-    return new URL(origin).host === new URL(request.url).host;
+    const received = new URL(origin);
+    const configured = process.env.PUBLIC_APP_URL?.trim();
+    const expected = configured ? new URL(configured) : new URL(request.url);
+
+    // Production needs a stable canonical origin. Deriving trust from Host or
+    // X-Forwarded-Host lets a client-controlled header redefine "same site".
+    if (process.env.NODE_ENV === "production") {
+      if (!configured || expected.protocol !== "https:" || received.protocol !== "https:") {
+        return false;
+      }
+    }
+    return received.origin === expected.origin;
   } catch {
     return false;
   }

@@ -109,7 +109,6 @@ export async function GET(
           residencePlace: traveler.residencePlace,
           residenceAddress: traveler.residenceAddress,
           documentType: traveler.documentType,
-          documentNumber: traveler.documentNumber,
           documentNumberMasked: maskDocumentNumber(traveler.documentNumber),
           borderEntryDate: traveler.borderEntryDate,
           borderEntryPlace: traveler.borderEntryPlace,

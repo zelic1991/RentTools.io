@@ -4,6 +4,7 @@ import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { encryptGuestData, hashShareToken } from "@/lib/precheckin-crypto";
 import { findSubmissionByPublicToken, publicSubmissionState, sameOriginRequest } from "@/lib/guest-form-security";
 import { validatePrecheckinPayload } from "@/lib/precheckin";
+import { randomUUID } from "node:crypto";
 
 // RT-25.2 — public submit endpoint for the pre-arrival guest form.
 // Anyone with the share token can POST once; subsequent POSTs to an
@@ -102,7 +103,15 @@ export async function POST(
     if (!validation.ok || !validation.payload) {
       return NextResponse.json({ error: "Traveler data is incomplete", fields: validation.errors }, { status: 400 });
     }
-    const securePayload = encryptGuestData(validation.payload);
+    const securePayload = encryptGuestData({
+      ...validation.payload,
+      travelers: validation.payload.travelers.map((traveler) => ({
+        ...traveler,
+        // Do not trust the browser's clientId as the durable identity used by
+        // eVisitor receipts and duplicate-send protection.
+        guestId: randomUUID(),
+      })),
+    });
 
     await prisma.guestFormSubmission.update({
       where: { id: submission.id },

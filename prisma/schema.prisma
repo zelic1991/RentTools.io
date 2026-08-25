@@ -308,6 +308,7 @@ model Reservation {
   property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   guests          Guest[]
   guestFormSubmissions GuestFormSubmission[]
+  eVisitorReceipts EVisitorReceipt[]
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -573,6 +574,28 @@ model GuestFormSubmission {
   @@index([reservationId])
   @@index([templateId])
   @@index([status])
+}
+
+model EVisitorReceipt {
+  id                  Int         @id @default(autoincrement())
+  reservationId       Int
+  reservation         Reservation @relation(fields: [reservationId], references: [id], onDelete: Cascade)
+  // Stable server-issued ID stored inside the encrypted pre-check-in payload.
+  // It is intentionally not the browser's clientId and contains no PII.
+  guestId             String
+  eVisitorGuid        String
+  action              String
+  environment         String      @default("test")
+  status              String
+  requestHash         String
+  attemptedAt         DateTime    @default(now())
+  readbackConfirmedAt DateTime?
+  attemptCount        Int         @default(1)
+  failureCode         String?
+
+  @@unique([reservationId, guestId, action, requestHash])
+  @@index([eVisitorGuid])
+  @@index([reservationId, guestId])
 }
 
 model CalendarPlatform {

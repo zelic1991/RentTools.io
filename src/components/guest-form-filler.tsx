@@ -441,7 +441,7 @@ function TravelerEditor({
       />
     </label>
   );
-  const nonEu = requiresNonEuBorderFields(text("citizenshipCountry"));
+  const nonEu = requiresNonEuBorderFields(text("residenceCountry"));
   return (
     <fieldset className="rounded-xl border border-[#1e2329] bg-[#11161d] p-4 sm:p-5">
       <legend className="px-1 text-sm font-semibold">Traveler {index + 1}{isLead ? " · lead guest" : ""}</legend>

@@ -244,6 +244,10 @@ export function ReservationView({
   onUpdateGuest,
 }: ReservationViewProps) {
   const { locale, t: tr } = useI18n();
+  // The legacy OCR path stores passport fields in the older Guest model and
+  // remains disabled until its retention/deletion lifecycle is proven. The
+  // unified encrypted pre-check-in form does not depend on this feature.
+  const legacyPassportOcrEnabled = process.env.NEXT_PUBLIC_LEGACY_PASSPORT_OCR_ENABLED === "true";
   const hint = HINT_COPY[locale];
   const isDirectExtension = reservation.linkedEventRole === "extension";
   const sourcePlatformLabel = reservation.linkedEventPlatform
@@ -352,7 +356,6 @@ export function ReservationView({
       residencePlace: string;
       residenceAddress: string;
       documentType: string;
-      documentNumber: string;
       documentNumberMasked: string;
       borderEntryDate?: string;
       borderEntryPlace?: string;
@@ -1570,6 +1573,7 @@ export function ReservationView({
         {/* Main column — passport documents + guest list */}
         <div className="min-w-0 space-y-6 lg:flex-1">
 
+      {legacyPassportOcrEnabled && <>
       {/* Drop Zone */}
       <div
         {...getRootProps()}
@@ -1697,6 +1701,7 @@ export function ReservationView({
           )}
         </div>
       )}
+      </>}
 
       {/* Guests action row */}
       {(guests.length > 0 || templates.length > 0) && (
@@ -1859,7 +1864,7 @@ export function ReservationView({
                   {traveler.firstName} {traveler.lastName}{traveler.isLead ? " · lead" : ""}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {traveler.documentType} {traveler.documentNumberMasked} · open to review
+                  {traveler.documentType} {traveler.documentNumberMasked}
                 </p>
                 </summary>
                 <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-xs">
@@ -1867,7 +1872,7 @@ export function ReservationView({
                   <dt className="text-muted-foreground">Birth place</dt><dd>{traveler.birthPlace}, {traveler.birthCountry}</dd>
                   <dt className="text-muted-foreground">Citizenship</dt><dd>{traveler.citizenshipCountry}</dd>
                   <dt className="text-muted-foreground">Residence</dt><dd>{traveler.residenceAddress}, {traveler.residencePlace}, {traveler.residenceCountry}</dd>
-                  <dt className="text-muted-foreground">Document</dt><dd>{traveler.documentType} {traveler.documentNumber}</dd>
+                  <dt className="text-muted-foreground">Document</dt><dd>{traveler.documentType} {traveler.documentNumberMasked}</dd>
                   <dt className="text-muted-foreground">Tax suggestion</dt><dd>{traveler.taxCategorySuggestion ?? "Review required"}</dd>
                   {traveler.borderEntryDate && <><dt className="text-muted-foreground">Border entry</dt><dd>{traveler.borderEntryDate} · {traveler.borderEntryPlace} · {traveler.borderEntryPoint}</dd></>}
                 </dl>
@@ -1875,7 +1880,7 @@ export function ReservationView({
             ))}
           </div>
           <p className="mt-3 text-[11px] text-muted-foreground">
-            Document numbers stay masked until a traveler is opened. Approval confirms review only; it does not submit anything to eVisitor.{guestFormSubmission.lastChangedAt ? ` Last changed ${new Date(guestFormSubmission.lastChangedAt).toLocaleString()}.` : ""}
+            Document numbers remain masked in the browser. Approval confirms review only; it does not submit anything to eVisitor.{guestFormSubmission.lastChangedAt ? ` Last changed ${new Date(guestFormSubmission.lastChangedAt).toLocaleString()}.` : ""}
           </p>
         </div>
       )}
