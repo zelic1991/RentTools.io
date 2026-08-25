@@ -85,10 +85,14 @@ function EmptyState({ children }: { children: React.ReactNode }) {
 }
 
 function StartScreen({ data }: { data: MobileOperationsData }) {
+  const configuredBufferLinks = data.calendar.links.filter(
+    (link) => link.bufferBefore > 0 || link.bufferAfter > 0,
+  ).length;
   const openCount = data.start.openGuestTasks.length
     + data.start.ownerReviews.length
     + data.start.openEVisitor.length
-    + data.start.portalProblems;
+    + data.start.portalProblems
+    + configuredBufferLinks;
   return (
     <div className="space-y-7">
       <section aria-labelledby="today-heading">
@@ -146,6 +150,9 @@ function StartScreen({ data }: { data: MobileOperationsData }) {
                 ["Gästedaten fehlen", data.start.openGuestTasks.length, "/mobile/guests"],
                 ["Owner-Review", data.start.ownerReviews.length, "/mobile/guests"],
                 ["eVisitor offen", data.start.openEVisitor.length, "/mobile/guests"],
+                ...(configuredBufferLinks > 0
+                  ? [["Puffertage aktiv", configuredBufferLinks, "/mobile/calendar"]]
+                  : []),
                 ...(data.access === "owner"
                   ? [["Portal-/Feedproblem", data.start.portalProblems, "/mobile/portals"]]
                   : []),
