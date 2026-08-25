@@ -235,6 +235,16 @@ export async function generateFeed(propertyId: number, forPlatform: string): Pro
     });
   }
 
-  const ical = generateICal(finalEvents, `RentTool - Blocked for ${forPlatform}`);
+  // The buffer/merge helpers intentionally rebuild UIDs from their inputs.
+  // Re-key the final public events once more so neither dates, source UIDs nor
+  // internal IDs leak through the bearer-readable feed. The date range is part
+  // of the hash input, keeping the opaque identifier stable across refreshes.
+  const publicEvents = finalEvents.map((event) => ({
+    ...event,
+    uid: opaqueEventUid("feed-event", propertyId, forPlatform, event.startDate, event.endDate),
+    summary: "Blocked",
+  }));
+
+  const ical = generateICal(publicEvents, `RentTool - Blocked for ${forPlatform}`);
   return { ical };
 }

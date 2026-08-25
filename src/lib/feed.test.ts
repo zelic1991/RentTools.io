@@ -108,10 +108,24 @@ describe("generateFeed — Direct linked extensions", () => {
 
   it("never exposes source UIDs, internal reservation IDs, or source names", async () => {
     mocks.calendarEventFindMany.mockResolvedValue([
-      { ...source, uid: "airbnb-secret-source-uid", summary: "PRIVATE NAME" },
+      {
+        ...source,
+        uid: "airbnb-secret-source-uid",
+        summary: "PRIVATE NAME",
+        email: "private@example.test",
+        phone: "+385000000000",
+        notes: "PRIVATE INTERNAL NOTE",
+      },
     ]);
     mocks.reservationFindMany.mockResolvedValue([
-      { ...extension, id: 987654321, linkedEventUid: null },
+      {
+        ...extension,
+        id: 987654321,
+        linkedEventUid: null,
+        email: "reservation@example.test",
+        phone: "+4310000000",
+        notes: "PRIVATE RESERVATION NOTE",
+      },
     ]);
 
     const result = await generateFeed(12, "booking");
@@ -122,6 +136,18 @@ describe("generateFeed — Direct linked extensions", () => {
     expect(result.ical).not.toContain("airbnb");
     expect(result.ical).not.toContain("direct");
     expect(result.ical).not.toContain("PRIVATE NAME");
+    expect(result.ical).not.toContain("private@example.test");
+    expect(result.ical).not.toContain("reservation@example.test");
+    expect(result.ical).not.toContain("+385000000000");
+    expect(result.ical).not.toContain("+4310000000");
+    expect(result.ical).not.toContain("PRIVATE INTERNAL NOTE");
+    expect(result.ical).not.toContain("PRIVATE RESERVATION NOTE");
+    expect(result.ical).toMatch(/UID:rt-[0-9a-f]{32}/);
+
+    const repeated = await generateFeed(12, "booking");
+    if ("error" in repeated) throw new Error(repeated.error);
+    expect(parseICal(repeated.ical).map((event) => event.uid))
+      .toEqual(parseICal(result.ical).map((event) => event.uid));
   });
 
   it("routes an explicitly marked extension as Direct during migration", async () => {
