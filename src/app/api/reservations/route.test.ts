@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   reservationCreate: vi.fn(),
   calendarEventFindFirst: vi.fn(),
   dateOverrideDeleteMany: vi.fn(),
+  propertyFindUnique: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -39,10 +40,17 @@ vi.mock("@/lib/prisma", () => ({
     dateOverride: {
       deleteMany: mocks.dateOverrideDeleteMany,
     },
+    property: {
+      findUnique: mocks.propertyFindUnique,
+    },
   },
 }));
 
 import { POST } from "./route";
+import {
+  addCalendarDays,
+  getOwnerCalendarWindow,
+} from "@/lib/owner-calendar-window";
 
 const propertyId = 12;
 const sourceUid = "shared-source-uid";
@@ -63,6 +71,8 @@ function postRequest(overrides: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-08-25T10:00:00.000Z"));
   vi.resetAllMocks();
   mocks.getSession.mockResolvedValue({ userId: 3, role: "user" });
   mocks.canManageProperty.mockResolvedValue(true);
@@ -74,7 +84,42 @@ beforeEach(() => {
     ...data,
   }));
   mocks.dateOverrideDeleteMany.mockResolvedValue({ count: 0 });
+  mocks.propertyFindUnique.mockResolvedValue({ bookingWindow: 365 });
   mocks.logAudit.mockResolvedValue(undefined);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("POST /api/reservations — owner calendar window", () => {
+  it("accepts the final occupiable day with checkout on the following day", async () => {
+    const window = getOwnerCalendarWindow({ bookingWindowDays: 365 });
+    const response = await POST(postRequest({
+      checkIn: window.visibleUntil,
+      checkOut: window.checkoutUntil,
+      platform: "direct",
+    }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.reservationCreate).toHaveBeenCalled();
+  });
+
+  it("rejects the first occupancy day beyond the canonical window", async () => {
+    const window = getOwnerCalendarWindow({ bookingWindowDays: 365 });
+    const firstOutside = addCalendarDays(window.visibleUntil, 1);
+    const response = await POST(postRequest({
+      checkIn: firstOutside,
+      checkOut: addCalendarDays(firstOutside, 1),
+      platform: "direct",
+    }));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Reservation dates are outside the owner calendar window",
+    });
+    expect(mocks.reservationCreate).not.toHaveBeenCalled();
+  });
 });
 
 describe("POST /api/reservations — linked calendar source", () => {

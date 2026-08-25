@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,10 @@ import {
   toReservationDateInput,
   validateReservationDateRange,
 } from "@/lib/reservation-dates";
+import {
+  DEFAULT_PROPERTY_TIME_ZONE,
+  getOwnerCalendarWindow,
+} from "@/lib/owner-calendar-window";
 
 // Pre-arrival discovery hint — localized in all 5 supported locales.
 // The rest of this component is still English-only; see GitHub issue
@@ -203,6 +207,7 @@ interface ReservationViewProps {
   reservation: Reservation;
   guests: Guest[];
   propertyName?: string;
+  bookingWindow: number;
   onGuestsUpdated: () => void;
   onDeleteGuest: (id: number) => void;
   onDeleteReservation: (
@@ -236,6 +241,7 @@ export function ReservationView({
   reservation,
   guests,
   propertyName,
+  bookingWindow,
   onGuestsUpdated,
   onDeleteGuest,
   onDeleteReservation,
@@ -249,6 +255,13 @@ export function ReservationView({
   // unified encrypted pre-check-in form does not depend on this feature.
   const legacyPassportOcrEnabled = process.env.NEXT_PUBLIC_LEGACY_PASSPORT_OCR_ENABLED === "true";
   const hint = HINT_COPY[locale];
+  const ownerCalendarWindow = useMemo(
+    () => getOwnerCalendarWindow({
+      bookingWindowDays: bookingWindow || 365,
+      timeZone: DEFAULT_PROPERTY_TIME_ZONE,
+    }),
+    [bookingWindow],
+  );
   const isDirectExtension = reservation.linkedEventRole === "extension";
   const sourcePlatformLabel = reservation.linkedEventPlatform
     ? platformShortLabel(reservation.linkedEventPlatform)
@@ -1066,7 +1079,10 @@ export function ReservationView({
                     id={`reservation-check-in-${reservation.id}`}
                     type="date"
                     value={editCheckIn}
-                    max={editCheckOut || undefined}
+                    min={ownerCalendarWindow.visibleFrom}
+                    max={editCheckOut && editCheckOut < ownerCalendarWindow.visibleUntil
+                      ? editCheckOut
+                      : ownerCalendarWindow.visibleUntil}
                     onChange={(e) => {
                       setEditCheckIn(e.target.value);
                       setEditError(null);
@@ -1084,6 +1100,7 @@ export function ReservationView({
                     type="date"
                     value={editCheckOut}
                     min={editCheckIn || undefined}
+                    max={ownerCalendarWindow.checkoutUntil}
                     onChange={(e) => {
                       setEditCheckOut(e.target.value);
                       setEditError(null);

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
 const mocks = vi.hoisted(() => ({
@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   calendarEventFindFirst: vi.fn(),
   calendarEventDelete: vi.fn(),
   dateOverrideDeleteMany: vi.fn(),
+  propertyFindUnique: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -43,10 +44,17 @@ vi.mock("@/lib/prisma", () => ({
     dateOverride: {
       deleteMany: mocks.dateOverrideDeleteMany,
     },
+    property: {
+      findUnique: mocks.propertyFindUnique,
+    },
   },
 }));
 
 import { DELETE, PATCH } from "./route";
+import {
+  addCalendarDays,
+  getOwnerCalendarWindow,
+} from "@/lib/owner-calendar-window";
 
 const reservationId = 7;
 const propertyId = 12;
@@ -77,6 +85,8 @@ function patchParams(id = String(reservationId)) {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-08-25T10:00:00.000Z"));
   vi.resetAllMocks();
   mocks.getSession.mockResolvedValue({ userId: 3, role: "user" });
   mocks.canManageProperty.mockResolvedValue(true);
@@ -93,7 +103,54 @@ beforeEach(() => {
   mocks.reservationDelete.mockResolvedValue(original);
   mocks.calendarEventDelete.mockResolvedValue({ id: 41 });
   mocks.dateOverrideDeleteMany.mockResolvedValue({ count: 0 });
+  mocks.propertyFindUnique.mockResolvedValue({ bookingWindow: 365 });
   mocks.logAudit.mockResolvedValue(undefined);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("PATCH /api/reservations/:id — owner calendar window", () => {
+  it("accepts an unlinked stay on the final occupiable day", async () => {
+    const window = getOwnerCalendarWindow({ bookingWindowDays: 365 });
+    mocks.reservationFindUnique.mockResolvedValue({
+      ...original,
+      linkedEventUid: null,
+      linkedEventPlatform: null,
+      linkedEventRole: null,
+    });
+
+    const response = await PATCH(
+      patchRequest({ checkIn: window.visibleUntil, checkOut: window.checkoutUntil }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.reservationUpdate).toHaveBeenCalled();
+  });
+
+  it("rejects the first occupancy day beyond the canonical window", async () => {
+    const window = getOwnerCalendarWindow({ bookingWindowDays: 365 });
+    const firstOutside = addCalendarDays(window.visibleUntil, 1);
+    mocks.reservationFindUnique.mockResolvedValue({
+      ...original,
+      linkedEventUid: null,
+      linkedEventPlatform: null,
+      linkedEventRole: null,
+    });
+
+    const response = await PATCH(
+      patchRequest({ checkIn: firstOutside, checkOut: addCalendarDays(firstOutside, 1) }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Reservation dates are outside the owner calendar window",
+    });
+    expect(mocks.reservationUpdate).not.toHaveBeenCalled();
+  });
 });
 
 describe("PATCH /api/reservations/:id — date edits", () => {

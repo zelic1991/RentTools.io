@@ -55,6 +55,8 @@ interface CalendarGridProps {
   year: number;
   month: number;
   today: Date;
+  visibleFrom: string;
+  visibleUntil: string;
   minNights: number;
   checkInTime: string;
   checkOutTime: string;
@@ -89,6 +91,8 @@ export function CalendarGrid({
   year,
   month,
   today,
+  visibleFrom,
+  visibleUntil,
   minNights,
   checkInTime,
   checkOutTime,
@@ -266,9 +270,10 @@ export function CalendarGrid({
           <div key={`${monthKey}-w${wi}`} className="grid grid-cols-7 border-b border-[var(--line)] last:border-b-0">
             {week.map((dayNum, di) => {
               if (dayNum === null) {
-                return <div key={`c-${di}`} className={`${cellHeightClass} border-r border-[var(--line)] last:border-r-0`} />;
+                return <div key={`blank-${wi}-${di}`} className={`${cellHeightClass} border-r border-[var(--line)] last:border-r-0`} />;
               }
               const ds = `${year}-${String(month + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
+              const isOutsideWindow = ds < visibleFrom || ds > visibleUntil;
               const isToday = year === today.getFullYear() && month === today.getMonth() && dayNum === today.getDate();
               const isConflict = conflictDates.has(ds);
               const segments = segmentsForDay(dayNum);
@@ -297,7 +302,7 @@ export function CalendarGrid({
               // moot, the bar already says "occupied".
               const isOpen = openOverrides.has(ds) && !hasBar;
               const isClosed = closedOverrides.has(ds) && !hasBar;
-              const isSelected = selectedDates.has(ds);
+              const isSelected = !isOutsideWindow && selectedDates.has(ds);
               const bg = isOpen ? "bg-emerald-500/8"
                 : isClosed ? "bg-rose-500/8"
                 : isConflict ? "bg-rose-500/8"
@@ -311,11 +316,13 @@ export function CalendarGrid({
               const showMiddleIndicator = !hasBar && (isManualCleaning || isBuffer || isPotential || isUnbookable || (isOpen && !hasBar) || (isClosed && !isBuffer) || (isConflict && !isOpen && !isClosed));
               return (
                 <div
-                  key={`c-${dayNum}`}
+                  key={`day-${year}-${month}-${dayNum}`}
                   onClick={(e) => {
+                    if (isOutsideWindow) return;
                     onCellClick(ds, (e.currentTarget as HTMLElement).getBoundingClientRect());
                   }}
-                  className={`relative ${cellHeightClass} border-r border-[var(--line)] last:border-r-0 cursor-pointer transition-colors ${bg} ${isSelected ? "bg-[var(--m-accent)]/10 ring-2 ring-inset ring-[var(--m-accent)]" : "hover:bg-[var(--bg-3)]/60"} ${isOpen && !isSelected ? "ring-1 ring-inset ring-emerald-500/40" : ""} ${isClosed && !isSelected ? "ring-1 ring-inset ring-rose-500/40" : ""}`}
+                  aria-disabled={isOutsideWindow || undefined}
+                  className={`relative ${cellHeightClass} border-r border-[var(--line)] last:border-r-0 transition-colors ${bg} ${isOutsideWindow ? "cursor-not-allowed opacity-35" : "cursor-pointer"} ${isSelected ? "bg-[var(--m-accent)]/10 ring-2 ring-inset ring-[var(--m-accent)]" : isOutsideWindow ? "" : "hover:bg-[var(--bg-3)]/60"} ${isOpen && !isSelected ? "ring-1 ring-inset ring-emerald-500/40" : ""} ${isClosed && !isSelected ? "ring-1 ring-inset ring-rose-500/40" : ""}`}
                 >
                   <div className="absolute top-1 left-1.5 sm:top-1.5 sm:left-2 z-20 pointer-events-none">
                     <span className={`text-[12px] sm:text-sm font-medium leading-none ${

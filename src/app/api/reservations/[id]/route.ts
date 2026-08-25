@@ -6,6 +6,11 @@ import { canManageProperty } from "@/lib/ownership";
 import { normalizePhone } from "@/lib/sanitize";
 import { parseReservationDate } from "@/lib/reservation-dates";
 import { loadEffectiveLinkedStayRange } from "@/lib/linked-stay";
+import {
+  DEFAULT_PROPERTY_TIME_ZONE,
+  getOwnerCalendarWindow,
+  isReservationRangeInOwnerCalendarWindow,
+} from "@/lib/owner-calendar-window";
 
 async function loadManageableReservation(
   reservationId: number,
@@ -162,6 +167,27 @@ export async function PATCH(
         const newCheckOut = (data.checkOut as Date | undefined) ?? current.checkOut;
         if (newCheckOut <= newCheckIn) {
           return NextResponse.json({ error: "checkOut must be after checkIn" }, { status: 400 });
+        }
+        const property = await prisma.property.findUnique({
+          where: { id: current.propertyId },
+          select: { bookingWindow: true },
+        });
+        if (!property) {
+          return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+        const ownerCalendarWindow = getOwnerCalendarWindow({
+          bookingWindowDays: property.bookingWindow || 365,
+          timeZone: DEFAULT_PROPERTY_TIME_ZONE,
+        });
+        if (!isReservationRangeInOwnerCalendarWindow(
+          newCheckIn.toISOString().slice(0, 10),
+          newCheckOut.toISOString().slice(0, 10),
+          ownerCalendarWindow,
+        )) {
+          return NextResponse.json(
+            { error: "Reservation dates are outside the owner calendar window" },
+            { status: 400 },
+          );
         }
         const overlap = await prisma.reservation.findFirst({
           where: {
