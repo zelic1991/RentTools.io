@@ -92,6 +92,64 @@ describe("generateFeed — Direct linked extensions", () => {
     ]);
   });
 
+  it("never exposes imported or manual guest names in outgoing iCal", async () => {
+    mocks.calendarEventFindMany.mockResolvedValue([
+      { ...source, summary: "PRIVATE GUEST NAME" },
+    ]);
+    mocks.reservationFindMany.mockResolvedValue([
+      { ...extension, name: "ANOTHER PRIVATE NAME" },
+    ]);
+    const result = await generateFeed(12, "booking");
+    if ("error" in result) throw new Error(result.error);
+    expect(result.ical).not.toContain("PRIVATE GUEST NAME");
+    expect(result.ical).not.toContain("ANOTHER PRIVATE NAME");
+    expect(result.ical).toContain("Blocked");
+  });
+
+  it("never exposes source UIDs, internal reservation IDs, or source names", async () => {
+    mocks.calendarEventFindMany.mockResolvedValue([
+      {
+        ...source,
+        uid: "airbnb-secret-source-uid",
+        summary: "PRIVATE NAME",
+        email: "private@example.test",
+        phone: "+385000000000",
+        notes: "PRIVATE INTERNAL NOTE",
+      },
+    ]);
+    mocks.reservationFindMany.mockResolvedValue([
+      {
+        ...extension,
+        id: 987654321,
+        linkedEventUid: null,
+        email: "reservation@example.test",
+        phone: "+4310000000",
+        notes: "PRIVATE RESERVATION NOTE",
+      },
+    ]);
+
+    const result = await generateFeed(12, "booking");
+    if ("error" in result) throw new Error(result.error);
+
+    expect(result.ical).not.toContain("airbnb-secret-source-uid");
+    expect(result.ical).not.toContain("987654321");
+    expect(result.ical).not.toContain("airbnb");
+    expect(result.ical).not.toContain("direct");
+    expect(result.ical).not.toContain("PRIVATE NAME");
+    expect(result.ical).not.toContain("private@example.test");
+    expect(result.ical).not.toContain("reservation@example.test");
+    expect(result.ical).not.toContain("+385000000000");
+    expect(result.ical).not.toContain("+4310000000");
+    expect(result.ical).not.toContain("PRIVATE INTERNAL NOTE");
+    expect(result.ical).not.toContain("PRIVATE RESERVATION NOTE");
+    expect(result.ical).toMatch(/UID:rt-[0-9a-f]{32}/);
+
+    const repeated = await generateFeed(12, "booking");
+    if ("error" in repeated) throw new Error(repeated.error);
+    expect(parseICal(repeated.ical).map((event) => event.uid))
+      .toEqual(parseICal(result.ical).map((event) => event.uid));
+  });
+
   it("routes an explicitly marked extension as Direct during migration", async () => {
     mocks.reservationFindMany.mockResolvedValue([
       { ...extension, platform: "airbnb" },
@@ -107,6 +165,119 @@ describe("generateFeed — Direct linked extensions", () => {
         startDate: "2099-08-23",
         endDate: "2099-08-25",
       }),
+    ]);
+  });
+
+  it("exports confirmed stays from mixed sources to a hyphenated destination", async () => {
+    mocks.calendarLinkFindMany.mockResolvedValue([
+      { platform: "ubytovani-v-chorvatsku", bufferBefore: 0, bufferAfter: 0 },
+    ]);
+    mocks.calendarEventFindMany.mockResolvedValue([
+      {
+        ...source,
+        uid: "airbnb-2026-regression",
+        summary: "PRIVATE IMPORTED NAME",
+        startDate: "2026-08-23",
+        endDate: "2026-09-11",
+        platform: "airbnb",
+      },
+      {
+        ...source,
+        uid: "booking-2027-regression",
+        summary: "ANOTHER PRIVATE NAME",
+        startDate: "2027-06-30",
+        endDate: "2027-07-04",
+        platform: "booking",
+      },
+    ]);
+    mocks.reservationFindMany.mockResolvedValue([
+      {
+        ...extension,
+        id: 301,
+        name: "PRIVATE DIRECT NAME 1",
+        checkIn: new Date("2027-05-16T00:00:00.000Z"),
+        checkOut: new Date("2027-05-28T00:00:00.000Z"),
+        platform: "direct",
+        linkedEventUid: null,
+        linkedEventPlatform: null,
+        linkedEventRole: null,
+      },
+      {
+        ...extension,
+        id: 302,
+        name: "PRIVATE DIRECT NAME 2",
+        checkIn: new Date("2027-08-07T00:00:00.000Z"),
+        checkOut: new Date("2027-08-17T00:00:00.000Z"),
+        platform: "direct",
+        linkedEventUid: null,
+        linkedEventPlatform: null,
+        linkedEventRole: null,
+      },
+    ]);
+
+    const result = await generateFeed(12, "ubytovani-v-chorvatsku");
+    if ("error" in result) throw new Error(result.error);
+    const events = parseICal(result.ical).filter(
+      (event) => event.uid !== "renttools-placeholder",
+    );
+
+    expect(events.map(({ startDate, endDate }) => ({ startDate, endDate })))
+      .toEqual([
+        { startDate: "2026-08-23", endDate: "2026-09-11" },
+        { startDate: "2027-05-16", endDate: "2027-05-28" },
+        { startDate: "2027-06-30", endDate: "2027-07-04" },
+        { startDate: "2027-08-07", endDate: "2027-08-17" },
+      ]);
+    expect(result.ical).not.toContain("PRIVATE IMPORTED NAME");
+    expect(result.ical).not.toContain("ANOTHER PRIVATE NAME");
+    expect(result.ical).not.toContain("PRIVATE DIRECT NAME 1");
+    expect(result.ical).not.toContain("PRIVATE DIRECT NAME 2");
+  });
+
+  it("deduplicates identical occupancy ranges from multiple sources", async () => {
+    mocks.calendarLinkFindMany.mockResolvedValue([
+      { platform: "ubytovani-v-chorvatsku", bufferBefore: 0, bufferAfter: 0 },
+    ]);
+    mocks.calendarEventFindMany.mockResolvedValue([
+      { ...source, uid: "airbnb-copy", startDate: "2027-08-07", endDate: "2027-08-17", platform: "airbnb" },
+      { ...source, uid: "booking-copy", startDate: "2027-08-07", endDate: "2027-08-17", platform: "booking" },
+    ]);
+    mocks.reservationFindMany.mockResolvedValue([]);
+
+    const result = await generateFeed(12, "ubytovani-v-chorvatsku");
+    if ("error" in result) throw new Error(result.error);
+    const events = parseICal(result.ical).filter((event) => event.uid !== "renttools-placeholder");
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toEqual(expect.objectContaining({
+      startDate: "2027-08-07",
+      endDate: "2027-08-17",
+    }));
+  });
+
+  it("drops a cancelled imported stay once sync removes it from the active event set", async () => {
+    mocks.calendarEventFindMany.mockResolvedValue([]);
+    mocks.reservationFindMany.mockResolvedValue([]);
+
+    const result = await generateFeed(12, "booking");
+    if ("error" in result) throw new Error(result.error);
+    const events = parseICal(result.ical).filter((event) => event.uid !== "renttools-placeholder");
+
+    expect(events).toEqual([]);
+  });
+
+  it("exports a Booking stay with checkout kept exclusive", async () => {
+    mocks.calendarEventFindMany.mockResolvedValue([
+      { ...source, uid: "booking-only", startDate: "2027-06-30", endDate: "2027-07-04", platform: "booking" },
+    ]);
+    mocks.reservationFindMany.mockResolvedValue([]);
+
+    const result = await generateFeed(12, "airbnb");
+    if ("error" in result) throw new Error(result.error);
+    const events = parseICal(result.ical).filter((event) => event.uid !== "renttools-placeholder");
+
+    expect(events).toEqual([
+      expect.objectContaining({ startDate: "2027-06-30", endDate: "2027-07-04" }),
     ]);
   });
 });

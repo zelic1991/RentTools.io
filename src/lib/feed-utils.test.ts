@@ -27,6 +27,11 @@ describe("parseFeedFilename", () => {
     expect(parseFeedFilename("for-platform99.ics")).toBe("platform99");
   });
 
+  it("accepts multi-word channel slugs containing hyphens", () => {
+    expect(parseFeedFilename("for-ubytovani-v-chorvatsku.ics"))
+      .toBe("ubytovani-v-chorvatsku");
+  });
+
   it("matches case-insensitively", () => {
     expect(parseFeedFilename("FOR-Vrbo.ICS")).toBe("Vrbo");
   });
