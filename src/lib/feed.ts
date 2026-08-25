@@ -116,12 +116,14 @@ export async function generateFeed(propertyId: number, forPlatform: string): Pro
   // Other-platform events (block dates + buffer)
   const otherEvents: ICalEvent[] = allEvents
     .filter(e => e.platform !== forPlatform)
-    .map(e => ({ uid: e.uid, summary: e.summary || "Blocked", startDate: e.startDate, endDate: e.endDate }));
+    // Imported summaries commonly contain guest names. Public iCal URLs are
+    // bearer links, so outgoing feeds must expose inventory only, never PII.
+    .map(e => ({ uid: e.uid, summary: `Blocked (${e.platform})`, startDate: e.startDate, endDate: e.endDate }));
 
   for (const res of allReservations.filter(r => reservationChannel(r) !== forPlatform)) {
     otherEvents.push({
       uid: `renttool-reservation-${res.id}`,
-      summary: `${res.name} (${reservationChannel(res)})`,
+      summary: `Blocked (${reservationChannel(res)})`,
       startDate: new Date(res.checkIn).toISOString().substring(0, 10),
       endDate: new Date(res.checkOut).toISOString().substring(0, 10),
     });

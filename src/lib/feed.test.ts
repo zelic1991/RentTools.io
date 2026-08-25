@@ -92,6 +92,20 @@ describe("generateFeed — Direct linked extensions", () => {
     ]);
   });
 
+  it("never exposes imported or manual guest names in outgoing iCal", async () => {
+    mocks.calendarEventFindMany.mockResolvedValue([
+      { ...source, summary: "PRIVATE GUEST NAME" },
+    ]);
+    mocks.reservationFindMany.mockResolvedValue([
+      { ...extension, name: "ANOTHER PRIVATE NAME" },
+    ]);
+    const result = await generateFeed(12, "booking");
+    if ("error" in result) throw new Error(result.error);
+    expect(result.ical).not.toContain("PRIVATE GUEST NAME");
+    expect(result.ical).not.toContain("ANOTHER PRIVATE NAME");
+    expect(result.ical).toContain("Blocked");
+  });
+
   it("routes an explicitly marked extension as Direct during migration", async () => {
     mocks.reservationFindMany.mockResolvedValue([
       { ...extension, platform: "airbnb" },

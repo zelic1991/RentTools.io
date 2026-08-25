@@ -249,6 +249,21 @@ CREATE TABLE IF NOT EXISTS "SyncLog" (
     // chat WhatsApp / Telegram deeplinks on reservations that have no
     // passport guests yet (or only one).
     `ALTER TABLE "Reservation" ADD COLUMN "phone" TEXT`,
+    `ALTER TABLE "Reservation" ADD COLUMN "bookedGuestCount" INTEGER`,
+    // Unified pre-check-in hardening. Raw public tokens and identity payloads
+    // are encrypted with GUEST_DATA_ENCRYPTION_KEY; tokenHash is used for
+    // constant-shape lookups. Existing legacy submissions remain readable and
+    // can be revoked/rotated by the owner without a destructive migration.
+    `ALTER TABLE "GuestFormSubmission" ADD COLUMN "tokenHash" TEXT`,
+    `ALTER TABLE "GuestFormSubmission" ADD COLUMN "tokenCiphertext" TEXT`,
+    `ALTER TABLE "GuestFormSubmission" ADD COLUMN "status" TEXT NOT NULL DEFAULT 'NOT_INVITED'`,
+    `ALTER TABLE "GuestFormSubmission" ADD COLUMN "expiresAt" DATETIME`,
+    `ALTER TABLE "GuestFormSubmission" ADD COLUMN "revokedAt" DATETIME`,
+    `ALTER TABLE "GuestFormSubmission" ADD COLUMN "securePayload" TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE "GuestFormSubmission" ADD COLUMN "ownerApprovedAt" DATETIME`,
+    `ALTER TABLE "GuestFormSubmission" ADD COLUMN "lastChangedAt" DATETIME`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "GuestFormSubmission_tokenHash_key" ON "GuestFormSubmission"("tokenHash")`,
+    `CREATE INDEX IF NOT EXISTS "GuestFormSubmission_status_idx" ON "GuestFormSubmission"("status")`,
   ];
 
   // Feedback table — site-wide visitor feedback queue. New table, so we
@@ -1104,6 +1119,14 @@ CREATE TABLE IF NOT EXISTS "GuestFormSubmission" (
     "reservationId" INTEGER NOT NULL,
     "templateId" INTEGER NOT NULL,
     "shareToken" TEXT NOT NULL,
+    "tokenHash" TEXT,
+    "tokenCiphertext" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'NOT_INVITED',
+    "expiresAt" DATETIME,
+    "revokedAt" DATETIME,
+    "securePayload" TEXT NOT NULL DEFAULT '',
+    "ownerApprovedAt" DATETIME,
+    "lastChangedAt" DATETIME,
     "answers" TEXT NOT NULL DEFAULT '[]',
     "submittedAt" DATETIME,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1113,8 +1136,10 @@ CREATE TABLE IF NOT EXISTS "GuestFormSubmission" (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS "GuestFormSubmission_shareToken_key" ON "GuestFormSubmission"("shareToken");
+CREATE UNIQUE INDEX IF NOT EXISTS "GuestFormSubmission_tokenHash_key" ON "GuestFormSubmission"("tokenHash");
 CREATE INDEX IF NOT EXISTS "GuestFormSubmission_reservationId_idx" ON "GuestFormSubmission"("reservationId");
 CREATE INDEX IF NOT EXISTS "GuestFormSubmission_templateId_idx" ON "GuestFormSubmission"("templateId");
+CREATE INDEX IF NOT EXISTS "GuestFormSubmission_status_idx" ON "GuestFormSubmission"("status");
 `;
 
   const guestFormStatements = guestFormSchema
