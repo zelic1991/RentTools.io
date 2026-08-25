@@ -90,8 +90,9 @@ SYSTEMD_AFTER=$(sha256sum deploy/systemd/rent-tool.service | awk '{print $1}')
 MAINT_AFTER=$(sha256sum deploy/nginx/maintenance.html | awk '{print $1}')
 LOGROTATE_AFTER=$(sha256sum deploy/logrotate/rent-tool 2>/dev/null | awk '{print $1}' || echo "")
 
-# 2. Conditional npm ci. Only when dependencies actually changed.
-if [ "$LOCK_BEFORE" != "$LOCK_AFTER" ]; then
+# 2. Conditional npm ci. Run when dependencies changed OR the checkout has no
+# usable runtime yet (fresh VM / incomplete prior install).
+if [ "$LOCK_BEFORE" != "$LOCK_AFTER" ] || [ ! -x node_modules/.bin/next ]; then
   # npm ci REMOVES node_modules before repopulating it. Running out of
   # space partway leaves a tree that has package directories but no
   # .bin symlinks, so `next start` dies with "next: not found" (exit
@@ -107,16 +108,17 @@ if [ "$LOCK_BEFORE" != "$LOCK_AFTER" ]; then
     log "ABORT — ${FREE_MB}MB free, need ${MIN_FREE_MB}MB for npm ci; leaving the running install untouched" >&2
     exit 12
   fi
-  log "package-lock.json changed — running npm ci (${FREE_MB}MB free)"
+  log "dependencies changed or runtime missing — running npm ci (${FREE_MB}MB free)"
   npm ci --no-audit --no-fund
-  # The dangerous case is an install that exits 0 but is incomplete, so
-  # verify the entrypoint systemd actually execs before we restart onto it.
-  if [ ! -x node_modules/.bin/next ]; then
-    log "ABORT — npm ci finished but node_modules/.bin/next is missing; install incomplete" >&2
-    exit 13
-  fi
 else
-  log "package-lock.json unchanged — skipping npm ci"
+  log "package-lock.json unchanged and Next.js runtime present — skipping npm ci"
+fi
+
+# The dangerous case is an install that exits 0 but is incomplete, so verify
+# the entrypoint systemd actually execs before the artifact swap/restart.
+if [ ! -x node_modules/.bin/next ]; then
+  log "ABORT — npm ci finished but node_modules/.bin/next is missing; install incomplete" >&2
+  exit 13
 fi
 
 # 3. Atomic swap of .next/ and src/generated/prisma/.

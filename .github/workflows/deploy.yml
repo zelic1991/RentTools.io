@@ -34,10 +34,15 @@ concurrency:
 jobs:
   build:
     name: Build on runner
-    runs-on: ubuntu-latest
+    # The deployment target is Oracle A1 (ARM64), so native build outputs must
+    # be produced on the same architecture. The deploy job below only uses
+    # SCP/SSH and intentionally stays on the standard x64 runner.
+    runs-on: ubuntu-24.04-arm
 
-    # Inert until the user wires DROPLET_HOST. Until then every push is a no-op.
-    if: ${{ vars.DROPLET_HOST != '' }}
+    # Normal pushes stay inert until a host is wired. A manual dispatch may run
+    # this ARM64 build as a pre-deployment compatibility gate; the deploy job
+    # remains separately blocked while DROPLET_HOST is empty.
+    if: ${{ vars.DROPLET_HOST != '' || github.event_name == 'workflow_dispatch' }}
 
     env:
       # The build doesn't query the DB but src/lib/prisma.ts initialises the
