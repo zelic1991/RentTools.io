@@ -1,5 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { parseICal, type ICalEvent } from "@/lib/ical";
+import { withCalendarSyncGate } from "@/lib/calendar-sync-gate";
+
+type CalendarSyncOptions = {
+  propertyIds?: number[];
+};
+
+type CalendarSyncSummary = {
+  propertiesSynced: number;
+  newEvents: number;
+  removedEvents: number;
+  errors: number;
+};
 
 /**
  * Fetch and parse an iCal feed from a URL.
@@ -62,14 +74,15 @@ async function log(
  * properties), not every other host's feeds. Scoping it keeps a manual
  * press cheap on the small droplet.
  */
-export async function syncAllCalendars(opts?: {
-  propertyIds?: number[];
-}): Promise<{
-  propertiesSynced: number;
-  newEvents: number;
-  removedEvents: number;
-  errors: number;
-}> {
+export async function syncAllCalendars(
+  opts?: CalendarSyncOptions
+): Promise<CalendarSyncSummary> {
+  return withCalendarSyncGate(() => syncAllCalendarsUnlocked(opts));
+}
+
+async function syncAllCalendarsUnlocked(
+  opts?: CalendarSyncOptions
+): Promise<CalendarSyncSummary> {
   const summary = { propertiesSynced: 0, newEvents: 0, removedEvents: 0, errors: 0 };
 
   // An empty (but present) propertyIds list means "nothing to sync" —
