@@ -17,6 +17,7 @@ import { MobileCalendar } from "@/components/mobile/mobile-calendar";
 import { MobilePwaRegister } from "@/components/mobile/mobile-pwa-register";
 import { MobileShell } from "@/components/mobile/mobile-shell";
 import { loadMobileOperations, type MobileOperationsData, type MobileReservationCard } from "@/lib/mobile-operations";
+import { OperationalRemindersPanel } from "@/components/operational-reminders-panel";
 import { loadMobileCleaning, type MobileCleaningData } from "@/lib/mobile-cleaning";
 import { MOBILE_SECTIONS, type MobileSection } from "@/lib/mobile-operations-core";
 
@@ -94,7 +95,8 @@ function StartScreen({ data }: { data: MobileOperationsData }) {
     + data.start.ownerReviews.length
     + data.start.openEVisitor.length
     + data.start.portalProblems
-    + configuredBufferLinks;
+    + configuredBufferLinks
+    + data.operationalReminders.length;
   return (
     <div className="space-y-7">
       <section aria-labelledby="today-heading">
@@ -147,7 +149,13 @@ function StartScreen({ data }: { data: MobileOperationsData }) {
               <CheckCircle2 aria-hidden className="h-5 w-5 shrink-0" /> Keine offenen Aufgaben aus den aktuell nachweisbaren RentTools-Statuswerten.
             </div>
           ) : (
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="space-y-3">
+              <OperationalRemindersPanel
+                propertyId={data.selectedProperty.id}
+                initialReminders={data.operationalReminders}
+                compact
+              />
+              <div className="grid gap-2 sm:grid-cols-2">
               {[
                 ["Gästedaten fehlen", data.start.openGuestTasks.length, "/mobile/guests"],
                 ["Owner-Review", data.start.ownerReviews.length, "/mobile/guests"],
@@ -163,6 +171,7 @@ function StartScreen({ data }: { data: MobileOperationsData }) {
                   <span>{String(label)}</span><span className="rounded-full bg-[var(--zf-surface)] px-2 py-0.5 tabular-nums dark:bg-slate-800">{String(count)}</span>
                 </Link>
               ))}
+              </div>
             </div>
           )}
       </section>

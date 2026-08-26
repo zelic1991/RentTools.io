@@ -23,6 +23,7 @@ import {
 } from "@/components/calendar/extendable-bookings";
 import { EmptyState } from "@/components/empty-state";
 import { PropertySwitcher } from "@/components/property-switcher";
+import { OperationalRemindersPanel } from "@/components/operational-reminders-panel";
 import { useI18n } from "@/lib/i18n/context";
 import type { Locale } from "@/lib/i18n/translations";
 import {
@@ -608,6 +609,7 @@ export function PropertyCalendar({
     <div className="mx-auto max-w-[1760px] px-3 sm:px-5 flex flex-col lg:flex-row gap-6">
       <div className={`min-w-0 space-y-6 lg:flex-1 ${panelOpen ? "hidden lg:block" : ""}`}>
         <ConflictBanner conflicts={data.conflicts} />
+        <OperationalRemindersPanel propertyId={property.id} compact />
         {!loadingEvents &&
           property.reservations.length === 0 &&
           syncedEvents.length === 0 &&

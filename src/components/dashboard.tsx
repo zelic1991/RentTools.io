@@ -5,6 +5,7 @@ import Link from "next/link";
 import { DateSlider } from "@/components/date-slider";
 import { CleaningSchedule, type CleanerAssignmentInfo } from "@/components/cleaning-schedule";
 import { DashboardOnboarding } from "@/components/dashboard-onboarding";
+import { OperationalRemindersPanel } from "@/components/operational-reminders-panel";
 import { useI18n } from "@/lib/i18n/context";
 import type { Locale } from "@/lib/i18n/translations";
 import type { Property, CalendarLink, DateOverride } from "@/lib/types";
@@ -1098,6 +1099,10 @@ export function Dashboard({
           </Link>
         )}
       </div>
+
+      {!isZeroProperties && (
+        <OperationalRemindersPanel propertyId={selectedProperty?.id} />
+      )}
 
       {/* Zero-property onboarding — empty-state hijack. Replaces the
           earlier "Welcome modal + add-property hero" with an inline

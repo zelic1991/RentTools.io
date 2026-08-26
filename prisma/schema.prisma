@@ -34,6 +34,8 @@ model User {
   grantedManagers    PropertyManager[]    @relation("ManagerGrants")
   createdInvites     PropertyManagerInvite[] @relation("InviteCreators")
   acceptedInvites    PropertyManagerInvite[] @relation("InviteAcceptors")
+  createdOperationalReminders   OperationalReminder[] @relation("OperationalReminderCreators")
+  completedOperationalReminders OperationalReminder[] @relation("OperationalReminderCompleters")
   blogPosts          BlogPost[]
   blogComments       BlogComment[]
   feedback           Feedback[]
@@ -122,6 +124,7 @@ model Property {
   dateOverrides      DateOverride[]
   cleanerAssignments CleanerAssignment[]
   cleaningRecords    CleaningRecord[]
+  operationalReminders OperationalReminder[]
   messageTemplates   MessageTemplate[]
   managers           PropertyManager[]
   managerInvites     PropertyManagerInvite[]
@@ -199,6 +202,33 @@ model CleaningRecord {
   @@unique([propertyId, date])
   @@index([propertyId, date])
   @@index([assignedCleanerId, status, date])
+}
+
+// Property-scoped operational follow-up. This is deliberately separate from
+// Reservation, CalendarEvent and DateOverride: a reminder may describe work
+// that still has to be performed in an external portal, but it never changes
+// availability or appears in an iCal feed.
+model OperationalReminder {
+  id                Int       @id @default(autoincrement())
+  propertyId        Int
+  property          Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  dedupeKey         String    @unique
+  type              String
+  portal            String
+  status            String    @default("OPEN") // OPEN | DONE
+  startDate         String    // inclusive YYYY-MM-DD
+  endDate           String    // exclusive checkout YYYY-MM-DD
+  dueAt             DateTime
+  note              String
+  createdByUserId   Int
+  createdBy         User      @relation("OperationalReminderCreators", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  completedByUserId Int?
+  completedBy       User?     @relation("OperationalReminderCompleters", fields: [completedByUserId], references: [id], onDelete: SetNull)
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime?
+
+  @@index([propertyId, status, dueAt])
 }
 
 // Cleaner profile (RT-25.10). Account-level entity owned by a host;

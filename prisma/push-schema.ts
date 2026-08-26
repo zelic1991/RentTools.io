@@ -800,6 +800,44 @@ CREATE INDEX IF NOT EXISTS "CleaningRecord_propertyId_date_idx" ON "CleaningReco
   `);
   console.log("OK: normalized CleaningRecord workflow statuses");
 
+  // Non-blocking owner/manager follow-ups. This table is intentionally not
+  // referenced by Reservation, CalendarEvent, DateOverride or feed code.
+  const operationalReminderSchema = `
+CREATE TABLE IF NOT EXISTS "OperationalReminder" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "propertyId" INTEGER NOT NULL,
+    "dedupeKey" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "portal" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'OPEN',
+    "startDate" TEXT NOT NULL,
+    "endDate" TEXT NOT NULL,
+    "dueAt" DATETIME NOT NULL,
+    "note" TEXT NOT NULL,
+    "createdByUserId" INTEGER NOT NULL,
+    "completedByUserId" INTEGER,
+    "completedAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME,
+    CONSTRAINT "OperationalReminder_propertyId_fkey" FOREIGN KEY ("propertyId") REFERENCES "Property" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "OperationalReminder_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "OperationalReminder_completedByUserId_fkey" FOREIGN KEY ("completedByUserId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS "OperationalReminder_dedupeKey_key" ON "OperationalReminder"("dedupeKey");
+CREATE INDEX IF NOT EXISTS "OperationalReminder_propertyId_status_dueAt_idx" ON "OperationalReminder"("propertyId", "status", "dueAt");
+`;
+
+  const operationalReminderStatements = operationalReminderSchema
+    .split(";")
+    .map((statement) => statement.trim())
+    .filter((statement) => statement.length > 0);
+
+  for (const statement of operationalReminderStatements) {
+    await prisma.$executeRawUnsafe(statement);
+    console.log("OK:", statement.substring(0, 60) + "...");
+  }
+
   // DateOverride table for manual open/close of calendar dates
   const dateOverrideSchema = `
 CREATE TABLE IF NOT EXISTS "DateOverride" (
