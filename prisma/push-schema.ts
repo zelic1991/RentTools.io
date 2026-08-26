@@ -4,6 +4,7 @@ import "dotenv/config";
 import path from "node:path";
 import fs from "node:fs";
 import { backfillCleanerProfilesByOwner } from "../src/lib/cleaner-profile-backfill";
+import { alignCalendarLinkBufferDefaults } from "../src/lib/calendar-link-schema-migration";
 
 function resolveDbConfig(): { url: string; authToken?: string; label: string } {
   const dbUrl = process.env.DATABASE_URL;
@@ -357,6 +358,18 @@ CREATE INDEX IF NOT EXISTS "Feedback_userId_idx" ON "Feedback"("userId");
   for (const sql of migrations) {
     await runAdditiveMigration(sql);
   }
+
+  // Older installations created CalendarLink with DEFAULT 1/1. SQLite's
+  // CREATE TABLE IF NOT EXISTS and ADD COLUMN migrations cannot change an
+  // existing column default, so align that persistent schema truth through a
+  // guarded transactional rebuild. Existing row values remain verbatim.
+  const calendarLinkDefaultResult = await alignCalendarLinkBufferDefaults(prisma);
+  console.log(
+    `OK: CalendarLink buffer defaults ${calendarLinkDefaultResult.status} ` +
+      `(rows=${calendarLinkDefaultResult.rowCount}, ` +
+      `indexes=${calendarLinkDefaultResult.preservedIndexes}, ` +
+      `triggers=${calendarLinkDefaultResult.preservedTriggers})`,
+  );
 
   // Backfill the durable linked-event metadata introduced above. Older rows
   // overloaded Reservation.platform for both the booking channel and the
