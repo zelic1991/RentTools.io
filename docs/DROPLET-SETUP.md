@@ -252,10 +252,19 @@ protection, `scripts/backup-db.sh` also invokes
 `scripts/upload-backup-rclone.sh` after the local backup passes
 `PRAGMA integrity_check` and rotation. The uploader is disabled by default and
 does not send the plaintext `.db` file to rclone. It encrypts the snapshot with
-GnuPG's AES-256 symmetric format with mandatory MDC authentication, wrapped in
-an explicit `RTBACKUP-V2` header, and uploads a
+GnuPG's AES-256/OCB authenticated-encryption format, wrapped in an exact
+`RTBACKUP-V2\n` format-recognition header, and uploads a
 `rtbackup-YYYYMMDD-HHMM.db.v2.gpg` object. This is an established packaged
 format; it is not an OpenSSL `enc` AEAD approximation.
+
+V2 requires the tested Ubuntu 24.04 recovery baseline GnuPG 2.4.4 and uses
+`--cipher-algo AES256 --force-ocb --compress-algo none`. Recovery tooling must
+verify that the encrypted packet is `cipher=9 aead=2` (AES256/OCB). Inside that
+AEAD-protected packet, a fixed-layout manifest authenticates `FORMAT_VERSION`,
+`BACKUP_ID`, `CREATED_AT_UTC`, `OBJECT_NAME_BINDING`, database size, and SHA-256
+before any SQLite operation. The authenticated object name must exactly match
+the downloaded filename; renaming old ciphertext to a future-looking backup
+name fails closed as `BACKUP_IDENTITY_MISMATCH`.
 
 Safety properties:
 
@@ -266,12 +275,19 @@ Safety properties:
 - The rclone config must itself be encrypted and stored outside the repository.
 - Upload uses `copyto --immutable`; it never calls `sync`, `move`, `delete`, or
   `purge`. A failed object stays in the local encrypted pending queue.
-- The rclone MD5 check is transfer integrity only. Restore performs GPG MDC
-  authentication before SQLite sees any plaintext. A changed, truncated, or
+- The rclone MD5 check is transfer integrity only. Restore performs GPG OCB
+  authentication and validates the authenticated inner identity before SQLite
+  sees any plaintext. A changed, truncated, renamed, or
   wrong-key object fails closed as `AUTHENTICITY_FAILED`.
 - Nothing automatically removes remote objects. Add remote retention only
   after an owner-approved retention policy and a successful offsite restore
   drill prove that the intended recovery points remain available.
+- Residual risk `REMOTE_ROLLBACK_AFTER_NEWER_OBJECT_DELETION`: an attacker able
+  to delete every newer remote object can leave an older, still-originally
+  named and cryptographically valid recovery point as the newest remaining
+  object. Severity: P2 recovery freshness risk. A later owner-approved design
+  can bind restore selection to an independently protected monotonic ledger;
+  this change deliberately adds no remote delete, move, or migration behavior.
 - The backup-encryption passphrase must also be stored in the owner's password
   manager or other recovery location outside the droplet. A ciphertext without
   that passphrase is not a usable backup.

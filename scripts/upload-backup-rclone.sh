@@ -183,7 +183,7 @@ ENC_FILE="$PENDING_DIR/$ENC_NAME"
 if [ ! -f "$ENC_FILE" ]; then
   ENC_TMP="$PENDING_DIR/.${ENC_NAME}.tmp.$$"
   trap 'rm -f "${ENC_TMP:-}"' EXIT
-  "$FORMAT_TOOL" encrypt "$SOURCE_REAL" "$ENC_TMP" "$BACKUP_ENCRYPTION_KEY_FILE"
+  "$FORMAT_TOOL" encrypt "$SOURCE_REAL" "$ENC_TMP" "$BACKUP_ENCRYPTION_KEY_FILE" "$ENC_NAME"
   chmod 600 "$ENC_TMP"
   mv "$ENC_TMP" "$ENC_FILE"
   trap - EXIT

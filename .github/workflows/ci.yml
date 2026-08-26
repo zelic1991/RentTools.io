@@ -14,7 +14,7 @@ concurrency:
 jobs:
   build-and-test:
     name: Build + tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     env:
       # Module-level Prisma init in src/lib/prisma.ts requires *some* DB env.
@@ -27,6 +27,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Install backup recovery test tools
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y gnupg sqlite3
+          gpg --version
+          sqlite3 --version
+
+      - name: Authenticated backup manipulation tests
+        run: bash scripts/test-offsite-backup-format.sh
 
       - name: Forbidden-paths check
         # Defence-in-depth alongside .gitignore + .githooks/pre-commit.
