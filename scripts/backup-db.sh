@@ -82,3 +82,13 @@ prune_tier "$DEST/weekly" 4
 prune_tier "$DEST/monthly" 3
 
 echo "[$(date -Is)] OK $DAILY ($(stat -c %s "$DAILY") bytes)"
+
+# Optional Google Drive offsite copy. The uploader is fail-closed when enabled,
+# but returns successfully without doing anything until the owner-only config
+# explicitly sets OFFSITE_BACKUP_ENABLED=1. Calling it here (instead of adding a
+# second cron entry) guarantees that only a completed, verified snapshot enters
+# the encrypted upload queue.
+OFFSITE_UPLOADER="/home/app/rent-tool/scripts/upload-backup-rclone.sh"
+if [ -x "$OFFSITE_UPLOADER" ]; then
+  "$OFFSITE_UPLOADER" "$DAILY"
+fi

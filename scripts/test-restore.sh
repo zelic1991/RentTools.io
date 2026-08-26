@@ -130,4 +130,13 @@ fi
 
 echo "[$(ts)] ${HOST} drill OK from ${RESOLVED} integrity=ok ${SUMMARY}(format backup/live; soft=${SOFT_MISMATCH})"
 rm -f "$TEST_DB"
+
+# Exercise the independent offsite recovery path as part of the same monthly
+# drill. Disabled/unconfigured offsite backup is a logged no-op. A configured
+# offsite failure uses the existing alert side-channel but never touches prod.db.
+OFFSITE_RESTORE="/home/app/rent-tool/scripts/test-offsite-restore.sh"
+if [ -x "$OFFSITE_RESTORE" ] && ! "$OFFSITE_RESTORE"; then
+  send_alert "Google Drive offsite restore drill failed; see rent-tool-offsite-restore.log"
+fi
+
 exit 0

@@ -245,6 +245,93 @@ If anything goes wrong, swap `prod.db.preroll` back. After a successful
 restore, delete the `.preroll` file once you've verified a few hours of
 clean operation.
 
+### Optional encrypted Google Drive offsite copy
+
+The local snapshot is the restore source of first resort. For droplet-loss
+protection, `scripts/backup-db.sh` also invokes
+`scripts/upload-backup-rclone.sh` after the local backup passes
+`PRAGMA integrity_check` and rotation. The uploader is disabled by default and
+does not send the plaintext `.db` file to rclone. It encrypts the snapshot with
+AES-256-CBC + PBKDF2 into a neutral `rtbackup-YYYYMMDD-HHMM.db.enc` name and
+uploads only that ciphertext.
+
+Safety properties:
+
+- Google OAuth scope must be exactly `drive.file`. Rclone can then see only the
+  files and folders it created, not the rest of the owner's Drive.
+- Use a dedicated Google OAuth Desktop client ID. Do not use rclone's shared
+  client ID, which is being retired in 2026.
+- The rclone config must itself be encrypted and stored outside the repository.
+- Upload uses `copyto --immutable`; it never calls `sync`, `move`, `delete`, or
+  `purge`. A failed object stays in the local encrypted pending queue.
+- Nothing automatically removes remote objects. Add remote retention only
+  after an owner-approved retention policy and a successful offsite restore
+  drill prove that the intended recovery points remain available.
+- The backup-encryption passphrase must also be stored in the owner's password
+  manager or other recovery location outside the droplet. A ciphertext without
+  that passphrase is not a usable backup.
+
+On an existing server, install rclone once (`server-bootstrap.sh` includes it
+for new servers), then configure the remote interactively as the `app` user.
+Let rclone create `Zelic RentTools Backups`; a folder created through the Drive web UI
+is not visible under `drive.file` unless explicitly granted to the app.
+
+Create the owner-only settings file outside the checkout:
+
+```bash
+sudo install -d -m 700 -o app -g app /home/app/.config/rclone
+sudo -u app rclone config
+# Remote name: zelic-drive
+# Storage: Google Drive
+# Client ID/secret: the dedicated Owner OAuth Desktop client
+# Scope: drive.file
+# Let rclone create/access its own Zelic RentTools Backups folder
+
+# In rclone config, select "Set configuration password" before leaving.
+sudo install -m 600 -o app -g app /dev/null /home/app/.renttools-offsite-backup.env
+sudo tee /home/app/.renttools-offsite-backup.env >/dev/null <<'EOF'
+OFFSITE_BACKUP_ENABLED=1
+RCLONE_CONFIG=/home/app/.config/rclone/rclone.conf
+RCLONE_REMOTE=zelic-drive
+RCLONE_REMOTE_DIR='Zelic RentTools Backups'
+BACKUP_ENCRYPTION_KEY_FILE=/home/app/.secrets/backup-passphrase
+RCLONE_CONFIG_PASS_FILE=/home/app/.renttools-rclone-config-pass
+PBKDF2_ITERATIONS=200000
+EOF
+sudo chown app:app /home/app/.renttools-offsite-backup.env
+sudo chmod 600 /home/app/.renttools-offsite-backup.env
+```
+
+Do not paste either passphrase into the settings file, shell history, source
+tree, or cron. Put the existing backup-encryption passphrase in
+`/home/app/.secrets/backup-passphrase` and the rclone-config password in
+`/home/app/.renttools-rclone-config-pass`; both files must be owned by `app`
+with mode 400 or 600. The OAuth config must be owned by `app` with mode 600,
+because rclone must be able to persist refreshed OAuth tokens.
+The scripts fail closed unless `RCLONE_ENCRYPT_V0:` is the first meaningful
+config line. Official rclone comments and blank lines may precede it, but a
+plaintext remote section may not. This is intentionally compatible with the
+deployed rclone 1.60 package, which does not provide
+`rclone config encryption check`.
+
+Prove both directions before relying on the remote:
+
+```bash
+sudo -u app /home/app/rent-tool/scripts/backup-db.sh
+tail -n 50 /home/app/logs/rent-tool-offsite-backup.log
+
+# Downloads the newest .enc to a temporary directory, decrypts it, runs
+# SQLite integrity_check, and removes the temporary plaintext. prod.db is
+# never stopped or replaced.
+sudo -u app /home/app/rent-tool/scripts/test-offsite-restore.sh
+tail -n 50 /home/app/logs/rent-tool-offsite-restore.log
+```
+
+The existing monthly `scripts/test-restore.sh` drill invokes the offsite drill
+when offsite backup is enabled. Keep the OAuth application out of Google's
+temporary Testing state before production use so its refresh token does not
+expire after a short test window.
+
 ## 8. Health endpoint + uptime monitoring
 
 Covered by RT-13.10. Public health endpoint at `/api/health`.

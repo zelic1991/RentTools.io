@@ -28,6 +28,7 @@ apt-get install -y -qq \
   ufw fail2ban \
   nginx \
   sqlite3 \
+  rclone \
   htop iotop vnstat \
   unattended-upgrades
 

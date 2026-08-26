@@ -67,7 +67,12 @@ It cuts the risk dramatically — not to zero, but close. iCal sync is *not* rea
 No. Each property is scoped to its owner + invited managers + assigned cleaners. The only public surface is the per-property iCal feed (read-only, blocks-only — no guest names exposed) and the optional pre-arrival form share link (one-time, scoped to a single reservation).
 
 **Where is data stored?**
-SQLite on the maintainer's droplet (EU region). Daily backups, 14-day / 8-week / 6-month retention. See [renttools.io/privacy](https://renttools.io/privacy) for the full list of what's collected and how to delete your account.
+SQLite on the maintainer's droplet (EU region). Local backups retain 7 daily,
+4 weekly, and 3 monthly snapshots. Self-hosters can optionally send separately
+encrypted, append-only backup objects to a least-privilege Google Drive remote;
+this is disabled until the owner configures it. See
+[renttools.io/privacy](https://renttools.io/privacy) for the full list of what's
+collected and how to delete your account.
 
 **Can I export my data?**
 Yes — *Profile → Export my data* gives you a JSON dump of everything tied to your account. Account deletion (GDPR right-to-erasure) is one click in the same panel.
