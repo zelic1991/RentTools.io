@@ -6,6 +6,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react
 import { CalendarGrid } from "@/components/calendar/calendar-grid";
 import { useCalendarData } from "@/components/calendar/use-calendar-data";
 import type { MobileOperationsData } from "@/lib/mobile-operations";
+import { OperationalRemindersPanel } from "@/components/operational-reminders-panel";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MONTH_FORMAT = new Intl.DateTimeFormat("de-AT", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -33,6 +34,9 @@ export function MobileCalendar({ data }: { data: MobileOperationsData }) {
   const monthReservations = data.calendar.property.reservations.filter(
     (reservation) => reservation.checkIn.slice(0, 10) < monthEnd
       && reservation.checkOut.slice(0, 10) > monthStart,
+  );
+  const monthReminders = data.operationalReminders.filter(
+    (reminder) => reminder.startDate < monthEnd && reminder.endDate > monthStart,
   );
 
   const moveMonth = (delta: number) => {
@@ -121,6 +125,12 @@ export function MobileCalendar({ data }: { data: MobileOperationsData }) {
         <div className="flex min-h-11 items-center gap-2 rounded-xl border border-[var(--zf-border)] bg-[var(--zf-bg)] px-3"><span className="h-3 w-3 rounded-full bg-[var(--zf-text-muted)]" /> Sonstige</div>
       </div>
       <p className="text-xs text-[var(--zf-text-muted)]">Ein Checkout-Tag bleibt für eine neue Anreise am selben Tag verfügbar. Nur Reservierungen, manuelle Sperren oder bewusst gesetzte Puffertage blockieren.</p>
+
+      <OperationalRemindersPanel
+        propertyId={data.selectedProperty.id}
+        initialReminders={monthReminders}
+        compact
+      />
 
       <section aria-labelledby="month-reservations-heading" className="space-y-2">
         <h3 id="month-reservations-heading" className="text-sm font-semibold">Reservierungen im Monat</h3>

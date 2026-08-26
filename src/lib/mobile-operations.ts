@@ -23,6 +23,7 @@ import {
   type MobileReservationInput,
   type MobileSection,
 } from "@/lib/mobile-operations-core";
+import type { OperationalReminderDto } from "@/lib/operational-reminders";
 
 interface MobileCalendarReservation {
   id: number;
@@ -74,6 +75,7 @@ export interface MobileOperationsData {
   };
   guests: MobileReservationCard[];
   portals: MobilePortalCard[];
+  operationalReminders: OperationalReminderDto[];
   calendar: {
     property: {
       minNights: number;
@@ -253,6 +255,24 @@ export async function loadMobileOperations(options: {
         select: RESERVATION_SELECT,
         orderBy: { checkIn: "asc" },
       },
+      operationalReminders: {
+        where: { status: "OPEN" },
+        select: {
+          id: true,
+          propertyId: true,
+          type: true,
+          portal: true,
+          status: true,
+          startDate: true,
+          endDate: true,
+          dueAt: true,
+          note: true,
+          completedAt: true,
+          completedByUserId: true,
+          createdAt: true,
+        },
+        orderBy: { dueAt: "asc" },
+      },
     },
   });
 
@@ -352,6 +372,21 @@ export async function loadMobileOperations(options: {
           || card.guestState.eVisitorStatus === "PRODUCTION_ERROR",
       )
     : [];
+  const operationalReminders: OperationalReminderDto[] = property.operationalReminders.map((reminder) => ({
+    id: reminder.id,
+    propertyId: reminder.propertyId,
+    propertyName: property.name,
+    type: reminder.type as OperationalReminderDto["type"],
+    portal: reminder.portal,
+    status: reminder.status as OperationalReminderDto["status"],
+    startDate: reminder.startDate,
+    endDate: reminder.endDate,
+    dueAt: reminder.dueAt.toISOString(),
+    note: reminder.note,
+    completedAt: reminder.completedAt?.toISOString() ?? null,
+    completedByUserId: reminder.completedByUserId,
+    createdAt: reminder.createdAt.toISOString(),
+  }));
 
   return {
     section,
@@ -377,6 +412,7 @@ export async function loadMobileOperations(options: {
     },
     guests: canReadPii ? upcomingCards : [],
     portals,
+    operationalReminders,
     calendar: {
       property: calendarProperty,
       events: calendarEvents,

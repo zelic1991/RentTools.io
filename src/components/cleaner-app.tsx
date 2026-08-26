@@ -82,14 +82,14 @@ export function CleanerApp({ user, onLogout }: CleanerAppProps) {
 
       const results = await Promise.all(
         props.map(async (p) => {
-          const [syncRes, linksRes, ovRes] = await Promise.all([
-            fetch(`/api/calendar/sync?propertyId=${p.id}&limit=200`).then((r) => r.json()),
+          const [occupancyRes, linksRes, ovRes] = await Promise.all([
+            fetch(`/api/calendar/occupancy?propertyId=${p.id}`).then((r) => r.json()),
             fetch(`/api/calendar/links?propertyId=${p.id}`).then((r) => r.json()),
             fetch(`/api/date-overrides?propertyId=${p.id}`).then((r) => r.json()),
           ]);
           return {
             id: p.id,
-            events: (syncRes.events || []) as CalendarEvent[],
+            events: (occupancyRes.events || []) as CalendarEvent[],
             links: (linksRes || []) as CalendarLink[],
             overrides: (ovRes || []) as DateOverride[],
           };
