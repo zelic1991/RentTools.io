@@ -123,6 +123,26 @@ Next phase:
 - onboard the first external owners;
 - derive V1.1 only from real problems and feedback.
 
+## Next product goal: shared messages inbox
+
+The next product goal is a property-scoped messages inbox for Owner and
+Manager operations. This is a planned follow-up, not part of the frozen V1
+baseline.
+
+The smallest useful scope is:
+
+- a `Conversation` and `Message` model with Owner/Property isolation;
+- an inbox for authorized Owner and Manager users;
+- optional links from a conversation to a Property, Reservation and Guest;
+- Website and e-mail inquiries as the first inbound source;
+- open, read, answered and closed states;
+- an audit trail for reads and replies;
+- continued reuse of the existing `MessageTemplate` model.
+
+Airbnb and Booking messaging APIs, automatic external replies, CRM features
+and marketing automation remain out of scope until the required account or
+partner capabilities are verified.
+
 ## Evidence boundaries
 
 This freeze does not claim that:
