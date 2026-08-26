@@ -3,10 +3,17 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { canManageProperty, listAccessiblePropertyIds } from "@/lib/ownership";
-import { normalizePlatformSlug } from "@/lib/platforms";
 import { parseReservationDate } from "@/lib/reservation-dates";
 import { loadEffectiveLinkedStayRange } from "@/lib/linked-stay";
 import { validateReservationRevenue } from "@/lib/reservation-revenue";
+import {
+  assertReservationExternalKeyBinding,
+  canonicalizeReservationPlatform,
+  createExternalReservationIdempotently,
+  ExternalReservationConflictError,
+  findIdempotentExternalReservation,
+  normalizeReservationExternalKey,
+} from "@/lib/reservation-external-key";
 import {
   DEFAULT_PROPERTY_TIME_ZONE,
   getOwnerCalendarWindow,
@@ -60,6 +67,7 @@ export async function POST(request: NextRequest) {
       checkIn,
       checkOut,
       platform,
+      externalKey,
       propertyId,
       linkedEventUid,
       linkedEventPlatform,
@@ -76,6 +84,7 @@ export async function POST(request: NextRequest) {
       !Number.isInteger(propertyId) ||
       propertyId <= 0 ||
       (platform !== undefined && typeof platform !== "string") ||
+      (externalKey !== undefined && externalKey !== null && typeof externalKey !== "string") ||
       (linkedEventPlatform !== undefined &&
         linkedEventPlatform !== null &&
         typeof linkedEventPlatform !== "string") ||
@@ -130,31 +139,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check overlap with existing RentTools reservations on the same
-    // property. The host can't have two reservations covering the same
-    // night.
-    const overlap = await prisma.reservation.findFirst({
-      where: {
-        propertyId,
-        checkIn: { lt: checkOutDate },
-        checkOut: { gt: checkInDate },
-      },
-      select: { name: true, checkIn: true, checkOut: true },
-    });
-    if (overlap) {
-      return NextResponse.json(
-        {
-          error: "Overlapping reservation exists",
-          existing: {
-            name: overlap.name,
-            checkIn: overlap.checkIn,
-            checkOut: overlap.checkOut,
-          },
-        },
-        { status: 409 }
-      );
-    }
-
     // Check overlap with synced calendar events (iCal-imported bookings
     // from Airbnb / Booking / Vrbo). Without this guard a host can
     // create a manual reservation on dates already booked from another
@@ -177,7 +161,15 @@ export async function POST(request: NextRequest) {
       linkedEventUid !== "";
     const startDateStr = checkInDate.toISOString().substring(0, 10);
     const endDateStr = checkOutDate.toISOString().substring(0, 10);
-    let reservationPlatform = platform || "airbnb";
+    let reservationPlatform: string;
+    try {
+      reservationPlatform = canonicalizeReservationPlatform(platform || "airbnb");
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Invalid platform" },
+        { status: 400 },
+      );
+    }
     let sourceIdentity: { platform: string; uid: string } | null = null;
     let sourceRole: "claim" | "extension" | null = null;
 
@@ -196,7 +188,15 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const normalizedPlatform = normalizePlatformSlug(rawSourcePlatform);
+      let normalizedPlatform: string;
+      try {
+        normalizedPlatform = canonicalizeReservationPlatform(rawSourcePlatform);
+      } catch {
+        return NextResponse.json(
+          { error: "Invalid linked calendar event" },
+          { status: 400 },
+        );
+      }
       const normalizedUid = linkedEventUid.trim();
       if (!normalizedPlatform || !normalizedUid) {
         return NextResponse.json(
@@ -281,6 +281,79 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    let normalizedExternalKey: string | null;
+    try {
+      normalizedExternalKey = normalizeReservationExternalKey(externalKey);
+      if (normalizedExternalKey) {
+        assertReservationExternalKeyBinding({
+          propertyId,
+          platform: reservationPlatform,
+          checkIn: startDateStr,
+          checkOut: endDateStr,
+          externalKey: normalizedExternalKey,
+        });
+      }
+    } catch (error) {
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : "Invalid externalKey" },
+        { status: 400 },
+      );
+    }
+
+    const createData = {
+      name: name.trim(),
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
+      platform: reservationPlatform,
+      ...(normalizedExternalKey ? { externalKey: normalizedExternalKey } : {}),
+      linkedEventUid: sourceIdentity?.uid || null,
+      linkedEventPlatform: sourceIdentity?.platform || null,
+      linkedEventRole: sourceRole,
+      ...(bookedGuestCount !== undefined ? { bookedGuestCount } : {}),
+      ...revenue.data,
+      propertyId,
+    };
+
+    if (normalizedExternalKey) {
+      try {
+        const existing = await findIdempotentExternalReservation(prisma, {
+          ...createData,
+          externalKey: normalizedExternalKey,
+        });
+        if (existing) return NextResponse.json(existing);
+      } catch (error) {
+        if (error instanceof ExternalReservationConflictError) {
+          return NextResponse.json({ error: error.message }, { status: 409 });
+        }
+        throw error;
+      }
+    }
+
+    // Check overlap only after an external-key retry has had a chance to
+    // resolve to its existing row. The later CREATE still relies on the DB
+    // unique index to close concurrent retry races.
+    const overlap = await prisma.reservation.findFirst({
+      where: {
+        propertyId,
+        checkIn: { lt: checkOutDate },
+        checkOut: { gt: checkInDate },
+      },
+      select: { name: true, checkIn: true, checkOut: true },
+    });
+    if (overlap) {
+      return NextResponse.json(
+        {
+          error: "Overlapping reservation exists",
+          existing: {
+            name: overlap.name,
+            checkIn: overlap.checkIn,
+            checkOut: overlap.checkOut,
+          },
+        },
+        { status: 409 },
+      );
+    }
+
     const syncedOverlap = await prisma.calendarEvent.findFirst({
       where: {
         propertyId,
@@ -305,20 +378,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const reservation = await prisma.reservation.create({
-      data: {
-        name: name.trim(),
-        checkIn: checkInDate,
-        checkOut: checkOutDate,
-        platform: reservationPlatform,
-        linkedEventUid: sourceIdentity?.uid || null,
-        linkedEventPlatform: sourceIdentity?.platform || null,
-        linkedEventRole: sourceRole,
-        ...(bookedGuestCount !== undefined ? { bookedGuestCount } : {}),
-        ...revenue.data,
-        propertyId,
-      },
-    });
+    let reservation;
+    let created = true;
+    try {
+      if (normalizedExternalKey) {
+        const result = await createExternalReservationIdempotently(prisma, {
+          ...createData,
+          externalKey: normalizedExternalKey,
+        });
+        reservation = result.reservation;
+        created = result.created;
+      } else {
+        reservation = await prisma.reservation.create({ data: createData });
+      }
+    } catch (error) {
+      if (error instanceof ExternalReservationConflictError) {
+        return NextResponse.json({ error: error.message }, { status: 409 });
+      }
+      throw error;
+    }
+
+    // A concurrent request may have won the unique-index race. Its completed
+    // write already performed the cleanup and audit; this retry is read-only.
+    if (!created) return NextResponse.json(reservation);
 
     // Clean up open / closed overrides that the new reservation just
     // made obsolete. The iCal feed already silently filters them

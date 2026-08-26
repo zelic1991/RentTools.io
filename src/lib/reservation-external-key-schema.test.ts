@@ -5,7 +5,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { PrismaClient } from "../generated/prisma/client";
-import { buildDirectReservationExternalKey } from "./reservation-external-key";
+import {
+  buildDirectReservationExternalKey,
+  createExternalReservationIdempotently,
+} from "./reservation-external-key";
 
 let tempRoot = "";
 let dbPath = "";
@@ -189,6 +192,30 @@ describe("Reservation externalKey schema upgrade", () => {
       externalKey,
     );
     expect(await wouldCreate()).toBe(false);
+  });
+
+  it("atomically collapses concurrent duplicate creates through the unique index", async () => {
+    const externalKey = "BOOKING:CONCURRENT-STABLE-1";
+    const data = {
+      name: "Concurrent booking",
+      checkIn: new Date("2027-04-10T00:00:00.000Z"),
+      checkOut: new Date("2027-04-12T00:00:00.000Z"),
+      platform: "booking",
+      propertyId: 1,
+      externalKey,
+    };
+
+    const outcomes = await Promise.all([
+      createExternalReservationIdempotently(prisma, data),
+      createExternalReservationIdempotently(prisma, data),
+    ]);
+
+    expect(outcomes.filter((outcome) => outcome.created)).toHaveLength(1);
+    expect(outcomes.filter((outcome) => !outcome.created)).toHaveLength(1);
+    expect(new Set(outcomes.map((outcome) => outcome.reservation.id)).size).toBe(1);
+    await expect(
+      prisma.reservation.count({ where: { propertyId: 1, platform: "booking", externalKey } }),
+    ).resolves.toBe(1);
   });
 
   it("keeps the linked-event index and passes SQLite integrity_check", async () => {

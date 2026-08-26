@@ -608,6 +608,86 @@ describe("PATCH /api/reservations/:id — date edits", () => {
     expect(mocks.reservationUpdate).not.toHaveBeenCalled();
   });
 
+  it("rejects changing the canonical platform namespace of an opaque external key", async () => {
+    mocks.reservationFindUnique.mockResolvedValue({
+      ...original,
+      linkedEventUid: null,
+      linkedEventPlatform: null,
+      linkedEventRole: null,
+      externalKey: "BOOKING:stable-42",
+      platform: "booking",
+    });
+
+    const response = await PATCH(
+      patchRequest({ platform: "Airbnb" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Reservation platform is bound by externalKey and cannot be changed",
+    });
+    expect(mocks.reservationUpdate).not.toHaveBeenCalled();
+  });
+
+  it("treats externalKey as write-once even when the request tries to clear it", async () => {
+    const response = await PATCH(
+      patchRequest({ externalKey: null }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Reservation externalKey cannot be changed",
+    });
+    expect(mocks.reservationUpdate).not.toHaveBeenCalled();
+  });
+
+  it("rejects changing dates encoded by the DIRECT:v1 external-key contract", async () => {
+    mocks.reservationFindUnique.mockResolvedValue({
+      ...original,
+      linkedEventUid: null,
+      linkedEventPlatform: null,
+      linkedEventRole: null,
+      externalKey:
+        "DIRECT:v1:p12:2026-08-19:2026-08-23:owner-chat:2026-08-25:001",
+      platform: "direct",
+    });
+
+    const response = await PATCH(
+      patchRequest({ checkOut: "2026-08-24" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Direct externalKey does not match its property and checkout-exclusive stay",
+    });
+    expect(mocks.reservationUpdate).not.toHaveBeenCalled();
+  });
+
+  it("permits a date correction for an opaque provider key", async () => {
+    mocks.reservationFindUnique.mockResolvedValue({
+      ...original,
+      linkedEventUid: null,
+      linkedEventPlatform: null,
+      linkedEventRole: null,
+      externalKey: "BOOKING:stable-42",
+      platform: "booking",
+    });
+
+    const response = await PATCH(
+      patchRequest({ checkOut: "2026-08-24" }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.reservationUpdate).toHaveBeenCalledWith({
+      where: { id: reservationId },
+      data: { checkOut: new Date("2026-08-24T00:00:00.000Z") },
+    });
+  });
+
   it("rejects an overlap with another manual reservation before writing", async () => {
     mocks.reservationFindFirst.mockResolvedValue({
       name: "Existing stay",
