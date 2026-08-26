@@ -6,6 +6,7 @@ import {
   ensureOnboardingDraftFeedIdentity,
   mintNewPropertyFeedIdentity,
 } from "@/lib/feed-identity";
+import { normalizeIcalUrl, normalizePlatformSlug } from "@/lib/calendar-link-input";
 
 const COOKIE_NAME = "rt-onboard-token";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 14; // 14 days
@@ -31,10 +32,13 @@ function isLinkArray(value: unknown): value is DraftLink[] {
   );
 }
 
-function sanitizeLink(l: DraftLink): DraftLink {
+function sanitizeLink(l: DraftLink): DraftLink | null {
+  const platformResult = normalizePlatformSlug(l.platform);
+  const urlResult = normalizeIcalUrl(l.icalExportUrl);
+  if (!platformResult.ok || !urlResult.ok) return null;
   const out: DraftLink = {
-    platform: l.platform.toLowerCase().trim().slice(0, 32),
-    icalExportUrl: l.icalExportUrl.trim().slice(0, 2000),
+    platform: platformResult.platform,
+    icalExportUrl: urlResult.url,
   };
   if (l.customName) out.customName = l.customName.trim().slice(0, 80);
   if (l.color && /^#[0-9a-fA-F]{6}$/.test(l.color)) out.color = l.color.toLowerCase();
@@ -94,7 +98,10 @@ export async function POST(request: NextRequest) {
     const propertyName =
       typeof body?.propertyName === "string" ? body.propertyName.trim().slice(0, 200) : "";
     const linksInput: DraftLink[] = isLinkArray(body?.links)
-      ? body.links.filter((l: DraftLink) => l.platform && l.icalExportUrl).map(sanitizeLink)
+      ? body.links
+          .filter((l: DraftLink) => l.platform && l.icalExportUrl)
+          .map(sanitizeLink)
+          .filter((link: DraftLink | null): link is DraftLink => link !== null)
       : [];
 
     const jar = await cookies();
@@ -162,7 +169,9 @@ export async function POST(request: NextRequest) {
 function safeParseLinks(raw: string): DraftLink[] {
   try {
     const parsed = JSON.parse(raw);
-    return isLinkArray(parsed) ? parsed.map(sanitizeLink) : [];
+    return isLinkArray(parsed)
+      ? parsed.map(sanitizeLink).filter((link): link is DraftLink => link !== null)
+      : [];
   } catch {
     return [];
   }

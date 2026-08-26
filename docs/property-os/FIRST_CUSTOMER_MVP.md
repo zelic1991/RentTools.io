@@ -112,7 +112,7 @@ green. `FIRST_CUSTOMER_LOCAL_READY` may be reported only when:
 The local implementation passed the admission gates on 2026-08-26:
 
 - synthetic three-owner/six-Property authority and revocation test: PASS;
-- full suite: 646 tests in 93 files: PASS;
+- full suite: 650 tests in 94 files: PASS;
 - canonical pre-check-in through manual eVisitor confirmation: PASS;
 - session revocation, suspend/unsuspend and impersonation authority: PASS;
 - atomic durable reservation identity including concurrent retry: PASS;

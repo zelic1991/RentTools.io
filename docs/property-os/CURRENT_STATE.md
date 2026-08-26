@@ -19,7 +19,7 @@ was created or changed.
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Full test suite | PASS | 93 files, 646 tests |
+| Full test suite | PASS | 94 files, 650 tests |
 | Three-owner authority integration | PASS | three owners, six Properties, cross-owner Manager/Cleaner assignments and immediate revocation |
 | TypeScript | PASS | `npx tsc --noEmit` |
 | Production build | PASS | Next.js 16 build, 90 routes |
@@ -72,6 +72,8 @@ AUTHORITY_MODEL: `TEMPORARY_FIRST_CUSTOMER_AUTHORITY_MODEL`
   cron secret.
 - Stored iCal fetches require HTTPS and defend redirects, private addresses,
   DNS rebinding, timeouts and oversized responses.
+- Admin calendar health checks use that same hardened fetch path, and
+  onboarding normalizes links both before draft storage and again at claim.
 - Global user/settings enumeration is superadmin-only.
 - JWTs are bound to the current database `sessionVersion`. Password reset,
   password change, suspension, self logout-all and admin revocation invalidate
@@ -176,7 +178,9 @@ These are real next gates, not hidden parts of this local-ready claim:
    every existing user must authenticate again after deployment.
 6. Resolve or explicitly accept the build warnings before a framework or
    packaging upgrade.
-7. Reduce the existing repository-wide ESLint backlog. The current MVP changes
+7. Scan the production copy for legacy Guest `AuditLog` payloads written by
+   older code and redact any duplicated guest values before external access.
+8. Reduce the existing repository-wide ESLint backlog. The current MVP changes
    add no new error family in scoped checks, but the repository as a whole is
    not lint-clean and must not be reported as such.
 

@@ -83,6 +83,41 @@ describe("/api/onboard protected draft identity", () => {
     expect(body.draft).not.toHaveProperty("sessionToken");
   });
 
+  it("normalizes safe links and drops malformed onboarding URLs before persistence", async () => {
+    mocks.cookieGet.mockReturnValue(undefined);
+    mocks.draftCreate.mockImplementation(async ({ data }) => ({
+      id: 14,
+      sessionToken: "cookie-token",
+      propertyName: data.propertyName,
+      feedSlug: data.feedSlug,
+      feedToken: data.feedToken,
+      links: data.links,
+      createdAt: new Date("2026-08-26T00:00:00.000Z"),
+    }));
+
+    const response = await POST(new NextRequest("http://localhost/api/onboard", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        propertyName: "Vir Apartment",
+        links: [
+          { platform: "Airbnb", icalExportUrl: "webcal://calendar.example/feed.ics" },
+          { platform: "booking", icalExportUrl: "http://127.0.0.1/private" },
+        ],
+      }),
+    }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.draftCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        links: JSON.stringify([{
+          platform: "airbnb",
+          icalExportUrl: "https://calendar.example/feed.ics",
+        }]),
+      }),
+    });
+  });
+
   it("migrates a cookie-authorized legacy draft before returning its URL identity", async () => {
     mocks.cookieGet.mockReturnValue({ value: "legacy-cookie" });
     mocks.draftFindUnique.mockResolvedValue({

@@ -101,4 +101,32 @@ describe("claimOnboardingDraft secure feed defaults", () => {
       }),
     });
   });
+
+  it("normalizes safe draft links and skips malformed links during claim", async () => {
+    mocks.draftFindUnique.mockResolvedValue({
+      id: 10,
+      claimedByUserId: null,
+      feedSlug: "existing-zelic-feed",
+      feedToken: "existing-secure-feed-token",
+      links: JSON.stringify([
+        { platform: "Airbnb", icalExportUrl: "webcal://calendar.example/feed.ics" },
+        { platform: "booking", icalExportUrl: "http://127.0.0.1/private" },
+      ]),
+      propertyName: "Vir Apartment",
+    });
+    mocks.calendarCreate.mockResolvedValue({ id: 77 });
+
+    await claimOnboardingDraft(7);
+
+    expect(mocks.calendarCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.calendarCreate).toHaveBeenCalledWith({
+      data: {
+        propertyId: 51,
+        platform: "airbnb",
+        icalExportUrl: "https://calendar.example/feed.ics",
+        bufferBefore: 0,
+        bufferAfter: 0,
+      },
+    });
+  });
 });

@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
 import { ensureOnboardingDraftFeedIdentity } from "@/lib/feed-identity";
+import { normalizeIcalUrl, normalizePlatformSlug } from "@/lib/calendar-link-input";
 
 export const ONBOARD_COOKIE = "rt-onboard-token";
 
@@ -75,18 +76,21 @@ export async function claimOnboardingDraft(userId: number): Promise<void> {
 
     for (const link of parsedLinks) {
       if (!link.icalExportUrl.trim()) continue;
+      const platformResult = normalizePlatformSlug(link.platform);
+      const urlResult = normalizeIcalUrl(link.icalExportUrl);
+      if (!platformResult.ok || !urlResult.ok) continue;
       try {
         const created = await prisma.calendarLink.create({
           data: {
             propertyId: property.id,
-            platform: link.platform,
-            icalExportUrl: link.icalExportUrl.trim(),
+            platform: platformResult.platform,
+            icalExportUrl: urlResult.url,
             bufferBefore: 0,
             bufferAfter: 0,
           },
         });
         await logAudit(userId, "create", "calendarLink", created.id, {
-          platform: link.platform,
+          platform: platformResult.platform,
           propertyId: property.id,
           fromOnboarding: true,
         });

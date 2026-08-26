@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseICal } from "@/lib/ical";
 import { requireSuperadmin } from "@/lib/auth";
+import { fetchIcalText } from "@/lib/ical-fetch";
 
 interface FeedStatus {
   url: string;
@@ -22,25 +23,13 @@ async function checkFeed(url: string | undefined): Promise<FeedStatus> {
     return { url: "", status: "missing", eventCount: 0 };
   }
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "RentTool-CalendarSync/1.0",
-        Accept: "text/calendar, text/plain, */*",
-      },
+    // Use the same DNS-pinned, redirect-validating, size-limited transport as
+    // the real sync path. A property owner controls this URL; superadmin-only
+    // access does not make a raw server-side fetch safe.
+    const text = await fetchIcalText(url, {
+      timeoutMs: 15_000,
+      userAgent: "RentTool-CalendarHealth/1.0",
     });
-    clearTimeout(timeout);
-    if (!res.ok) {
-      return {
-        url,
-        status: "error",
-        eventCount: 0,
-        error: `HTTP ${res.status}: ${res.statusText}`,
-      };
-    }
-    const text = await res.text();
     if (!text.includes("VCALENDAR")) {
       return {
         url,
