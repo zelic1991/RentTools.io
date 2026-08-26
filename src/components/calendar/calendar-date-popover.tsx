@@ -152,11 +152,12 @@ export function CalendarDatePopover({
     // "booked" here disabled Create / Block / Make-available / extend-
     // after on a perfectly legal back-to-back turnover and surfaced a
     // misleading "1 booked — bulk actions disabled" message. We leave
-    // buildDateBars (L36) and singleStatus.hasBar (L156) inclusive so
-    // the single-date checkout-cell popover still surfaces the leaving
-    // reservation (for trim / cancel-cleaning-on-booked / manual chip
-    // controls), and we leave calendar-grid.tsx's hasBarOnDay inclusive
-    // so the bar still paints across the checkout cell.
+    // buildDateBars (L36) stays inclusive so the single-date checkout-
+    // cell popover still surfaces the leaving reservation in its
+    // timeline. The action/status gate below is half-open, however: a
+    // checkout-only cell is available for a separate same-day arrival.
+    // calendar-grid.tsx also remains inclusive so the departing bar
+    // still paints across the checkout cell.
     if (bars.some((b) => d >= b.startDate && d < b.endDate)) countBooked++;
     if (openOverrides.has(d)) countOpenOverride++;
     if (closedOverrides.has(d)) countClosedOverride++;
@@ -192,7 +193,7 @@ export function CalendarDatePopover({
       singleStatus={
         singleDate
           ? {
-            hasBar: singleDateBars.length > 0,
+            hasOccupiedBar: singleDateBars.some((bar) => bar.role !== "checkout"),
             isBuffer: bufferDates.has(singleDate),
             isPotential: potentialDates.has(singleDate),
             isSameDayCleaning: sameDayCleaningDates.has(singleDate),

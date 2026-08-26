@@ -438,7 +438,9 @@ const COPY: Record<Locale, CopyShape> = {
 };
 
 export interface DateStatus {
-  hasBar: boolean;
+  /** At least one guest occupies this date's NIGHT. Checkout-only
+   *  bars stay visible in the timeline but do not make the night booked. */
+  hasOccupiedBar: boolean;
   isBuffer: boolean;
   isPotential: boolean;
   isSameDayCleaning: boolean;
@@ -656,7 +658,7 @@ export function DateActionsPopover({
   // Single-date mode header status text — matches old per-date popup.
   const singleStatusText = (() => {
     if (!singleStatus) return "";
-    if (singleStatus.hasBar) {
+    if (singleStatus.hasOccupiedBar) {
       if (singleDateBars.length > 1) {
         return c.staysTurnover(singleDateBars.length);
       }
@@ -723,7 +725,7 @@ export function DateActionsPopover({
     const lCreateDesc = c.createReservationDesc;
     const createAction: ResolvedAction = { kind: "createReservation", label: lCreate, description: lCreateDesc, tone: "primary", onClick: () => setCreating(true) };
 
-    if (singleStatus.hasBar) {
+    if (singleStatus.hasOccupiedBar) {
       // On a booked day the only meaningful actions are around the
       // cleaning chip. Cases:
       //
@@ -982,7 +984,7 @@ export function DateActionsPopover({
 
   const singleStatusBadgeClass = !singleStatus
     ? ""
-    : singleStatus.hasBar
+    : singleStatus.hasOccupiedBar
       ? "bg-[var(--m-accent)]/10 text-[var(--m-accent)]"
       : singleStatus.isOpenOverride
         ? "bg-emerald-500/10 text-emerald-500"
