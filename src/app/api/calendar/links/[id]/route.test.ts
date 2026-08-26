@@ -45,6 +45,60 @@ beforeEach(() => {
   });
 });
 
+function patchCalendarLink(body: Record<string, unknown>) {
+  return PATCH(new NextRequest("http://localhost/api/calendar/links/9", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }), context);
+}
+
+describe("PATCH /api/calendar/links/[id] — buffer validation", () => {
+  it.each([
+    ["bufferBefore", 0],
+    ["bufferBefore", 3],
+    ["bufferAfter", 0],
+    ["bufferAfter", 3],
+  ])("accepts boundary %s value %s", async (field, value) => {
+    const response = await patchCalendarLink({ [field]: value });
+
+    expect(response.status).toBe(200);
+    expect(mocks.update).toHaveBeenCalledWith({
+      where: { id: 9 },
+      data: expect.objectContaining({ [field]: value }),
+    });
+  });
+
+  it.each([
+    ["bufferBefore", -1],
+    ["bufferBefore", 1.5],
+    ["bufferBefore", "1"],
+    ["bufferBefore", 4],
+    ["bufferBefore", null],
+    ["bufferAfter", -1],
+    ["bufferAfter", 1.5],
+    ["bufferAfter", "1"],
+    ["bufferAfter", 4],
+    ["bufferAfter", null],
+  ])("rejects invalid %s value %j without writing", async (field, value) => {
+    const response = await patchCalendarLink({ [field]: value });
+
+    expect(response.status).toBe(400);
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
+  it("does not overwrite buffers when both fields are omitted", async () => {
+    const response = await patchCalendarLink({
+      icalExportUrl: "https://provider.test/replacement.ics",
+    });
+
+    expect(response.status).toBe(200);
+    const update = mocks.update.mock.calls[0][0];
+    expect(update.data).not.toHaveProperty("bufferBefore");
+    expect(update.data).not.toHaveProperty("bufferAfter");
+  });
+});
+
 describe("PATCH /api/calendar/links/[id] — credential projection", () => {
   it("does not reveal the stored provider URL to an assigned manager", async () => {
     const response = await PATCH(new NextRequest("http://localhost/api/calendar/links/9", {

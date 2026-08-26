@@ -17,8 +17,64 @@
 
 export type UrlResult = { ok: true; url: string } | { ok: false; error: string };
 export type PlatformResult = { ok: true; platform: string } | { ok: false; error: string };
+export type CalendarBufferField = "bufferBefore" | "bufferAfter";
+export type CalendarBufferResult =
+  | { ok: true; present: false }
+  | { ok: true; present: true; value: number }
+  | { ok: false; error: string };
 
 const MAX_URL_LENGTH = 2000;
+export const CALENDAR_BUFFER_MIN = 0;
+export const CALENDAR_BUFFER_MAX = 3;
+
+export function validateCalendarBuffer(
+  raw: unknown,
+  field: CalendarBufferField,
+): { ok: true; value: number } | { ok: false; error: string } {
+  if (
+    typeof raw !== "number" ||
+    !Number.isFinite(raw) ||
+    !Number.isInteger(raw) ||
+    raw < CALENDAR_BUFFER_MIN ||
+    raw > CALENDAR_BUFFER_MAX
+  ) {
+    return {
+      ok: false,
+      error: `${field} must be an integer between ${CALENDAR_BUFFER_MIN} and ${CALENDAR_BUFFER_MAX}`,
+    };
+  }
+  return { ok: true, value: raw };
+}
+
+/** Distinguish an omitted field from an explicitly invalid value such as null. */
+export function parseCalendarBufferField(
+  body: unknown,
+  field: CalendarBufferField,
+): CalendarBufferResult {
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !Object.prototype.hasOwnProperty.call(body, field)
+  ) {
+    return { ok: true, present: false };
+  }
+
+  const result = validateCalendarBuffer(
+    (body as Record<string, unknown>)[field],
+    field,
+  );
+  if (!result.ok) return result;
+  return { ok: true, present: true, value: result.value };
+}
+
+/**
+ * Old or manually damaged rows must fail safe without mutating the DB.
+ * Zero preserves the original checkout-exclusive occupancy and never shortens it.
+ */
+export function normalizeStoredCalendarBuffer(raw: unknown): number {
+  const result = validateCalendarBuffer(raw, "bufferBefore");
+  return result.ok ? result.value : 0;
+}
 
 export function normalizeIcalUrl(raw: unknown): UrlResult {
   if (typeof raw !== "string") return { ok: false, error: "iCal URL is required" };

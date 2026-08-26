@@ -216,6 +216,39 @@ describe("generateBufferedEvents", () => {
     );
     expect(buffered[0].summary).toBe("Blocked (airbnb)");
   });
+
+  it("never lets a damaged negative buffer shorten checkout-exclusive occupancy", () => {
+    const stay = [{
+      uid: "july-stay",
+      summary: "Blocked",
+      startDate: "2027-07-10",
+      endDate: "2027-07-15",
+    }];
+
+    const zero = generateBufferedEvents(stay, 0, 0, "sync");
+    expect(zero[0]).toMatchObject({
+      startDate: "2027-07-10",
+      endDate: "2027-07-15",
+    });
+
+    const damaged = generateBufferedEvents(stay, -100, -1, "sync");
+    expect(damaged[0]).toMatchObject({
+      startDate: "2027-07-10",
+      endDate: "2027-07-15",
+    });
+
+    const before = generateBufferedEvents(stay, 1, 0, "sync");
+    expect(before[0]).toMatchObject({
+      startDate: "2027-07-09",
+      endDate: "2027-07-15",
+    });
+
+    const after = generateBufferedEvents(stay, 0, 1, "sync");
+    expect(after[0]).toMatchObject({
+      startDate: "2027-07-10",
+      endDate: "2027-07-16",
+    });
+  });
 });
 
 describe("generateBufferOnlyEvents", () => {
@@ -266,5 +299,14 @@ describe("generateBufferOnlyEvents", () => {
       "Cleaning gap"
     );
     expect(events[0].summary).toBe("Cleaning gap");
+  });
+
+  it("emits no false cleaning blocks for damaged negative stored buffers", () => {
+    const events = generateBufferOnlyEvents(
+      [{ uid: "u1", summary: "S", startDate: "2027-07-10", endDate: "2027-07-15" }],
+      -1,
+      -100,
+    );
+    expect(events).toEqual([]);
   });
 });

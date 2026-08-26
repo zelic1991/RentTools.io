@@ -40,6 +40,14 @@ beforeEach(() => {
   mocks.create.mockImplementation(async ({ data }) => ({ id: 41, ...data }));
 });
 
+function postCalendarLink(body: Record<string, unknown>) {
+  return POST(new NextRequest("http://localhost/api/calendar/links", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }));
+}
+
 describe("POST /api/calendar/links — same-day defaults", () => {
   it("creates a new link with zero buffers when no explicit buffer is supplied", async () => {
     const response = await POST(new NextRequest("http://localhost/api/calendar/links", {
@@ -61,6 +69,48 @@ describe("POST /api/calendar/links — same-day defaults", () => {
         bufferAfter: 0,
       }),
     });
+  });
+
+  it.each([
+    { bufferBefore: 0, bufferAfter: 0 },
+    { bufferBefore: 3, bufferAfter: 3 },
+  ])("accepts boundary buffers %#", async ({ bufferBefore, bufferAfter }) => {
+    const response = await postCalendarLink({
+      propertyId: 12,
+      platform: "airbnb",
+      icalExportUrl: "https://example.test/calendar.ics",
+      bufferBefore,
+      bufferAfter,
+    });
+
+    expect(response.status).toBe(200);
+    expect(mocks.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ bufferBefore, bufferAfter }),
+    });
+  });
+
+  it.each([
+    ["bufferBefore", -1],
+    ["bufferBefore", 1.5],
+    ["bufferBefore", "1"],
+    ["bufferBefore", 4],
+    ["bufferBefore", null],
+    ["bufferAfter", -1],
+    ["bufferAfter", 1.5],
+    ["bufferAfter", "1"],
+    ["bufferAfter", 4],
+    ["bufferAfter", null],
+  ])("rejects invalid %s value %j before any write", async (field, value) => {
+    const response = await postCalendarLink({
+      propertyId: 12,
+      platform: "airbnb",
+      icalExportUrl: "https://example.test/calendar.ics",
+      [field]: value,
+    });
+
+    expect(response.status).toBe(400);
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
   });
 
   it("preserves an existing link's deliberate buffers when only its URL changes", async () => {

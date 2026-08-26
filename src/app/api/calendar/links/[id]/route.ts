@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { canManageProperty, isPropertyOwner } from "@/lib/ownership";
-import { normalizeIcalUrl } from "@/lib/calendar-link-input";
+import { normalizeIcalUrl, parseCalendarBufferField } from "@/lib/calendar-link-input";
 
 async function loadManageableLink(linkId: number, userId: number, role: string) {
   const link = await prisma.calendarLink.findUnique({
@@ -39,6 +39,15 @@ export async function PATCH(
 
     const body = await request.json();
 
+    const bufferBeforeResult = parseCalendarBufferField(body, "bufferBefore");
+    if (!bufferBeforeResult.ok) {
+      return NextResponse.json({ error: bufferBeforeResult.error }, { status: 400 });
+    }
+    const bufferAfterResult = parseCalendarBufferField(body, "bufferAfter");
+    if (!bufferAfterResult.ok) {
+      return NextResponse.json({ error: bufferAfterResult.error }, { status: 400 });
+    }
+
     // Same normalisation the POST route applies — otherwise a URL edited
     // here could still land in the DB in a shape that can never be fetched.
     let normalizedUrl: string | undefined;
@@ -58,8 +67,8 @@ export async function PATCH(
           lastError: null,
           failureCount: 0,
         }),
-        ...(body.bufferBefore !== undefined && { bufferBefore: body.bufferBefore }),
-        ...(body.bufferAfter !== undefined && { bufferAfter: body.bufferAfter }),
+        ...(bufferBeforeResult.present && { bufferBefore: bufferBeforeResult.value }),
+        ...(bufferAfterResult.present && { bufferAfter: bufferAfterResult.value }),
       },
     });
     await logAudit(session.userId, "update", "calendarLink", numId, {
