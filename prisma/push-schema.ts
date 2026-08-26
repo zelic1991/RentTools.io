@@ -1256,6 +1256,24 @@ CREATE INDEX IF NOT EXISTS "EmailCode_email_purpose_idx" ON "EmailCode"("email",
     console.log("OK:", stmt.substring(0, 60) + "...");
   }
 
+  const magicLoginSchema = `
+CREATE TABLE IF NOT EXISTS "MagicLoginToken" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "tokenHash" TEXT NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "expiresAt" DATETIME NOT NULL,
+    "usedAt" DATETIME,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "MagicLoginToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "MagicLoginToken_tokenHash_key" ON "MagicLoginToken"("tokenHash");
+CREATE INDEX IF NOT EXISTS "MagicLoginToken_userId_expiresAt_idx" ON "MagicLoginToken"("userId", "expiresAt");
+`;
+  for (const stmt of magicLoginSchema.split(";").map((s) => s.trim()).filter(Boolean)) {
+    await prisma.$executeRawUnsafe(stmt);
+    console.log("OK:", stmt.substring(0, 60) + "...");
+  }
+
   console.log(`\nSchema pushed to ${config.label} successfully!`);
 }
 

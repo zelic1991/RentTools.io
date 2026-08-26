@@ -39,6 +39,19 @@ model User {
   blogPosts          BlogPost[]
   blogComments       BlogComment[]
   feedback           Feedback[]
+  magicLoginTokens   MagicLoginToken[]
+}
+
+model MagicLoginToken {
+  id        Int      @id @default(autoincrement())
+  tokenHash String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
 }
 
 // Short-lived 6-digit codes for email-verified signup and password
