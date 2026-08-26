@@ -90,6 +90,9 @@ describe("Google Drive offsite backup contract", () => {
     expect(restore).toContain("mktemp -d");
     expect(restore).toContain("openssl enc -d -aes-256-cbc -pbkdf2");
     expect(restore).toContain("PRAGMA integrity_check;");
+    expect(restore).toContain(
+      "/^rtbackup-[0-9]{8}-[0-9]{4}\\.db\\.enc$/",
+    );
     expect(restore).not.toContain("systemctl stop");
     expect(restore).not.toMatch(/(?:cp|mv)\s+.*prod\.db/);
   });

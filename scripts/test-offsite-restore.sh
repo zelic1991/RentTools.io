@@ -155,6 +155,7 @@ RCLONE_COMMON_ARGS=(
 REMOTE_ROOT="${RCLONE_REMOTE}:${RCLONE_REMOTE_DIR}"
 LATEST_NAME="$($RCLONE_BIN lsf "$REMOTE_ROOT" --files-only \
   --include 'rtbackup-*.db.enc' --format p "${RCLONE_COMMON_ARGS[@]}" \
+  | LC_ALL=C awk '/^rtbackup-[0-9]{8}-[0-9]{4}\.db\.enc$/' \
   | LC_ALL=C sort | tail -n 1)"
 if [[ ! "$LATEST_NAME" =~ ^rtbackup-[0-9]{8}-[0-9]{4}\.db\.enc$ ]]; then
   log "FATAL" "no valid encrypted offsite backup was found"
