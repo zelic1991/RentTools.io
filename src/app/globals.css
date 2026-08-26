@@ -51,8 +51,8 @@
 :root {
   /* Zelic Family Vir — canonical "Kalk und Kiefer" palette.
      Source: zelic1991/zelic-family-vir src/styles/tokens.css.
-     Kept as a scoped extension of the existing theme variables so the
-     dashboard and the other editorial pages do not inherit this branding. */
+     Kept as a scoped extension of the existing theme variables so only
+     surfaces that opt into zf-brand inherit this branding. */
   --zf-bg: #F6F1E6;
   --zf-surface: #ECE1CC;
   --zf-surface-deep: #DFD2B9;

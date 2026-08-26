@@ -441,7 +441,7 @@ function AppContent({
   };
 
   return (
-    <div className="editorial flex h-screen flex-col overflow-hidden bg-[var(--bg)]">
+    <div className="editorial zf-brand flex h-screen flex-col overflow-hidden bg-[var(--bg)]">
       <AnnouncementBanner />
       <TopBar
         properties={properties}
@@ -479,7 +479,7 @@ function AppContent({
 
 export default function DashboardPage() {
   return (
-    <Suspense fallback={<div className="editorial flex h-screen items-center justify-center bg-[var(--bg)] text-[var(--ink-3)]">Loading...</div>}>
+    <Suspense fallback={<div className="editorial zf-brand flex h-screen items-center justify-center bg-[var(--bg)] text-[var(--ink-3)]">Loading...</div>}>
       <AuthGuard>
         {(user) =>
           user.role === "cleaner" ? (
