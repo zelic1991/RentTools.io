@@ -23,7 +23,9 @@ function fixture() {
   write(
     root,
     "prisma/push-schema.ts",
-    'import { migrate } from "../src/lib/calendar-link-schema-migration";\nmigrate();\n',
+    'import type { PrismaClient } from "../src/generated/prisma/client";\n' +
+      'import { migrate } from "../src/lib/calendar-link-schema-migration";\n' +
+      'declare const prisma: PrismaClient;\nmigrate(prisma);\n',
   );
   write(root, "src/lib/calendar-link-schema-migration.ts", "export const migrate = () => 1;\n");
   write(root, "src/app/page.tsx", "export default function Page() { return null; }\n");

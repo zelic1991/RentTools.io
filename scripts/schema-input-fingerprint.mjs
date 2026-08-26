@@ -28,14 +28,17 @@ export function collectSchemaInputPaths(repoRoot) {
 
     const source = readFileSync(file, "utf8");
     for (const match of source.matchAll(IMPORT_PATTERN)) {
+      const unresolvedPath = resolve(dirname(file), match[1]);
+      const unresolvedRelativePath = relative(root, unresolvedPath).split(sep).join("/");
+      // A fresh deploy checkout has no generated Prisma client yet. It is
+      // derived from schema.prisma (already explicit above), so skip the
+      // generated import before trying to resolve it on disk.
+      if (unresolvedRelativePath.startsWith("src/generated/")) continue;
+
       const dependency = resolveLocalModule(file, match[1]);
       if (!dependency) {
         throw new Error(`Cannot resolve local schema dependency ${match[1]} from ${file}`);
       }
-      const relativePath = relative(root, dependency).split(sep).join("/");
-      // Generated Prisma code is derived from schema.prisma, which is already
-      // an explicit input. Hand-maintained local migration code remains traced.
-      if (relativePath.startsWith("src/generated/")) continue;
       pending.push(dependency);
     }
   }
