@@ -7,7 +7,9 @@ const read = (path: string) =>
 
 const uploader = read("scripts/upload-backup-rclone.sh");
 const restore = read("scripts/test-offsite-restore.sh");
+const format = read("scripts/offsite-backup-format.sh");
 const localBackup = read("scripts/backup-db.sh");
+const ci = read(".github/workflows/ci.yml");
 
 const hasEncryptedRcloneHeader = (content: string): boolean => {
   for (const line of content.split(/\r?\n/).slice(0, 10)) {
@@ -19,9 +21,18 @@ const hasEncryptedRcloneHeader = (content: string): boolean => {
 
 describe("Google Drive offsite backup contract", () => {
   it("encrypts before an append-only, immutable upload", () => {
-    expect(uploader).toContain("openssl enc -aes-256-cbc -salt -pbkdf2");
+    expect(uploader).toContain('"$FORMAT_TOOL" encrypt');
+    expect(format).toContain("RTBACKUP-V2");
+    expect(format).toContain("--force-ocb");
+    expect(format).not.toContain("--force-mdc");
+    expect(format).toContain("FORMAT_VERSION=2");
+    expect(format).toContain("BACKUP_ID=");
+    expect(format).toContain("CREATED_AT_UTC=");
+    expect(format).toContain("OBJECT_NAME_BINDING=");
+    expect(format).toContain("BACKUP_IDENTITY_MISMATCH");
     expect(uploader).toContain("flock -n");
-    expect(uploader).toContain('ENC_NAME="rtbackup-${STAMP}.db.enc"');
+    expect(uploader).toContain('ENC_NAME="rtbackup-${STAMP}.db.v2.gpg"');
+    expect(uploader).toContain('"$BACKUP_ENCRYPTION_KEY_FILE" "$ENC_NAME"');
     expect(uploader).toContain('"$RCLONE_BIN" copyto');
     expect(uploader).toContain("--immutable");
     expect(uploader).toContain("--retries 5");
@@ -86,14 +97,21 @@ describe("Google Drive offsite backup contract", () => {
     expect(uploadAt).toBeGreaterThan(rotationAt);
   });
 
-  it("restores into a temporary database without touching prod.db", () => {
+  it("authenticates V2 before SQLite verification without touching prod.db", () => {
     expect(restore).toContain("mktemp -d");
-    expect(restore).toContain("openssl enc -d -aes-256-cbc -pbkdf2");
+    expect(restore).toContain('"$FORMAT_TOOL" decrypt');
+    expect(restore).toContain("AUTHENTICITY_FAILED");
     expect(restore).toContain("PRAGMA integrity_check;");
     expect(restore).toContain(
-      "/^rtbackup-[0-9]{8}-[0-9]{4}\\.db\\.enc$/",
+      "/^rtbackup-[0-9]{8}-[0-9]{4}\\.db\\.v2\\.gpg$/",
     );
     expect(restore).not.toContain("systemctl stop");
     expect(restore).not.toMatch(/(?:cp|mv)\s+.*prod\.db/);
+  });
+
+  it("runs the real fail-closed backup manipulation matrix in CI", () => {
+    expect(ci).toContain("sudo apt-get install --no-install-recommends -y gnupg sqlite3");
+    expect(ci).toContain("bash scripts/test-offsite-backup-format.sh");
+    expect(ci).not.toMatch(/test-offsite-backup-format\.sh[^\n]*(?:\|\|\s*true|continue-on-error)/);
   });
 });

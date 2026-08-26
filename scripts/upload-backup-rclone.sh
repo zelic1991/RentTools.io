@@ -13,6 +13,7 @@ LOCK_FILE="${OFFSITE_UPLOAD_LOCK_FILE:-$BACKUP_ROOT/.offsite-upload.lock}"
 LOG_FILE="${OFFSITE_UPLOAD_LOG_FILE:-/home/app/logs/rent-tool-offsite-backup.log}"
 CONFIG_FILE="${OFFSITE_BACKUP_CONFIG_FILE:-/home/app/.renttools-offsite-backup.env}"
 RCLONE_BIN="${RCLONE_BIN:-rclone}"
+FORMAT_TOOL="${OFFSITE_FORMAT_TOOL:-/home/app/rent-tool/scripts/offsite-backup-format.sh}"
 
 ts() { date -u +"%Y-%m-%dT%H:%M:%SZ"; }
 
@@ -86,14 +87,17 @@ RCLONE_REMOTE="${RCLONE_REMOTE:-gdrive_offsite}"
 RCLONE_REMOTE_DIR="${RCLONE_REMOTE_DIR:-RentTools-Backups}"
 BACKUP_ENCRYPTION_KEY_FILE="${BACKUP_ENCRYPTION_KEY_FILE:-/home/app/.renttools-backup-pass}"
 RCLONE_CONFIG_PASS_FILE="${RCLONE_CONFIG_PASS_FILE:-/home/app/.renttools-rclone-config-pass}"
-PBKDF2_ITERATIONS="${PBKDF2_ITERATIONS:-200000}"
 
 if ! command -v "$RCLONE_BIN" >/dev/null 2>&1; then
   log "FATAL" "rclone is not installed"
   exit 3
 fi
-if ! command -v sqlite3 >/dev/null 2>&1 || ! command -v openssl >/dev/null 2>&1; then
-  log "FATAL" "sqlite3 and openssl are required"
+if ! command -v sqlite3 >/dev/null 2>&1 || ! command -v gpg >/dev/null 2>&1; then
+  log "FATAL" "sqlite3 and gpg are required"
+  exit 3
+fi
+if [ ! -x "$FORMAT_TOOL" ]; then
+  log "FATAL" "V2 format tool is missing: $FORMAT_TOOL"
   exit 3
 fi
 if ! require_private_file "$RCLONE_CONFIG" "rclone config"; then
@@ -103,12 +107,6 @@ if [ "$(stat -c '%a' "$RCLONE_CONFIG")" != "600" ]; then
   log "FATAL" "rclone config must be mode 600 so OAuth tokens can refresh"
   exit 4
 fi
-if [[ ! "$PBKDF2_ITERATIONS" =~ ^[0-9]+$ ]] \
-    || [ "$PBKDF2_ITERATIONS" -lt 200000 ]; then
-  log "FATAL" "PBKDF2_ITERATIONS must be an integer of at least 200000"
-  exit 4
-fi
-
 RCLONE_PASSWORD_ARGS=(--ask-password=false)
 if [ -n "${RCLONE_CONFIG_PASS:-}" ]; then
   export RCLONE_CONFIG_PASS
@@ -119,13 +117,7 @@ else
   exit 4
 fi
 
-OPENSSL_PASSWORD_ARGS=()
-if [ -n "${BACKUP_ENCRYPTION_PASSPHRASE:-}" ]; then
-  export BACKUP_ENCRYPTION_PASSPHRASE
-  OPENSSL_PASSWORD_ARGS=(-pass env:BACKUP_ENCRYPTION_PASSPHRASE)
-elif require_private_file "$BACKUP_ENCRYPTION_KEY_FILE" "backup-encryption key file"; then
-  OPENSSL_PASSWORD_ARGS=(-pass "file:$BACKUP_ENCRYPTION_KEY_FILE")
-else
+if ! require_private_file "$BACKUP_ENCRYPTION_KEY_FILE" "backup-encryption key file"; then
   log "FATAL" "no backup-encryption secret is available"
   exit 4
 fi
@@ -185,18 +177,13 @@ if [[ ! "$SOURCE_NAME" =~ ^prod-([0-9]{8}-[0-9]{4})\.db$ ]]; then
   exit 7
 fi
 STAMP="${BASH_REMATCH[1]}"
-ENC_NAME="rtbackup-${STAMP}.db.enc"
+ENC_NAME="rtbackup-${STAMP}.db.v2.gpg"
 ENC_FILE="$PENDING_DIR/$ENC_NAME"
 
 if [ ! -f "$ENC_FILE" ]; then
   ENC_TMP="$PENDING_DIR/.${ENC_NAME}.tmp.$$"
   trap 'rm -f "${ENC_TMP:-}"' EXIT
-  openssl enc -aes-256-cbc -salt -pbkdf2 -iter "$PBKDF2_ITERATIONS" \
-    "${OPENSSL_PASSWORD_ARGS[@]}" -in "$SOURCE_REAL" -out "$ENC_TMP"
-  if [ "$(head -c 8 "$ENC_TMP")" != "Salted__" ]; then
-    log "FATAL" "encrypted backup is missing the OpenSSL salt header"
-    exit 8
-  fi
+  "$FORMAT_TOOL" encrypt "$SOURCE_REAL" "$ENC_TMP" "$BACKUP_ENCRYPTION_KEY_FILE" "$ENC_NAME"
   chmod 600 "$ENC_TMP"
   mv "$ENC_TMP" "$ENC_FILE"
   trap - EXIT
@@ -221,7 +208,7 @@ RCLONE_COMMON_ARGS=(
 
 failed=0
 shopt -s nullglob
-for pending in "$PENDING_DIR"/rtbackup-*.db.enc; do
+for pending in "$PENDING_DIR"/rtbackup-*.db.v2.gpg; do
   pending_name="$(basename "$pending")"
   remote_path="${RCLONE_REMOTE}:${RCLONE_REMOTE_DIR}/${pending_name}"
 
