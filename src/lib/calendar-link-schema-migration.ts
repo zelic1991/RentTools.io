@@ -176,7 +176,7 @@ export async function alignCalendarLinkBufferDefaults(
   const candidateTables = await prisma.$queryRawUnsafe<Array<{ name: string }>>(
     `SELECT name FROM sqlite_master
      WHERE type = 'table'
-       AND name <> 'CalendarLink'
+       AND name <> 'CalendarLink' COLLATE NOCASE
        AND name NOT LIKE 'sqlite_%'`,
   );
   const referencingTables: string[] = [];
@@ -184,7 +184,7 @@ export async function alignCalendarLinkBufferDefaults(
     const foreignKeys = await prisma.$queryRawUnsafe<Array<{ table: string }>>(
       `PRAGMA foreign_key_list(${quoteSqliteIdentifier(table.name)})`,
     );
-    if (foreignKeys.some((foreignKey) => foreignKey.table === "CalendarLink")) {
+    if (foreignKeys.some((foreignKey) => foreignKey.table.toLowerCase() === "calendarlink")) {
       referencingTables.push(table.name);
     }
   }
@@ -194,7 +194,8 @@ export async function alignCalendarLinkBufferDefaults(
 
   const schemaObjects = await prisma.$queryRawUnsafe<SchemaObjectRow[]>(
     `SELECT type, name, sql FROM sqlite_master
-     WHERE tbl_name = 'CalendarLink' AND type IN ('index', 'trigger')
+     WHERE tbl_name = 'CalendarLink' COLLATE NOCASE
+       AND type IN ('index', 'trigger')
      ORDER BY type, name`,
   );
   if (schemaObjects.some((entry) => entry.sql === null)) {

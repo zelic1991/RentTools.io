@@ -235,6 +235,71 @@ describe("alignCalendarLinkBufferDefaults", () => {
     }
   });
 
+  it("fails closed for a differently-cased foreign-key reference without deleting child rows", async () => {
+    const { prisma } = createClient();
+    try {
+      await createFixture(prisma, 1, 1);
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO "CalendarLink"
+          ("id", "propertyId", "platform", "icalExportUrl")
+        VALUES (41, 1, 'airbnb', 'https://example.invalid/case-fk.ics')
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE "CalendarLinkCaseConsumer" (
+          "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+          "linkId" INTEGER NOT NULL REFERENCES "calendarlink"("id") ON DELETE CASCADE
+        )
+      `);
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO "CalendarLinkCaseConsumer" ("linkId") VALUES (41)`,
+      );
+
+      await expect(alignCalendarLinkBufferDefaults(prisma)).rejects.toThrow(
+        "CalendarLink has referencing tables; refusing unsafe rebuild",
+      );
+
+      expect(await defaults(prisma)).toEqual({ bufferBefore: "1", bufferAfter: "1" });
+      expect(
+        await prisma.$queryRawUnsafe(`SELECT "linkId" FROM "CalendarLinkCaseConsumer"`),
+      ).toEqual([{ linkId: 41 }]);
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
+
+  it("preserves a trigger declared against a differently-cased CalendarLink name", async () => {
+    const { prisma } = createClient();
+    try {
+      await createFixture(prisma, 1, 1);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE "CalendarLinkCaseAudit" (
+          "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+          "linkId" INTEGER NOT NULL
+        )
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TRIGGER "CalendarLink_case_insert_audit"
+        AFTER INSERT ON "calendarlink"
+        BEGIN
+          INSERT INTO "CalendarLinkCaseAudit" ("linkId") VALUES (NEW."id");
+        END
+      `);
+
+      const result = await alignCalendarLinkBufferDefaults(prisma);
+      expect(result).toMatchObject({ status: "migrated", preservedTriggers: 1 });
+
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO "CalendarLink" ("propertyId", "platform", "icalExportUrl")
+        VALUES (1, 'booking', 'https://example.invalid/case-trigger.ics')
+      `);
+      expect(
+        await prisma.$queryRawUnsafe(`SELECT "linkId" FROM "CalendarLinkCaseAudit"`),
+      ).toEqual([{ linkId: 1 }]);
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
+
   it("fails closed without dropping a generated column hidden from table_info", async () => {
     const { prisma } = createClient();
     try {
