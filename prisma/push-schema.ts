@@ -104,6 +104,7 @@ CREATE TABLE IF NOT EXISTS "Reservation" (
     "checkIn" DATETIME NOT NULL,
     "checkOut" DATETIME NOT NULL,
     "platform" TEXT NOT NULL DEFAULT 'airbnb',
+    "externalKey" TEXT,
     "linkedEventUid" TEXT,
     "linkedEventPlatform" TEXT,
     "linkedEventRole" TEXT,
@@ -213,6 +214,11 @@ CREATE TABLE IF NOT EXISTS "SyncLog" (
     `ALTER TABLE "Property" ADD COLUMN "checkOutTime" TEXT NOT NULL DEFAULT '12:00'`,
     `ALTER TABLE "Property" ADD COLUMN "bookingWindow" INTEGER NOT NULL DEFAULT 365`,
     `ALTER TABLE "Reservation" ADD COLUMN "linkedEventUid" TEXT`,
+    // Durable reservation/import identity. This must not be overloaded with
+    // linkedEventUid, which remains calendar/feed linkage only. SQLite permits
+    // multiple NULL values in the scoped unique index, preserving legacy rows.
+    `ALTER TABLE "Reservation" ADD COLUMN "externalKey" TEXT`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Reservation_propertyId_platform_externalKey_key" ON "Reservation"("propertyId", "platform", "externalKey")`,
     // Durable identity + semantics for a synced-event relationship.
     // linkedEventUid alone is not globally unique, and inferring claim vs
     // extension from today's date overlap becomes unsafe if a platform later
