@@ -252,8 +252,10 @@ protection, `scripts/backup-db.sh` also invokes
 `scripts/upload-backup-rclone.sh` after the local backup passes
 `PRAGMA integrity_check` and rotation. The uploader is disabled by default and
 does not send the plaintext `.db` file to rclone. It encrypts the snapshot with
-AES-256-CBC + PBKDF2 into a neutral `rtbackup-YYYYMMDD-HHMM.db.enc` name and
-uploads only that ciphertext.
+GnuPG's AES-256 symmetric format with mandatory MDC authentication, wrapped in
+an explicit `RTBACKUP-V2` header, and uploads a
+`rtbackup-YYYYMMDD-HHMM.db.v2.gpg` object. This is an established packaged
+format; it is not an OpenSSL `enc` AEAD approximation.
 
 Safety properties:
 
@@ -264,6 +266,9 @@ Safety properties:
 - The rclone config must itself be encrypted and stored outside the repository.
 - Upload uses `copyto --immutable`; it never calls `sync`, `move`, `delete`, or
   `purge`. A failed object stays in the local encrypted pending queue.
+- The rclone MD5 check is transfer integrity only. Restore performs GPG MDC
+  authentication before SQLite sees any plaintext. A changed, truncated, or
+  wrong-key object fails closed as `AUTHENTICITY_FAILED`.
 - Nothing automatically removes remote objects. Add remote retention only
   after an owner-approved retention policy and a successful offsite restore
   drill prove that the intended recovery points remain available.
@@ -296,7 +301,6 @@ RCLONE_REMOTE=zelic-drive
 RCLONE_REMOTE_DIR='Zelic RentTools Backups'
 BACKUP_ENCRYPTION_KEY_FILE=/home/app/.secrets/backup-passphrase
 RCLONE_CONFIG_PASS_FILE=/home/app/.renttools-rclone-config-pass
-PBKDF2_ITERATIONS=200000
 EOF
 sudo chown app:app /home/app/.renttools-offsite-backup.env
 sudo chmod 600 /home/app/.renttools-offsite-backup.env
@@ -320,11 +324,16 @@ Prove both directions before relying on the remote:
 sudo -u app /home/app/rent-tool/scripts/backup-db.sh
 tail -n 50 /home/app/logs/rent-tool-offsite-backup.log
 
-# Downloads the newest .enc to a temporary directory, decrypts it, runs
-# SQLite integrity_check, and removes the temporary plaintext. prod.db is
-# never stopped or replaced.
+# Downloads the newest authenticated V2 object to a temporary directory,
+# verifies GPG authentication before SQLite integrity_check, and removes the
+# temporary plaintext. Legacy V1 `.db.enc` objects are retained historically
+# but are not accepted by the authenticated restore drill. prod.db is never
+# stopped or replaced.
 sudo -u app /home/app/rent-tool/scripts/test-offsite-restore.sh
 tail -n 50 /home/app/logs/rent-tool-offsite-restore.log
+
+# Local-only manipulation regression tests (no Google credentials or live DB):
+sudo -u app /home/app/rent-tool/scripts/test-offsite-backup-format.sh
 ```
 
 The existing monthly `scripts/test-restore.sh` drill invokes the offsite drill
