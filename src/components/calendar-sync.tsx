@@ -68,8 +68,8 @@ function buildCalendarMonths(
     const start = parseYMD(ev.startDate);
     const end = parseYMD(ev.endDate);
     const link = ev.platform === "airbnb" ? airbnbLink : bookingLink;
-    const bBefore = link?.bufferBefore ?? 1;
-    const bAfter = link?.bufferAfter ?? 1;
+    const bBefore = link?.bufferBefore ?? 0;
+    const bAfter = link?.bufferAfter ?? 0;
 
     for (let i = 1; i <= bBefore; i++) {
       const d = fmtDate(addDays(start, -i));
@@ -385,8 +385,8 @@ export function CalendarSync({ propertyId }: CalendarSyncProps) {
   const [syncing, setSyncing] = useState(false);
   const [editingLink, setEditingLink] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState("");
-  const [bufferBefore, setBufferBefore] = useState(1);
-  const [bufferAfter, setBufferAfter] = useState(1);
+  const [bufferBefore, setBufferBefore] = useState(0);
+  const [bufferAfter, setBufferAfter] = useState(0);
   const [testing, setTesting] = useState<string | null>(null); // platform being tested
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [copied, setCopied] = useState<string | null>(null);
@@ -419,16 +419,6 @@ export function CalendarSync({ propertyId }: CalendarSyncProps) {
         const data = await res.json();
         if (typeof data.feedToken === "string") setFeedToken(data.feedToken);
       }
-    } finally {
-      setRotating(false);
-    }
-  };
-
-  const handleClearToken = async () => {
-    setRotating(true);
-    try {
-      const res = await fetch(`/api/properties/${propertyId}/rotate-feed-token`, { method: "DELETE" });
-      if (res.ok) setFeedToken(null);
     } finally {
       setRotating(false);
     }
@@ -543,8 +533,8 @@ export function CalendarSync({ propertyId }: CalendarSyncProps) {
     const existing = links.find((l) => l.platform === platform);
     setEditingLink(platform);
     setUrlInput(existing?.icalExportUrl || "");
-    setBufferBefore(existing?.bufferBefore ?? 1);
-    setBufferAfter(existing?.bufferAfter ?? 1);
+    setBufferBefore(existing?.bufferBefore ?? 0);
+    setBufferAfter(existing?.bufferAfter ?? 0);
     setTestResults((prev) => { const next = { ...prev }; delete next[platform]; return next; });
   };
 
@@ -599,19 +589,10 @@ export function CalendarSync({ propertyId }: CalendarSyncProps) {
         <div className="rounded-lg border border-[var(--line)] bg-[var(--bg)] p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="text-[11px] text-[var(--ink-3)]">
             {feedToken
-              ? "Feed URLs include a private token. Rotate to invalidate the old URL."
-              : "Feed URLs are public. Add a token to make them unguessable."}
+              ? "Feeds are protected by a private token. Rotate to invalidate the old URL."
+              : "This legacy feed is not protected yet. Generate a token before sharing it."}
           </div>
           <div className="flex gap-2">
-            {feedToken && (
-              <button
-                onClick={handleClearToken}
-                disabled={rotating}
-                className="rounded px-2.5 py-1 text-[11px] text-[var(--ink-3)] hover:text-[var(--ink)] disabled:opacity-40"
-              >
-                Make public
-              </button>
-            )}
             <button
               onClick={handleRotateToken}
               disabled={rotating}

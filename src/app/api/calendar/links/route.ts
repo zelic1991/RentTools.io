@@ -2,8 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { canManageProperty } from "@/lib/ownership";
+import { canManageProperty, isPropertyOwner } from "@/lib/ownership";
 import { normalizeIcalUrl, normalizePlatformSlug } from "@/lib/calendar-link-input";
+
+function projectCalendarLink<T extends { icalExportUrl: string }>(
+  link: T,
+  canReadSecret: boolean,
+) {
+  if (canReadSecret) return link;
+  const safeLink: Partial<T> = { ...link };
+  Reflect.deleteProperty(safeLink, "icalExportUrl");
+  return safeLink;
+}
 
 // GET /api/calendar/links?propertyId=1
 export async function GET(request: NextRequest) {
@@ -33,11 +43,20 @@ export async function GET(request: NextRequest) {
 
     const links = await prisma.calendarLink.findMany({
       where,
-      include: { property: { select: { id: true, name: true } } },
+      include: { property: { select: { id: true, name: true, userId: true } } },
       orderBy: { createdAt: "asc" },
     });
 
-    return NextResponse.json(links);
+    const safeLinks = links.map((link) => {
+      const { userId: ownerId, ...property } = link.property;
+      const safeLink = { ...link, property };
+      return projectCalendarLink(
+        safeLink,
+        !session.impersonatorId && ownerId === session.userId,
+      );
+    });
+
+    return NextResponse.json(safeLinks);
   } catch (err) {
     console.error("Route error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -77,6 +96,8 @@ export async function POST(request: NextRequest) {
     if (!(await canManageProperty(Number(propertyId), session.userId, session.role))) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+    const canReadSecret = !session.impersonatorId &&
+      await isPropertyOwner(Number(propertyId), session.userId);
 
     // Check if link already exists for this property+platform
     const existing = await prisma.calendarLink.findFirst({
@@ -102,7 +123,7 @@ export async function POST(request: NextRequest) {
         platform: platformSlug,
         propertyId: Number(propertyId),
       });
-      return NextResponse.json(updated);
+      return NextResponse.json(projectCalendarLink(updated, canReadSecret));
     }
 
     const link = await prisma.calendarLink.create({
@@ -110,8 +131,11 @@ export async function POST(request: NextRequest) {
         propertyId: Number(propertyId),
         platform: platformSlug,
         icalExportUrl: normalizedUrl,
-        bufferBefore: bufferBefore ?? 1,
-        bufferAfter: bufferAfter ?? 1,
+        // Same-day turnover is the safe default. A host can still opt into a
+        // deliberate buffer, but adding a feed must not silently close extra
+        // nights around every reservation.
+        bufferBefore: bufferBefore ?? 0,
+        bufferAfter: bufferAfter ?? 0,
       },
     });
     await logAudit(session.userId, "create", "calendarLink", link.id, {
@@ -119,7 +143,7 @@ export async function POST(request: NextRequest) {
       propertyId: Number(propertyId),
     });
 
-    return NextResponse.json(link);
+    return NextResponse.json(projectCalendarLink(link, canReadSecret));
   } catch (err) {
     console.error("Route error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

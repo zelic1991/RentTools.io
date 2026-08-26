@@ -6,6 +6,11 @@ import { canManageProperty } from "@/lib/ownership";
 import { normalizePhone } from "@/lib/sanitize";
 import { parseReservationDate } from "@/lib/reservation-dates";
 import { loadEffectiveLinkedStayRange } from "@/lib/linked-stay";
+import { validateReservationRevenue } from "@/lib/reservation-revenue";
+import {
+  assertReservationExternalKeyMutation,
+  canonicalizeReservationPlatform,
+} from "@/lib/reservation-external-key";
 import {
   DEFAULT_PROPERTY_TIME_ZONE,
   getOwnerCalendarWindow,
@@ -23,6 +28,7 @@ async function loadManageableReservation(
       id: true,
       propertyId: true,
       platform: true,
+      externalKey: true,
       linkedEventUid: true,
       linkedEventPlatform: true,
       linkedEventRole: true,
@@ -56,6 +62,15 @@ export async function PATCH(
     const body = await request.json();
     const data: Record<string, unknown> = {};
 
+    // externalKey is write-once source identity. Import/create paths may set
+    // it; a generic reservation edit may never replace or clear it.
+    if (body.externalKey !== undefined) {
+      return NextResponse.json(
+        { error: "Reservation externalKey cannot be changed" },
+        { status: 409 },
+      );
+    }
+
     if (body.name !== undefined) data.name = body.name;
     if (body.checkIn !== undefined) {
       const checkIn = parseReservationDate(body.checkIn);
@@ -72,17 +87,32 @@ export async function PATCH(
       data.checkOut = checkOut;
     }
     if (body.platform !== undefined) {
+      if (typeof body.platform !== "string") {
+        return NextResponse.json({ error: "Invalid platform" }, { status: 400 });
+      }
+      let nextPlatform: string;
+      try {
+        nextPlatform = canonicalizeReservationPlatform(body.platform);
+      } catch (error) {
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : "Invalid platform" },
+          { status: 400 },
+        );
+      }
       // A linked row's channel is part of its durable semantics: claims use
       // the source channel while manually paid extensions are Direct. Source
       // identity lives in linkedEventPlatform and cannot be rewritten through
       // this general reservation edit endpoint.
-      if (owned.linkedEventUid && body.platform !== owned.platform) {
+      if (
+        owned.linkedEventUid &&
+        nextPlatform !== canonicalizeReservationPlatform(owned.platform)
+      ) {
         return NextResponse.json(
           { error: "Linked booking platform cannot be changed" },
           { status: 409 },
         );
       }
-      data.platform = body.platform;
+      data.platform = nextPlatform;
     }
 
     // Host-editable group-chat name override. Empty string / whitespace
@@ -152,6 +182,40 @@ export async function PATCH(
         );
       } else {
         data.bookedGuestCount = body.bookedGuestCount;
+      }
+    }
+
+    const revenue = validateReservationRevenue({
+      grossAmountCents: body.grossAmountCents,
+      currency: body.currency,
+    });
+    if (!revenue.ok) {
+      return NextResponse.json({ error: revenue.error }, { status: 400 });
+    }
+    Object.assign(data, revenue.data);
+
+    if (owned.externalKey) {
+      const nextPlatform = (data.platform as string | undefined) ?? owned.platform;
+      const nextCheckIn = (data.checkIn as Date | undefined) ?? owned.checkIn;
+      const nextCheckOut = (data.checkOut as Date | undefined) ?? owned.checkOut;
+      try {
+        assertReservationExternalKeyMutation({
+          externalKey: owned.externalKey,
+          propertyId: owned.propertyId,
+          currentPlatform: owned.platform,
+          nextPlatform,
+          nextCheckIn: nextCheckIn.toISOString().slice(0, 10),
+          nextCheckOut: nextCheckOut.toISOString().slice(0, 10),
+        });
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error: error instanceof Error
+              ? error.message
+              : "Reservation externalKey binding cannot be changed",
+          },
+          { status: 409 },
+        );
       }
     }
 

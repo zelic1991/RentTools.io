@@ -52,6 +52,11 @@ export async function GET() {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Cleaner screens consume dedicated turnover DTOs. Raw AuditLog/SyncLog
+    // messages can contain provider diagnostics or imported guest summaries.
+    if (session.role === "cleaner") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const accessibleIds = await listAccessiblePropertyIds(session.userId, session.role);
     const accessibleProperties = accessibleIds.length

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import type { Locale } from "@/lib/i18n/translations";
 
@@ -58,14 +58,14 @@ const COPY: Record<Locale, CopyShape> = {
 
 interface Assignment {
   id: number;
-  cleanerId: number;
-  username: string;
+  cleanerProfileId: number;
+  cleanerName: string;
   createdAt: string;
 }
 
 interface CleanerOption {
   id: number;
-  username: string;
+  name: string;
 }
 
 interface CleanerAssignmentSectionProps {
@@ -82,12 +82,11 @@ export function CleanerAssignmentSection({ propertyId }: CleanerAssignmentSectio
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = async () => {
-    setLoading(true);
+  const refresh = useCallback(async () => {
     try {
       const [aRes, uRes] = await Promise.all([
         fetch(`/api/cleaner-assignments?propertyId=${propertyId}`),
-        fetch(`/api/users?role=cleaner`),
+        fetch("/api/cleaners"),
       ]);
       if (aRes.ok) setAssignments(await aRes.json());
       if (uRes.ok) {
@@ -97,13 +96,13 @@ export function CleanerAssignmentSection({ propertyId }: CleanerAssignmentSectio
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    refresh();
   }, [propertyId]);
 
-  const assignedIds = new Set(assignments.map((a) => a.cleanerId));
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  const assignedIds = new Set(assignments.map((a) => a.cleanerProfileId));
   const available = cleaners.filter((c) => !assignedIds.has(c.id));
 
   const add = async () => {
@@ -116,7 +115,7 @@ export function CleanerAssignmentSection({ propertyId }: CleanerAssignmentSectio
       const res = await fetch("/api/cleaner-assignments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ propertyId, username: cleaner.username }),
+        body: JSON.stringify({ propertyId, cleanerProfileId: cleaner.id }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -157,7 +156,7 @@ export function CleanerAssignmentSection({ propertyId }: CleanerAssignmentSectio
                   key={a.id}
                   className="flex items-center justify-between rounded-md border border-[var(--line)] bg-[var(--bg)] px-3 py-1.5 text-xs"
                 >
-                  <span className="text-[var(--ink)]">{a.username}</span>
+                  <span className="text-[var(--ink)]">{a.cleanerName}</span>
                   <button
                     onClick={() => remove(a.id)}
                     disabled={busy}
@@ -186,7 +185,7 @@ export function CleanerAssignmentSection({ propertyId }: CleanerAssignmentSectio
               </option>
               {available.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.username}
+                  {c.name}
                 </option>
               ))}
             </select>

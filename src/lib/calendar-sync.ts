@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { parseICal, type ICalEvent } from "@/lib/ical";
 import { withCalendarSyncGate } from "@/lib/calendar-sync-gate";
+import { fetchIcalText } from "@/lib/ical-fetch";
 
 type CalendarSyncOptions = {
   propertyIds?: number[];
@@ -18,23 +19,7 @@ type CalendarSyncSummary = {
  */
 async function fetchICal(url: string): Promise<{ events: ICalEvent[]; error?: string }> {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "RentTool-CalendarSync/1.0",
-        Accept: "text/calendar, text/plain, */*",
-      },
-    });
-    clearTimeout(timeout);
-
-    if (!res.ok) {
-      return { events: [], error: `HTTP ${res.status}: ${res.statusText}` };
-    }
-
-    const text = await res.text();
+    const text = await fetchIcalText(url);
     if (!text.includes("VCALENDAR")) {
       return { events: [], error: "Response is not a valid iCal feed" };
     }

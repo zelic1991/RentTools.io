@@ -146,6 +146,9 @@ Returns `CalendarLink[]` for the property.
 
 ### `POST /api/calendar/links` — session
 Body: `{ propertyId, platform: "airbnb"|"booking", icalExportUrl, bufferBefore?, bufferAfter? }`.
+Both buffers default to `0` (checkout-exclusive, same-day turnover). Positive
+buffers are opt-in and count exact calendar days; existing stored values are
+not rewritten automatically.
 
 ### `PATCH /api/calendar/links/[id]` — session
 Update buffers or URL.

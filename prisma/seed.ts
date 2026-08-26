@@ -55,7 +55,11 @@ async function main() {
   } else {
     await prisma.user.update({
       where: { username },
-      data: { password: hashedPassword, role: "superadmin" },
+      data: {
+        password: hashedPassword,
+        role: "superadmin",
+        sessionVersion: { increment: 1 },
+      },
     });
     console.log(`Superadmin password updated: ${username}`);
   }

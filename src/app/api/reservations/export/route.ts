@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { listAccessiblePropertyIds } from "@/lib/ownership";
+import { listManageablePropertyIds } from "@/lib/ownership";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +34,9 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (session.role === "cleaner") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     const sp = request.nextUrl.searchParams;
     const fromParam = sp.get("from");
@@ -59,7 +62,7 @@ export async function GET(request: NextRequest) {
       to = d;
     }
 
-    const accessibleIds = await listAccessiblePropertyIds(session.userId, session.role);
+    const accessibleIds = await listManageablePropertyIds(session.userId);
 
     const where: {
       property: { id: { in: number[] } };
@@ -72,6 +75,9 @@ export async function GET(request: NextRequest) {
       const pid = parseInt(propertyIdParam);
       if (isNaN(pid)) {
         return NextResponse.json({ error: "Invalid propertyId" }, { status: 400 });
+      }
+      if (!accessibleIds.includes(pid)) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
       where.propertyId = pid;
     }

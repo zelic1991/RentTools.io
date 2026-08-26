@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth";
+import { clearSessionCookies, hashPassword } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { checkPasswordStrength } from "@/lib/security/password-strength";
@@ -62,10 +62,15 @@ export async function POST(request: NextRequest) {
     // real password it can sign in with.
     await prisma.user.update({
       where: { id: user.id },
-      data: { password: hashed, hasPassword: true },
+      data: {
+        password: hashed,
+        hasPassword: true,
+        sessionVersion: { increment: 1 },
+      },
     });
     await consumeEmailCode(result.id);
     await logAudit(user.id, "update", "user", user.id, { passwordReset: true });
+    await clearSessionCookies();
 
     return NextResponse.json({ ok: true });
   } catch (err) {

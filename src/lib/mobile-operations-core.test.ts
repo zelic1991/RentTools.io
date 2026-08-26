@@ -65,19 +65,28 @@ describe("mobile guest state", () => {
     expect(latestSubmissionStatus([
       { status: "INVITED", createdAt: "2027-01-01T00:00:00.000Z" },
       { status: "OWNER_REVIEW_REQUIRED", createdAt: "2027-01-02T00:00:00.000Z" },
-    ])).toBe("OWNER_REVIEW_REQUIRED");
+    ])).toBe("OWNER_REVIEW");
+    expect(latestSubmissionStatus([
+      { status: "CORRUPT_STATUS", createdAt: "2027-01-03T00:00:00.000Z" },
+    ])).toBe("INVALID");
   });
 
   it("marks no data, partial data, complete and owner review", () => {
     expect(deriveMobileGuestState(reservation()).missingFields).toContain("Gästeformular noch nicht erstellt");
-    expect(deriveMobileGuestState(reservation({ submissions: [{ status: "IN_PROGRESS", createdAt: "2027-01-01T00:00:00Z" }] })).complete).toBe(false);
-    expect(deriveMobileGuestState(reservation({ submissions: [{ status: "OWNER_REVIEW_REQUIRED", createdAt: "2027-01-01T00:00:00Z" }] })).ownerReviewRequired).toBe(true);
+    const legacyInProgress = deriveMobileGuestState(reservation({
+      submissions: [{ status: "IN_PROGRESS", createdAt: "2027-01-01T00:00:00Z" }],
+    }));
+    expect(legacyInProgress.status).toBe("PENDING");
+    expect(legacyInProgress.complete).toBe(false);
+    expect(legacyInProgress.missingFields).toContain("Gästedaten noch unvollständig");
+    expect(deriveMobileGuestState(reservation({ submissions: [{ status: "GUEST_COMPLETE", createdAt: "2027-01-01T00:00:00Z" }] })).ownerReviewRequired).toBe(true);
+    expect(deriveMobileGuestState(reservation({ submissions: [{ status: "OWNER_REVIEW_REQUIRED", createdAt: "2027-01-01T00:00:00Z" }] })).status).toBe("OWNER_REVIEW");
     expect(deriveMobileGuestState(reservation({ submissions: [{ status: "OWNER_APPROVED", createdAt: "2027-01-01T00:00:00Z" }] })).complete).toBe(true);
   });
 
   it("never counts test eVisitor receipts as a production submission", () => {
     const state = deriveMobileGuestState(reservation({
-      submissions: [{ status: "OWNER_APPROVED", createdAt: "2027-01-01T00:00:00Z" }],
+      submissions: [{ status: "EVISITOR_READY", createdAt: "2027-01-01T00:00:00Z" }],
       eVisitorReceipts: [{
         environment: "test",
         status: "success",
@@ -86,6 +95,18 @@ describe("mobile guest state", () => {
       }],
     }));
     expect(state.eVisitorStatus).toBe("READY_NOT_SUBMITTED");
+  });
+
+  it("distinguishes owner approval, manual readiness, and manual confirmation", () => {
+    expect(deriveMobileGuestState(reservation({
+      submissions: [{ status: "OWNER_APPROVED", createdAt: "2027-01-01T00:00:00Z" }],
+    })).eVisitorStatus).toBe("APPROVED_NOT_READY");
+    expect(deriveMobileGuestState(reservation({
+      submissions: [{ status: "EVISITOR_READY", createdAt: "2027-01-01T00:00:00Z" }],
+    })).eVisitorStatus).toBe("READY_NOT_SUBMITTED");
+    expect(deriveMobileGuestState(reservation({
+      submissions: [{ status: "EVISITOR_CONFIRMED_MANUAL", createdAt: "2027-01-01T00:00:00Z" }],
+    })).eVisitorStatus).toBe("MANUAL_CONFIRMED");
   });
 
   it("shows only a production readback as confirmed", () => {
@@ -123,20 +144,22 @@ describe("mobile guest state", () => {
 
 describe("mobile role boundary", () => {
   it("allows managers to read every mobile section", () => {
-    for (const section of ["start", "calendar", "guests", "portals"] as const) {
+    for (const section of ["start", "calendar", "guests", "portals", "cleaning"] as const) {
       expect(canAccessMobileSection("owner", section)).toBe(true);
     }
     expect(canAccessMobileSection("manager", "start")).toBe(true);
     expect(canAccessMobileSection("manager", "calendar")).toBe(true);
     expect(canAccessMobileSection("manager", "guests")).toBe(true);
     expect(canAccessMobileSection("manager", "portals")).toBe(true);
+    expect(canAccessMobileSection("manager", "cleaning")).toBe(true);
   });
 
-  it("keeps the optional cleaner role out of this PWA", () => {
+  it("restricts cleaners to the cleaning workflow", () => {
     expect(canAccessMobileSection("cleaner", "start")).toBe(false);
     expect(canAccessMobileSection("cleaner", "calendar")).toBe(false);
     expect(canAccessMobileSection("cleaner", "guests")).toBe(false);
     expect(canAccessMobileSection("cleaner", "portals")).toBe(false);
+    expect(canAccessMobileSection("cleaner", "cleaning")).toBe(true);
   });
 });
 

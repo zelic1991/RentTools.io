@@ -46,8 +46,8 @@ export function normalizeIcalUrl(raw: unknown): UrlResult {
     return { ok: false, error: "That doesn't look like a valid URL" };
   }
 
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return { ok: false, error: "iCal URL must start with http:// or https://" };
+  if (parsed.protocol !== "https:") {
+    return { ok: false, error: "iCal URL must use HTTPS" };
   }
   // Rejects "localhost" and bare hostnames, which can never be a hosted feed.
   if (!parsed.hostname.includes(".")) {

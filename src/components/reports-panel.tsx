@@ -17,6 +17,7 @@ import { PropertySwitcher } from "@/components/property-switcher";
 import { useI18n } from "@/lib/i18n/context";
 import type { Locale } from "@/lib/i18n/translations";
 import type { Property } from "@/lib/types";
+import { summarizeStoredGrossAmounts } from "@/lib/reservation-revenue";
 
 interface CopyShape {
   reports: string;
@@ -882,6 +883,22 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
     return out;
   }, [targetProperties, events]);
 
+  const storedGrossSummary = useMemo(() => {
+    const storedReservationSummary = summarizeStoredGrossAmounts(
+      targetProperties.flatMap((targetProperty) => targetProperty.reservations),
+    );
+    return {
+      ...storedReservationSummary,
+      // allStays is the report's de-duplicated booking truth. Calendar-only
+      // imports have no Reservation amount and therefore count as unknown;
+      // never infer a price from their dates or nights.
+      unknownCount: Math.max(
+        0,
+        allStays.length - storedReservationSummary.knownCount,
+      ),
+    };
+  }, [allStays.length, targetProperties]);
+
   const buckets = useMemo(() => {
     const b = buildMonthRange(allStays, periodMonths);
     fillBuckets(b, allStays);
@@ -1082,6 +1099,39 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
                   value={aggregate.cleaningsUpcoming}
                   subtitle={c.cleaningsAheadSubtitle}
                 />
+              </div>
+
+              <div className="rounded-xl border border-[var(--line)] bg-[var(--bg-2)] p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h2 className="text-sm font-semibold text-[var(--ink)]">
+                      Stored gross booking amounts
+                    </h2>
+                    <p className="mt-1 text-xs text-[var(--ink-3)]">
+                      Only explicit owner-entered amounts are summed. No rates, fees, commissions, payments, or estimates.
+                    </p>
+                  </div>
+                  <div className="text-left sm:text-right">
+                    {storedGrossSummary.totalsByCurrency.length > 0 ? (
+                      storedGrossSummary.totalsByCurrency.map(({ currency, amountCents }) => (
+                        <div key={currency} className="text-lg font-semibold tabular-nums text-[var(--ink)]">
+                          {new Intl.NumberFormat(locale, {
+                            style: "currency",
+                            currency,
+                          }).format(amountCents / 100)}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-sm font-medium text-[var(--ink-3)]">
+                        No stored amounts
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-[var(--ink-3)]">
+                  <span>Known amounts: {storedGrossSummary.knownCount} bookings</span>
+                  <span>Amount unknown: {storedGrossSummary.unknownCount} bookings</span>
+                </div>
               </div>
 
               {/* Top-platform readout — colored pill matches calendar bars. */}

@@ -1,23 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { requireSuperadmin } from "@/lib/auth";
 
 export async function GET() {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { response } = await requireSuperadmin();
+    if (response) return response;
 
     const settings = await prisma.appSettings.findMany();
     const map: Record<string, string> = {};
     for (const s of settings) {
-      // Mask API keys for non-superadmin
-      if (s.key === "gemini_api_key" && session.role !== "superadmin") {
-        map[s.key] = s.value ? "****" + s.value.slice(-4) : "";
-      } else {
-        map[s.key] = s.value;
-      }
+      map[s.key] = s.value;
     }
     return NextResponse.json(map);
   } catch (err) {
@@ -28,20 +21,21 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session || session.role !== "superadmin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const { response } = await requireSuperadmin();
+    if (response) return response;
 
     const { key, value } = await request.json();
-    if (!key) {
+    if (typeof key !== "string" || !key.trim()) {
       return NextResponse.json({ error: "Key required" }, { status: 400 });
+    }
+    if (typeof value !== "string") {
+      return NextResponse.json({ error: "Value must be a string" }, { status: 400 });
     }
 
     await prisma.appSettings.upsert({
-      where: { key },
+      where: { key: key.trim() },
       update: { value },
-      create: { key, value },
+      create: { key: key.trim(), value },
     });
 
     return NextResponse.json({ success: true });

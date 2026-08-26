@@ -128,8 +128,8 @@ export async function POST(request: NextRequest) {
         ? body.iconUrl.trim().slice(0, 512)
         : null;
 
-    const defaultBufferBefore = clampBuffer(body.defaultBufferBefore, 1);
-    const defaultBufferAfter = clampBuffer(body.defaultBufferAfter, 1);
+    const defaultBufferBefore = clampBuffer(body.defaultBufferBefore, 0);
+    const defaultBufferAfter = clampBuffer(body.defaultBufferAfter, 0);
     const sortOrder = clampSortOrder(body.sortOrder, 150);
 
     const exists = await prisma.calendarPlatform.findUnique({ where: { slug } });

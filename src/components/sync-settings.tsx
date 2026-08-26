@@ -28,7 +28,6 @@ interface CopyShape {
   feedTokenDesc: string;
   feedTokenActiveNote: string;
   feedTokenPublicNote: string;
-  makePublic: string;
   rotate: string;
   generateToken: string;
   dangerZone: string;
@@ -57,12 +56,11 @@ const COPY: Record<Locale, CopyShape> = {
     monthsShort: "mo",
     feedTokenTitle: "Feed access token",
     feedTokenDesc:
-      "The feed URL lets external services that do not support iCal upload (e.g. price-management tools, channel managers, or your own scripts) read this property's combined calendar — every platform you've connected — in iCal format. Most hosts will not need this — leave the token blank to keep the feed public, or rotate the token to make the URL private.",
+      "The protected feed URL lets approved external services read this property's combined calendar in iCal format. Keep its token private.",
     feedTokenActiveNote:
-      "Your feed URLs currently include a private token. Rotating invalidates the old URL — re-paste the new one wherever it's consumed.",
+      "Your feeds are protected by a private token. Rotating invalidates the old URL — re-paste the new one wherever it's consumed.",
     feedTokenPublicNote:
-      "Your feed URLs are currently public. Add a token to make them unguessable.",
-    makePublic: "Make public",
+      "This legacy feed is not protected yet. Generate a token before sharing it.",
     rotate: "Rotate",
     generateToken: "Generate token",
     dangerZone: "Danger zone",
@@ -92,12 +90,11 @@ const COPY: Record<Locale, CopyShape> = {
     monthsShort: "мес.",
     feedTokenTitle: "Токен доступа к фиду",
     feedTokenDesc:
-      "URL фида позволяет внешним сервисам, не поддерживающим загрузку iCal (например, инструментам ценообразования, channel manager-ам или вашим собственным скриптам), читать общий календарь этого объекта (все подключённые платформы) в формате iCal. Большинству хостов это не нужно — оставьте поле пустым, чтобы фид оставался публичным, или сгенерируйте токен, чтобы URL был приватным.",
+      "Защищённый URL фида позволяет разрешённым внешним сервисам читать общий календарь объекта в формате iCal. Храните токен в секрете.",
     feedTokenActiveNote:
-      "Сейчас URL содержит приватный токен. Ротация делает старый URL недействительным — переустановите новый в местах, где он используется.",
+      "Фиды защищены приватным токеном. Ротация делает старый URL недействительным — переустановите новый в местах, где он используется.",
     feedTokenPublicNote:
-      "Сейчас URL фида публичны. Сгенерируйте токен, чтобы их нельзя было угадать.",
-    makePublic: "Сделать публичным",
+      "Этот старый фид ещё не защищён. Перед передачей ссылки сгенерируйте токен.",
     rotate: "Обновить",
     generateToken: "Сгенерировать токен",
     dangerZone: "Опасная зона",
@@ -127,12 +124,11 @@ const COPY: Record<Locale, CopyShape> = {
     monthsShort: "Mon.",
     feedTokenTitle: "Zugriffstoken für Feed",
     feedTokenDesc:
-      "Die Feed-URL erlaubt externen Diensten, die keinen iCal-Upload unterstützen (z. B. Preisoptimierungs-Tools, Channel Manager oder eigene Skripte), den kombinierten Kalender dieser Unterkunft — alle verbundenen Plattformen — im iCal-Format zu lesen. Die meisten Hosts brauchen das nicht — lassen Sie das Token leer, damit der Feed öffentlich bleibt, oder generieren Sie ein Token, um die URL privat zu machen.",
+      "Die geschützte Feed-URL erlaubt freigegebenen externen Diensten, den kombinierten Kalender dieser Unterkunft im iCal-Format zu lesen. Halten Sie das Token geheim.",
     feedTokenActiveNote:
-      "Ihre Feed-URLs enthalten aktuell ein privates Token. Beim Rotieren wird die alte URL ungültig — fügen Sie die neue URL überall dort wieder ein, wo sie verwendet wird.",
+      "Ihre Feeds sind durch ein privates Token geschützt. Beim Rotieren wird die alte URL ungültig — fügen Sie die neue URL überall dort wieder ein, wo sie verwendet wird.",
     feedTokenPublicNote:
-      "Ihre Feed-URLs sind aktuell öffentlich. Fügen Sie ein Token hinzu, damit sie nicht erratbar sind.",
-    makePublic: "Öffentlich machen",
+      "Dieser ältere Feed ist noch nicht geschützt. Generieren Sie vor dem Teilen ein Token.",
     rotate: "Rotieren",
     generateToken: "Token generieren",
     dangerZone: "Gefahrenzone",
@@ -162,12 +158,11 @@ const COPY: Record<Locale, CopyShape> = {
     monthsShort: "mois",
     feedTokenTitle: "Token d’accès au feed",
     feedTokenDesc:
-      "L’URL du feed permet à des services externes qui ne prennent pas en charge l’import iCal (outils de tarification, channel managers ou vos propres scripts) de lire le calendrier combiné de ce logement — toutes les plateformes connectées — au format iCal. La plupart des hôtes n’en ont pas besoin — laissez le token vide pour garder le feed public, ou générez un token pour rendre l’URL privée.",
+      "L’URL de feed protégée permet aux services externes autorisés de lire le calendrier combiné de ce logement au format iCal. Gardez le token secret.",
     feedTokenActiveNote:
-      "Vos URL de feed contiennent actuellement un token privé. La rotation invalide l’ancienne URL — recollez la nouvelle URL partout où elle est utilisée.",
+      "Vos feeds sont protégés par un token privé. La rotation invalide l’ancienne URL — recollez la nouvelle URL partout où elle est utilisée.",
     feedTokenPublicNote:
-      "Vos URL de feed sont actuellement publiques. Ajoutez un token pour qu’elles ne soient pas devinables.",
-    makePublic: "Rendre public",
+      "Cet ancien feed n’est pas encore protégé. Générez un token avant de le partager.",
     rotate: "Renouveler",
     generateToken: "Générer un token",
     dangerZone: "Zone sensible",
@@ -197,12 +192,11 @@ const COPY: Record<Locale, CopyShape> = {
     monthsShort: "meses",
     feedTokenTitle: "Token de acceso al feed",
     feedTokenDesc:
-      "La URL del feed permite que servicios externos que no admiten subida de iCal (por ejemplo, herramientas de pricing, channel managers o sus propios scripts) lean el calendario combinado de este alojamiento — todas las plataformas conectadas — en formato iCal. La mayoría de los anfitriones no lo necesitan — deje el token vacío para mantener el feed público, o gire el token para que la URL sea privada.",
+      "La URL protegida del feed permite que los servicios externos autorizados lean el calendario combinado de este alojamiento en formato iCal. Mantenga el token en secreto.",
     feedTokenActiveNote:
-      "Sus URL de feed incluyen actualmente un token privado. Al rotarlo se invalida la URL anterior — vuelva a pegar la nueva donde la utilice.",
+      "Sus feeds están protegidos por un token privado. Al rotarlo se invalida la URL anterior — vuelva a pegar la nueva donde la utilice.",
     feedTokenPublicNote:
-      "Sus URL de feed son actualmente públicas. Añada un token para que no se puedan adivinar.",
-    makePublic: "Hacer público",
+      "Este feed antiguo aún no está protegido. Genere un token antes de compartirlo.",
     rotate: "Rotar",
     generateToken: "Generar token",
     dangerZone: "Zona peligrosa",
@@ -284,7 +278,7 @@ export function SyncSettings({ propertyId, propertyName, properties, minNights, 
     color: string;
   }>>([]);
 
-  // Public feed token (null = public feed; non-null = ?token=… required)
+  // Protected feed token. A null value is legacy state that needs an owner migration.
   const [feedToken, setFeedToken] = useState<string | null>(null);
   const [rotating, setRotating] = useState(false);
 
@@ -348,16 +342,6 @@ export function SyncSettings({ propertyId, propertyName, properties, minNights, 
         const data = await res.json();
         if (typeof data.feedToken === "string") setFeedToken(data.feedToken);
       }
-    } finally {
-      setRotating(false);
-    }
-  };
-
-  const handleClearToken = async () => {
-    setRotating(true);
-    try {
-      const res = await fetch(`/api/properties/${propertyId}/rotate-feed-token`, { method: "DELETE" });
-      if (res.ok) setFeedToken(null);
     } finally {
       setRotating(false);
     }
@@ -1177,8 +1161,8 @@ export function SyncSettings({ propertyId, propertyName, properties, minNights, 
       </Link>
 
       {/* Feed access token (RT-25.4) — relocated to the bottom of the
-          page. The card explains what the feed URL is for and lets the
-          user opt into a private token. Rendered last so first-time
+          page. The card explains the protected feed URL and lets an
+          owner rotate it or protect a legacy null-token feed. Rendered last so first-time
           users see the iCal export / cleaner / message pieces before
           the advanced opt-in. Gated on `!loading` so the card doesn't
           flash after first paint. */}
@@ -1197,15 +1181,6 @@ export function SyncSettings({ propertyId, propertyName, properties, minNights, 
               </p>
             </div>
             <div className="flex shrink-0 gap-2">
-              {feedToken && (
-                <button
-                  onClick={handleClearToken}
-                  disabled={rotating}
-                  className="rounded-md px-2.5 py-1 text-xs text-[var(--ink-3)] hover:text-[var(--ink)] disabled:opacity-40"
-                >
-                  {c.makePublic}
-                </button>
-              )}
               <button
                 onClick={handleRotateToken}
                 disabled={rotating}

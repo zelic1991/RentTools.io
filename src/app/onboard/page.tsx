@@ -7,6 +7,7 @@ import { PlatformInstructions } from "@/components/platform-instructions";
 import { MarketingHeader } from "@/components/marketing-header";
 import { useI18n } from "@/lib/i18n/context";
 import { localePath } from "@/lib/i18n/alternates";
+import { buildProtectedFeedUrl } from "@/lib/feed-utils";
 import type { Locale } from "@/lib/i18n/translations";
 
 /* ────────────────────────────────────────────────────────────────────
@@ -420,10 +421,10 @@ function clientSlug(raw: string): string {
   return cleaned || "custom";
 }
 
-function feedUrl(slug: string, platform: string): string {
+function feedUrl(slug: string, token: string, platform: string): string | null {
   // SSR-safe: window may not exist on first render
   const origin = typeof window === "undefined" ? "https://renttools.io" : window.location.origin;
-  return `${origin}/api/calendar/feed/${slug}/for-${platform}.ics`;
+  return buildProtectedFeedUrl(origin, slug, token, platform);
 }
 
 function presetRow(preset: Preset): DraftRow {
@@ -448,6 +449,7 @@ export default function OnboardPage() {
   const t = COPY[locale];
   const [propertyName, setPropertyName] = useState("");
   const [feedSlug, setFeedSlug] = useState<string | null>(null);
+  const [feedToken, setFeedToken] = useState<string | null>(null);
   const [rows, setRows] = useState<DraftRow[]>(() => PRESETS.map(presetRow));
   const [saving, setSaving] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -458,11 +460,12 @@ export default function OnboardPage() {
     let cancelled = false;
     fetch("/api/onboard")
       .then((res) => (res.ok ? res.json() : null))
-      .then((data: { draft: { propertyName: string; feedSlug: string | null; links: DraftLink[] } | null } | null) => {
+      .then((data: { draft: { propertyName: string; feedSlug: string | null; feedToken: string | null; links: DraftLink[] } | null } | null) => {
         if (cancelled) return;
         if (data?.draft) {
           setPropertyName(data.draft.propertyName);
           setFeedSlug(data.draft.feedSlug);
+          setFeedToken(data.draft.feedToken);
           // Hydrate rows: presets first, then any custom links from the draft.
           const seenPresets = new Set<string>();
           const hydrated: DraftRow[] = PRESETS.map((p) => {
@@ -528,6 +531,7 @@ export default function OnboardPage() {
         try {
           const data = await res.json();
           if (data?.draft?.feedSlug) setFeedSlug(data.draft.feedSlug);
+          if (data?.draft?.feedToken) setFeedToken(data.draft.feedToken);
         } catch {
           // Body unreadable (rare) — the next save cycle will refresh it.
         }
@@ -691,6 +695,7 @@ export default function OnboardPage() {
                       row={row}
                       preset={PRESETS.find((p) => p.platform === row.platform) ?? null}
                       feedSlug={feedSlug}
+                      feedToken={feedToken}
                       copied={copied}
                       onToggle={() => toggleRow(row.rowId)}
                       onUrlChange={(url) => updateRow(row.rowId, { url, testStatus: "untested" })}
@@ -798,6 +803,7 @@ interface PlatformRowProps {
   row: DraftRow;
   preset: Preset | null;
   feedSlug: string | null;
+  feedToken: string | null;
   copied: string | null;
   onToggle: () => void;
   onUrlChange: (v: string) => void;
@@ -813,6 +819,7 @@ function PlatformRow({
   row,
   preset,
   feedSlug,
+  feedToken,
   copied,
   onToggle,
   onUrlChange,
@@ -827,7 +834,9 @@ function PlatformRow({
   const t = COPY[locale];
   const isCustom = !preset;
   const display = preset?.displayName ?? (row.customName?.trim() || t.customFallback);
-  const ourFeedUrl = feedSlug ? feedUrl(feedSlug, row.platform) : null;
+  const ourFeedUrl = feedSlug && feedToken
+    ? feedUrl(feedSlug, feedToken, row.platform)
+    : null;
   const copyKey = `our-${row.rowId}`;
 
   return (

@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, hashPassword } from "@/lib/auth";
+import { hashPassword, requireSuperadmin } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { checkPasswordStrength } from "@/lib/security/password-strength";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { response } = await requireSuperadmin();
+    if (response) return response;
 
     const role = request.nextUrl.searchParams.get("role");
     const where = role ? { role } : {};
@@ -28,10 +26,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session || session.role !== "superadmin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+    const { session, response } = await requireSuperadmin();
+    if (response) return response;
 
     const { username, password } = await request.json();
     if (!username?.trim() || !password) {

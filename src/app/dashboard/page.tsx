@@ -180,6 +180,8 @@ function AppContent({
       groupName?: string | null;
       phone?: string | null;
       bookedGuestCount?: number | null;
+      grossAmountCents?: number | null;
+      currency?: string;
     }
   ) => {
     const res = await fetch(`/api/reservations/${id}`, {

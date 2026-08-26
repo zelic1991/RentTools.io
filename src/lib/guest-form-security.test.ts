@@ -28,11 +28,18 @@ describe("guest-form public-link security", () => {
   it("fails closed for revoked, expired and submitted links", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2027-05-20T12:00:00.000Z"));
-    const base = { revokedAt: null, expiresAt: null, submittedAt: null, status: "INVITED" };
+    const base = { revokedAt: null, expiresAt: null, submittedAt: null, status: "PENDING" };
     expect(publicSubmissionState(base)).toBe("active");
     expect(publicSubmissionState({ ...base, revokedAt: new Date() })).toBe("revoked");
     expect(publicSubmissionState({ ...base, expiresAt: new Date("2027-05-19") })).toBe("expired");
     expect(publicSubmissionState({ ...base, submittedAt: new Date() })).toBe("submitted");
+    expect(publicSubmissionState({ ...base, status: "GUEST_COMPLETE" })).toBe("submitted");
+    expect(publicSubmissionState({ ...base, status: "OWNER_REVIEW" })).toBe("submitted");
+    expect(publicSubmissionState({ ...base, status: "COMPLETE" })).toBe("submitted");
+    expect(publicSubmissionState({ ...base, status: "OWNER_REVIEW_REQUIRED" })).toBe("submitted");
+    expect(publicSubmissionState({ ...base, status: "EVISITOR_READY" })).toBe("submitted");
+    expect(publicSubmissionState({ ...base, status: "EVISITOR_CONFIRMED_MANUAL" })).toBe("submitted");
+    expect(publicSubmissionState({ ...base, status: "CORRUPT_STATUS" })).toBe("invalid");
     vi.useRealTimers();
   });
 

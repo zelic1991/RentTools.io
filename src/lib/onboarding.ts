@@ -1,6 +1,8 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { ensureOnboardingDraftFeedIdentity } from "@/lib/feed-identity";
+import { normalizeIcalUrl, normalizePlatformSlug } from "@/lib/calendar-link-input";
 
 export const ONBOARD_COOKIE = "rt-onboard-token";
 
@@ -55,33 +57,40 @@ export async function claimOnboardingDraft(userId: number): Promise<void> {
 
     const parsedLinks = parseLinks(draft.links);
     const propertyName = draft.propertyName.trim() || "My first property";
+    const feedIdentity = await ensureOnboardingDraftFeedIdentity({
+      ...draft,
+      propertyName,
+    });
 
-    // Carry the draft's feedSlug onto the new Property so any feed URL
-    // the visitor already pasted into Airbnb / Booking continues to
-    // resolve to their account after signup. Without this the URL
-    // would 404 the moment we delete the draft.
+    // Carry the exact protected identity onto the new Property so a URL the
+    // visitor already pasted before signup continues to work byte-for-byte.
     const property = await prisma.property.create({
       data: {
         name: propertyName,
         userId,
         minNights: 1,
-        feedSlug: draft.feedSlug ?? undefined,
+        ...feedIdentity,
       },
     });
     await logAudit(userId, "create", "property", property.id, { name: property.name, fromOnboarding: true });
 
     for (const link of parsedLinks) {
       if (!link.icalExportUrl.trim()) continue;
+      const platformResult = normalizePlatformSlug(link.platform);
+      const urlResult = normalizeIcalUrl(link.icalExportUrl);
+      if (!platformResult.ok || !urlResult.ok) continue;
       try {
         const created = await prisma.calendarLink.create({
           data: {
             propertyId: property.id,
-            platform: link.platform,
-            icalExportUrl: link.icalExportUrl.trim(),
+            platform: platformResult.platform,
+            icalExportUrl: urlResult.url,
+            bufferBefore: 0,
+            bufferAfter: 0,
           },
         });
         await logAudit(userId, "create", "calendarLink", created.id, {
-          platform: link.platform,
+          platform: platformResult.platform,
           propertyId: property.id,
           fromOnboarding: true,
         });

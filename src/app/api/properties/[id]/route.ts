@@ -19,6 +19,8 @@ export async function PATCH(
     if (!(await canManageProperty(numId, session.userId, session.role))) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
+    const canReturnFeedToken = !session.impersonatorId &&
+      await isPropertyOwner(numId, session.userId);
 
     const body = await request.json();
     const data: Record<string, unknown> = {};
@@ -35,7 +37,12 @@ export async function PATCH(
       data,
     });
     await logAudit(session.userId, "update", "property", numId, data);
-    return NextResponse.json(property);
+    if (canReturnFeedToken) {
+      return NextResponse.json(property);
+    }
+    const { feedToken, ...safeProperty } = property;
+    void feedToken;
+    return NextResponse.json(safeProperty);
   } catch (err) {
     console.error("Route error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

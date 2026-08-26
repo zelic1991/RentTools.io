@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   assertDirectReservationExternalKeyBinding,
+  assertReservationExternalKeyBinding,
+  assertReservationExternalKeyMutation,
   buildDirectReservationExternalKey,
+  canonicalizeReservationPlatform,
+  normalizeReservationExternalKey,
 } from "./reservation-external-key";
 
 const input = {
@@ -63,5 +67,79 @@ describe("direct reservation external key", () => {
         ownerSource: { ...input.ownerSource, sequence: 0 },
       }),
     ).toThrow(/1 to 999/);
+  });
+});
+
+describe("reservation platform and external-key contract", () => {
+  it.each([
+    [" Airbnb ", "airbnb"],
+    ["AIR BNB", "airbnb"],
+    ["Booking.com", "booking"],
+    ["BOOKINGCOM", "booking"],
+    ["Direct Sales", "direct"],
+    ["Custom Partner", "custom-partner"],
+  ])("canonicalizes %s to %s", (inputPlatform, expected) => {
+    expect(canonicalizeReservationPlatform(inputPlatform)).toBe(expected);
+  });
+
+  it("trims bounded opaque keys without inventing provider date semantics", () => {
+    expect(normalizeReservationExternalKey("  BOOKING:stable-42  ")).toBe(
+      "BOOKING:stable-42",
+    );
+    expect(() =>
+      assertReservationExternalKeyBinding({
+        propertyId: 1,
+        platform: "Booking.com",
+        checkIn: "2027-06-01",
+        checkOut: "2027-06-02",
+        externalKey: "BOOKING:stable-42",
+      }),
+    ).not.toThrow();
+  });
+
+  it("binds a DIRECT:v1 key to direct + exact checkout-exclusive dates", () => {
+    const externalKey = buildDirectReservationExternalKey(input);
+    expect(() =>
+      assertReservationExternalKeyBinding({
+        propertyId: input.propertyId,
+        platform: "booking",
+        checkIn: input.checkIn,
+        checkOut: input.checkOut,
+        externalKey,
+      }),
+    ).toThrow(/direct platform/);
+    expect(() =>
+      assertReservationExternalKeyMutation({
+        externalKey,
+        propertyId: input.propertyId,
+        currentPlatform: "direct",
+        nextPlatform: "direct",
+        nextCheckIn: input.checkIn,
+        nextCheckOut: "2027-05-29",
+      }),
+    ).toThrow(/does not match/);
+  });
+
+  it("allows opaque-key date corrections but never a platform namespace change", () => {
+    expect(() =>
+      assertReservationExternalKeyMutation({
+        externalKey: "BOOKING:stable-42",
+        propertyId: 1,
+        currentPlatform: "Booking.com",
+        nextPlatform: "booking",
+        nextCheckIn: "2027-06-02",
+        nextCheckOut: "2027-06-05",
+      }),
+    ).not.toThrow();
+    expect(() =>
+      assertReservationExternalKeyMutation({
+        externalKey: "BOOKING:stable-42",
+        propertyId: 1,
+        currentPlatform: "booking",
+        nextPlatform: "airbnb",
+        nextCheckIn: "2027-06-02",
+        nextCheckOut: "2027-06-05",
+      }),
+    ).toThrow(/platform is bound/);
   });
 });

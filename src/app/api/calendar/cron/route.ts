@@ -11,7 +11,10 @@ export async function GET(request: NextRequest) {
   const source = request.headers.get("user-agent") || "unknown";
 
   const secret = request.nextUrl.searchParams.get("secret");
-  const expected = process.env.CRON_SECRET || process.env.JWT_SECRET;
+  const expected = process.env.CRON_SECRET?.trim();
+  if (!expected) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const bearerOk = request.headers.get("authorization") === `Bearer ${expected}`;
 
   if (!bearerOk && (!secret || secret !== expected)) {

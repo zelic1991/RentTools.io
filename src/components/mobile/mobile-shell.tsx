@@ -5,8 +5,10 @@ import {
   House,
   LockKeyhole,
   RadioTower,
+  Sparkles,
 } from "lucide-react";
 import type { MobileOperationsData } from "@/lib/mobile-operations";
+import type { MobileCleaningData } from "@/lib/mobile-cleaning";
 import { canAccessMobileSection, type MobileSection } from "@/lib/mobile-operations-core";
 
 const NAVIGATION: Array<{
@@ -19,13 +21,14 @@ const NAVIGATION: Array<{
   { section: "calendar", label: "Kalender", href: "/mobile/calendar", icon: CalendarDays },
   { section: "guests", label: "Gäste", href: "/mobile/guests", icon: CircleUserRound },
   { section: "portals", label: "Portale", href: "/mobile/portals", icon: RadioTower },
+  { section: "cleaning", label: "Reinigung", href: "/mobile/cleaning", icon: Sparkles },
 ];
 
 export function MobileShell({
   data,
   children,
 }: {
-  data: MobileOperationsData;
+  data: MobileOperationsData | MobileCleaningData;
   children: React.ReactNode;
 }) {
   return (
@@ -38,7 +41,7 @@ export function MobileShell({
               <h1 className="truncate text-lg font-semibold tracking-tight">Betrieb</h1>
             </div>
             <span className="shrink-0 rounded-full border border-[var(--zf-brand-line)] bg-[var(--zf-brand-soft)] px-2.5 py-1 text-[11px] font-medium text-[var(--zf-brand-dark)]">
-              {data.access === "owner" ? "Owner" : "Manager"}
+              {data.access === "owner" ? "Owner" : data.access === "manager" ? "Manager" : "Cleaner"}
             </span>
           </div>
           <p className="truncate text-sm text-[var(--zf-text-muted)]">{data.selectedProperty.name}</p>
@@ -53,7 +56,7 @@ export function MobileShell({
         aria-label="Mobile Hauptnavigation"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--zf-border)] bg-[var(--zf-bg)]/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_30px_-24px_rgba(63,23,53,.35)] backdrop-blur"
       >
-        <div className="mx-auto grid max-w-xl grid-cols-4 px-2 py-1.5">
+        <div className="mx-auto grid max-w-xl grid-cols-5 px-2 py-1.5">
           {NAVIGATION.map((item) => {
             const Icon = item.icon;
             const active = data.section === item.section;
@@ -69,7 +72,7 @@ export function MobileShell({
             );
             const className = `flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] ${active ? "text-[var(--zf-brand)]" : "text-[var(--zf-text-muted)]"} ${locked ? "cursor-not-allowed opacity-55" : "hover:bg-[var(--zf-surface)]"}`;
             return locked ? (
-              <span key={item.section} className={className} aria-disabled="true" title="Nur für Owner freigegeben">
+              <span key={item.section} className={className} aria-disabled="true" title="Für diese Rolle nicht freigegeben">
                 {content}
               </span>
             ) : (

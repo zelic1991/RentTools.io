@@ -95,6 +95,22 @@ export async function DELETE(
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
+    const foreignAssignment = await prisma.cleanerAssignment.findFirst({
+      where: {
+        cleanerProfileId: numId,
+        property: { userId: { not: session.userId } },
+      },
+      select: { id: true },
+    });
+    if (foreignAssignment) {
+      // Do not let a cascading profile delete remove another owner's
+      // assignment if a legacy database has not run the repair yet.
+      return NextResponse.json(
+        { error: "Cleaner profile ownership conflict" },
+        { status: 409 },
+      );
+    }
+
     await prisma.cleaner.delete({ where: { id: numId } });
     return NextResponse.json({ ok: true });
   } catch (err) {

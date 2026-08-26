@@ -3,6 +3,7 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import "dotenv/config";
 import path from "node:path";
 import fs from "node:fs";
+import { backfillCleanerProfilesByOwner } from "../src/lib/cleaner-profile-backfill";
 
 function resolveDbConfig(): { url: string; authToken?: string; label: string } {
   const dbUrl = process.env.DATABASE_URL;
@@ -77,6 +78,7 @@ CREATE TABLE IF NOT EXISTS "User" (
     "username" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "role" TEXT NOT NULL DEFAULT 'user',
+    "sessionVersion" INTEGER NOT NULL DEFAULT 0,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -108,6 +110,8 @@ CREATE TABLE IF NOT EXISTS "Reservation" (
     "linkedEventUid" TEXT,
     "linkedEventPlatform" TEXT,
     "linkedEventRole" TEXT,
+    "grossAmountCents" INTEGER,
+    "currency" TEXT NOT NULL DEFAULT 'EUR',
     "propertyId" INTEGER NOT NULL,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Reservation_propertyId_fkey" FOREIGN KEY ("propertyId") REFERENCES "Property" ("id") ON DELETE CASCADE ON UPDATE CASCADE
@@ -156,8 +160,8 @@ CREATE TABLE IF NOT EXISTS "CalendarLink" (
     "propertyId" INTEGER NOT NULL,
     "platform" TEXT NOT NULL,
     "icalExportUrl" TEXT NOT NULL,
-    "bufferBefore" INTEGER NOT NULL DEFAULT 1,
-    "bufferAfter" INTEGER NOT NULL DEFAULT 1,
+    "bufferBefore" INTEGER NOT NULL DEFAULT 0,
+    "bufferAfter" INTEGER NOT NULL DEFAULT 0,
     "lastFetchedAt" DATETIME,
     "lastError" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -235,6 +239,7 @@ CREATE TABLE IF NOT EXISTS "SyncLog" (
     `ALTER TABLE "User" ADD COLUMN "alertsDismissedAt" DATETIME`,
     `ALTER TABLE "User" ADD COLUMN "lastLoginAt" DATETIME`,
     `ALTER TABLE "User" ADD COLUMN "suspendedAt" DATETIME`,
+    `ALTER TABLE "User" ADD COLUMN "sessionVersion" INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE "Property" ADD COLUMN "feedToken" TEXT`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "Property_feedToken_key" ON "Property"("feedToken")`,
     `ALTER TABLE "User" ADD COLUMN "email" TEXT`,
@@ -251,6 +256,8 @@ CREATE TABLE IF NOT EXISTS "SyncLog" (
     `CREATE UNIQUE INDEX IF NOT EXISTS "Property_feedSlug_key" ON "Property"("feedSlug")`,
     `ALTER TABLE "OnboardingDraft" ADD COLUMN "feedSlug" TEXT`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "OnboardingDraft_feedSlug_key" ON "OnboardingDraft"("feedSlug")`,
+    `ALTER TABLE "OnboardingDraft" ADD COLUMN "feedToken" TEXT`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "OnboardingDraft_feedToken_key" ON "OnboardingDraft"("feedToken")`,
     // RT-20.3 tick 2 — cross-locale link for the blog. Posts that
     // translate the same article share a translationGroupId; null when
     // the post has no sibling.
@@ -296,13 +303,17 @@ CREATE TABLE IF NOT EXISTS "SyncLog" (
     // passport guests yet (or only one).
     `ALTER TABLE "Reservation" ADD COLUMN "phone" TEXT`,
     `ALTER TABLE "Reservation" ADD COLUMN "bookedGuestCount" INTEGER`,
+    // Owner-entered gross amount only. Imported and existing bookings remain
+    // unknown (NULL); no price is derived from nights or calendar data.
+    `ALTER TABLE "Reservation" ADD COLUMN "grossAmountCents" INTEGER`,
+    `ALTER TABLE "Reservation" ADD COLUMN "currency" TEXT NOT NULL DEFAULT 'EUR'`,
     // Unified pre-check-in hardening. Raw public tokens and identity payloads
     // are encrypted with GUEST_DATA_ENCRYPTION_KEY; tokenHash is used for
     // constant-shape lookups. Existing legacy submissions remain readable and
     // can be revoked/rotated by the owner without a destructive migration.
     `ALTER TABLE "GuestFormSubmission" ADD COLUMN "tokenHash" TEXT`,
     `ALTER TABLE "GuestFormSubmission" ADD COLUMN "tokenCiphertext" TEXT`,
-    `ALTER TABLE "GuestFormSubmission" ADD COLUMN "status" TEXT NOT NULL DEFAULT 'NOT_INVITED'`,
+    `ALTER TABLE "GuestFormSubmission" ADD COLUMN "status" TEXT NOT NULL DEFAULT 'PENDING'`,
     `ALTER TABLE "GuestFormSubmission" ADD COLUMN "expiresAt" DATETIME`,
     `ALTER TABLE "GuestFormSubmission" ADD COLUMN "revokedAt" DATETIME`,
     `ALTER TABLE "GuestFormSubmission" ADD COLUMN "securePayload" TEXT NOT NULL DEFAULT ''`,
@@ -587,73 +598,14 @@ CREATE INDEX IF NOT EXISTS "Cleaner_ownerUserId_idx" ON "Cleaner"("ownerUserId")
     throw err;
   }
 
-  // RT-25.10 tick 1 — backfill Cleaner profiles for existing User
-  // cleaners. For each User with role='cleaner', create one Cleaner
-  // profile (name = username, phone = null, ownerUserId = the FIRST
-  // property's owner). Then update each CleanerAssignment.cleanerProfileId.
-  // Idempotent: skips users who already have a profile (matched by
-  // ownerUserId + name + a corresponding cleaner-User username).
+  // RT-25.10 tick 1 — backfill Cleaner profiles for existing User cleaners.
+  // Cleaner profiles are owner-scoped account metadata. A legacy cleaner User
+  // serving several owners therefore gets one profile per owner, and only that
+  // owner's assignments are linked to it. Reruns also repair links created by
+  // the former first-assignment backfill without overwriting owner-correct
+  // profiles whose name or phone has since been edited.
   try {
-    const cleanerUsers = await prisma.$queryRawUnsafe<
-      Array<{ id: number; username: string }>
-    >(`SELECT id, username FROM "User" WHERE role = 'cleaner'`);
-
-    for (const u of cleanerUsers) {
-      // Find first property they're assigned to (by createdAt) so we
-      // know which owner to attach the new profile to.
-      const firstAssignment = await prisma.$queryRawUnsafe<
-        Array<{ id: number; propertyId: number; cleanerProfileId: number | null }>
-      >(
-        `SELECT id, propertyId, cleanerProfileId FROM "CleanerAssignment"
-         WHERE cleanerId = ? ORDER BY createdAt ASC LIMIT 1`,
-        u.id,
-      );
-      if (firstAssignment.length === 0) continue;
-
-      const property = await prisma.$queryRawUnsafe<
-        Array<{ userId: number }>
-      >(`SELECT userId FROM "Property" WHERE id = ?`, firstAssignment[0].propertyId);
-      if (property.length === 0) continue;
-      const ownerUserId = property[0].userId;
-
-      // Look for an existing profile for this owner with this name.
-      const existingProfile = await prisma.$queryRawUnsafe<
-        Array<{ id: number }>
-      >(
-        `SELECT id FROM "Cleaner" WHERE ownerUserId = ? AND name = ? LIMIT 1`,
-        ownerUserId,
-        u.username,
-      );
-
-      let profileId: number;
-      if (existingProfile.length > 0) {
-        profileId = existingProfile[0].id;
-      } else {
-        await prisma.$executeRawUnsafe(
-          `INSERT INTO "Cleaner" ("ownerUserId", "name", "phone") VALUES (?, ?, NULL)`,
-          ownerUserId,
-          u.username,
-        );
-        const inserted = await prisma.$queryRawUnsafe<Array<{ id: number }>>(
-          `SELECT id FROM "Cleaner" WHERE ownerUserId = ? AND name = ? ORDER BY id DESC LIMIT 1`,
-          ownerUserId,
-          u.username,
-        );
-        profileId = inserted[0].id;
-        console.log(
-          `OK: backfilled Cleaner profile for user ${u.username} (id=${u.id}) → profile ${profileId}`,
-        );
-      }
-
-      // Update every CleanerAssignment for this user that doesn't
-      // already point at a profile.
-      await prisma.$executeRawUnsafe(
-        `UPDATE "CleanerAssignment" SET cleanerProfileId = ?
-         WHERE cleanerId = ? AND cleanerProfileId IS NULL`,
-        profileId,
-        u.id,
-      );
-    }
+    await backfillCleanerProfilesByOwner(prisma, console.log);
   } catch (err) {
     console.error("Cleaner profile backfill failed:", err);
     throw err;
@@ -747,15 +699,21 @@ CREATE INDEX IF NOT EXISTS "MessageTemplate_propertyId_idx" ON "MessageTemplate"
     console.log("OK:", stmt.substring(0, 60) + "...");
   }
 
-  // CleaningRecord table — track cleaning status per property × date
+  // CleaningRecord table — operational workflow metadata per property × date.
+  // It is deliberately not referenced by availability/calendar blocking logic.
   const cleaningRecordSchema = `
 CREATE TABLE IF NOT EXISTS "CleaningRecord" (
     "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     "propertyId" INTEGER NOT NULL,
     "date" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'pending',
+    "status" TEXT NOT NULL DEFAULT 'PLANNED',
+    "assignedCleanerId" INTEGER,
+    "assignedAt" DATETIME,
+    "startedAt" DATETIME,
+    "issueAt" DATETIME,
     "doneAt" DATETIME,
     "doneByUserId" INTEGER,
+    "updatedByUserId" INTEGER,
     "notes" TEXT NOT NULL DEFAULT '',
     "photos" TEXT NOT NULL DEFAULT '[]',
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -776,6 +734,58 @@ CREATE INDEX IF NOT EXISTS "CleaningRecord_propertyId_date_idx" ON "CleaningReco
     await prisma.$executeRawUnsafe(stmt);
     console.log("OK:", stmt.substring(0, 60) + "...");
   }
+
+  // Existing installations used pending/done/skipped. Add only the workflow
+  // columns needed for assignment and transition evidence, then normalize all
+  // known legacy values into the canonical state machine. Historical done
+  // records retain their completion evidence; skipped becomes ISSUE so it is
+  // visible for owner/manager handling rather than being mistaken for READY.
+  const cleaningRecordWorkflowMigrations = [
+    `ALTER TABLE "CleaningRecord" ADD COLUMN "assignedCleanerId" INTEGER`,
+    `ALTER TABLE "CleaningRecord" ADD COLUMN "assignedAt" DATETIME`,
+    `ALTER TABLE "CleaningRecord" ADD COLUMN "startedAt" DATETIME`,
+    `ALTER TABLE "CleaningRecord" ADD COLUMN "issueAt" DATETIME`,
+    `ALTER TABLE "CleaningRecord" ADD COLUMN "updatedByUserId" INTEGER`,
+    `CREATE INDEX IF NOT EXISTS "CleaningRecord_assignedCleanerId_status_date_idx" ON "CleaningRecord"("assignedCleanerId", "status", "date")`,
+  ];
+  for (const migration of cleaningRecordWorkflowMigrations) {
+    await runAdditiveMigration(migration);
+  }
+
+  await prisma.$executeRawUnsafe(`
+    UPDATE "CleaningRecord"
+    SET
+      "status" = CASE LOWER("status")
+        WHEN 'pending' THEN 'PLANNED'
+        WHEN 'planned' THEN 'PLANNED'
+        WHEN 'assigned' THEN 'ASSIGNED'
+        WHEN 'in_progress' THEN 'IN_PROGRESS'
+        WHEN 'done' THEN 'READY'
+        WHEN 'ready' THEN 'READY'
+        WHEN 'skipped' THEN 'ISSUE'
+        WHEN 'issue' THEN 'ISSUE'
+        ELSE 'ISSUE'
+      END,
+      "issueAt" = CASE
+        WHEN LOWER("status") IN ('skipped', 'issue')
+          THEN COALESCE("issueAt", "updatedAt", "createdAt")
+        ELSE "issueAt"
+      END,
+      "updatedByUserId" = CASE
+        WHEN LOWER("status") IN ('done', 'ready')
+          THEN COALESCE("updatedByUserId", "doneByUserId")
+        ELSE "updatedByUserId"
+      END,
+      "doneAt" = CASE
+        WHEN LOWER("status") IN ('done', 'ready') THEN "doneAt"
+        ELSE NULL
+      END,
+      "doneByUserId" = CASE
+        WHEN LOWER("status") IN ('done', 'ready') THEN "doneByUserId"
+        ELSE NULL
+      END
+  `);
+  console.log("OK: normalized CleaningRecord workflow statuses");
 
   // DateOverride table for manual open/close of calendar dates
   const dateOverrideSchema = `
@@ -831,6 +841,7 @@ CREATE TABLE IF NOT EXISTS "OnboardingDraft" (
     "sessionToken" TEXT NOT NULL,
     "propertyName" TEXT NOT NULL DEFAULT '',
     "feedSlug" TEXT,
+    "feedToken" TEXT,
     "links" TEXT NOT NULL DEFAULT '[]',
     "claimedByUserId" INTEGER,
     "claimedAt" DATETIME,
@@ -840,6 +851,7 @@ CREATE TABLE IF NOT EXISTS "OnboardingDraft" (
 
 CREATE UNIQUE INDEX IF NOT EXISTS "OnboardingDraft_sessionToken_key" ON "OnboardingDraft"("sessionToken");
 CREATE UNIQUE INDEX IF NOT EXISTS "OnboardingDraft_feedSlug_key" ON "OnboardingDraft"("feedSlug");
+CREATE UNIQUE INDEX IF NOT EXISTS "OnboardingDraft_feedToken_key" ON "OnboardingDraft"("feedToken");
 `;
 
   const onboardingDraftStatements = onboardingDraftSchema
@@ -999,8 +1011,8 @@ CREATE TABLE IF NOT EXISTS "CalendarPlatform" (
     "displayName" TEXT NOT NULL,
     "color" TEXT NOT NULL DEFAULT '#6B7280',
     "iconUrl" TEXT,
-    "defaultBufferBefore" INTEGER NOT NULL DEFAULT 1,
-    "defaultBufferAfter" INTEGER NOT NULL DEFAULT 1,
+    "defaultBufferBefore" INTEGER NOT NULL DEFAULT 0,
+    "defaultBufferAfter" INTEGER NOT NULL DEFAULT 0,
     "importInstructionsKey" TEXT,
     "exportInstructionsKey" TEXT,
     "isCustom" INTEGER NOT NULL DEFAULT 0,
@@ -1059,8 +1071,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS "CalendarPlatform_slug_key" ON "CalendarPlatfo
         p.slug,
         p.displayName,
         p.color,
-        p.defaultBufferBefore ?? 1,
-        p.defaultBufferAfter ?? 1,
+        p.defaultBufferBefore ?? 0,
+        p.defaultBufferAfter ?? 0,
         `platform.${p.slug}.import`,
         `platform.${p.slug}.export`,
         p.sortOrder,
@@ -1090,7 +1102,7 @@ CREATE TABLE IF NOT EXISTS "GuestFormSubmission" (
     "shareToken" TEXT NOT NULL,
     "tokenHash" TEXT,
     "tokenCiphertext" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'NOT_INVITED',
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
     "expiresAt" DATETIME,
     "revokedAt" DATETIME,
     "securePayload" TEXT NOT NULL DEFAULT '',
@@ -1140,6 +1152,27 @@ CREATE INDEX IF NOT EXISTS "EVisitorReceipt_reservationId_guestId_idx" ON "EVisi
     await prisma.$executeRawUnsafe(stmt);
     console.log("OK:", stmt.substring(0, 60) + "...");
   }
+
+  // Normalize stored legacy values without rebuilding the table. IN_PROGRESS
+  // remains a supported internal draft value when a guest saves an unfinished
+  // form, but every stable workflow handoff is written canonically.
+  await prisma.$executeRawUnsafe(`
+    UPDATE "GuestFormSubmission"
+    SET "status" = CASE "status"
+      WHEN 'NOT_INVITED' THEN 'PENDING'
+      WHEN 'INVITED' THEN 'PENDING'
+      WHEN 'COMPLETE' THEN 'GUEST_COMPLETE'
+      WHEN 'OWNER_REVIEW_REQUIRED' THEN 'OWNER_REVIEW'
+      ELSE "status"
+    END
+    WHERE "status" IN (
+      'NOT_INVITED',
+      'INVITED',
+      'COMPLETE',
+      'OWNER_REVIEW_REQUIRED'
+    )
+  `);
+  console.log("OK: normalized GuestFormSubmission workflow statuses");
 
   // EmailCode — short-lived 6-digit codes for email-verified signup and
   // password reset. For signup the row also carries the pending

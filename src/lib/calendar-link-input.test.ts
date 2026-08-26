@@ -13,8 +13,8 @@ describe("normalizeIcalUrl", () => {
     );
   });
 
-  it("allows plain http", () => {
-    expect(ok(normalizeIcalUrl("http://example.com/cal.ics"))).toBe("http://example.com/cal.ics");
+  it("rejects plain HTTP", () => {
+    expect(normalizeIcalUrl("http://example.com/cal.ics")).toMatchObject({ ok: false });
   });
 
   it("trims surrounding whitespace from a paste", () => {

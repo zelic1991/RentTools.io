@@ -22,6 +22,10 @@ model User {
   createdAt          DateTime             @default(now())
   lastLoginAt        DateTime?
   suspendedAt        DateTime?
+  // Incrementing this value revokes every JWT minted with an older value.
+  // Password changes/resets, suspension and explicit revoke-all actions use
+  // it as the server-side authority boundary for otherwise stateless tokens.
+  sessionVersion     Int                  @default(0)
   alertsDismissedAt  DateTime?
   properties         Property[]
   cleanerAssignments CleanerAssignment[]  @relation("CleanerAssignments")
@@ -175,20 +179,26 @@ model MessageTemplate {
 }
 
 model CleaningRecord {
-  id            Int      @id @default(autoincrement())
-  propertyId    Int
-  property      Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  date          String   // YYYY-MM-DD
-  status        String   @default("pending") // "pending" | "done" | "skipped"
-  doneAt        DateTime?
-  doneByUserId  Int?
-  notes         String   @default("")
-  photos        String   @default("[]") // JSON array of URLs
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime?
+  id                 Int      @id @default(autoincrement())
+  propertyId         Int
+  property           Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  date               String   // YYYY-MM-DD; operational metadata only, never an availability block
+  status             String   @default("PLANNED") // PLANNED -> ASSIGNED -> IN_PROGRESS -> READY | ISSUE
+  assignedCleanerId  Int?
+  assignedAt         DateTime?
+  startedAt          DateTime?
+  issueAt            DateTime?
+  doneAt             DateTime?
+  doneByUserId       Int?
+  updatedByUserId    Int?
+  notes              String   @default("")
+  photos             String   @default("[]") // JSON array of URLs
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime?
 
   @@unique([propertyId, date])
   @@index([propertyId, date])
+  @@index([assignedCleanerId, status, date])
 }
 
 // Cleaner profile (RT-25.10). Account-level entity owned by a host;
@@ -240,8 +250,8 @@ model CalendarLink {
   property      Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   platform      String    // "airbnb" or "booking"
   icalExportUrl String    // iCal export URL from the platform
-  bufferBefore  Int       @default(1) // days before booking to block
-  bufferAfter   Int       @default(1) // days after booking to block
+  bufferBefore  Int       @default(0) // opt-in days before booking to block
+  bufferAfter   Int       @default(0) // opt-in days from checkout to block
   lastFetchedAt DateTime?
   lastError     String?
   failureCount  Int       @default(0)
@@ -308,6 +318,10 @@ model Reservation {
   // Confirmed party size. iCal imports usually cannot provide it, so legacy
   // rows may remain null until the owner confirms the booking details.
   bookedGuestCount Int?
+  // Optional owner-entered gross booking amount. Never inferred from nights,
+  // iCal data, rates, commissions, fees, or payment state; null means unknown.
+  grossAmountCents Int?
+  currency         String @default("EUR") // ISO 4217 code
   propertyId      Int
   property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   guests          Guest[]
@@ -387,6 +401,9 @@ model OnboardingDraft {
   // slug verbatim. Without it, post-signup feed URLs would change and
   // silently break anywhere the user already pasted them.
   feedSlug        String?   @unique
+  // Bearer token paired with feedSlug before the URL is shown. Nullable only
+  // so legacy drafts can be migrated safely through their httpOnly cookie.
+  feedToken       String?   @unique
   // JSON: { platform: string, customName?: string, color?: string,
   //         icalExportUrl: string, lastTestStatus?: "valid"|"invalid" }[]
   links           String    @default("[]")
@@ -563,7 +580,7 @@ model GuestFormSubmission {
   // plaintext.
   tokenHash      String?           @unique
   tokenCiphertext String?
-  status         String            @default("NOT_INVITED")
+  status         String            @default("PENDING")
   expiresAt      DateTime?
   revokedAt      DateTime?
   securePayload  String            @default("")
@@ -609,8 +626,8 @@ model CalendarPlatform {
   displayName           String
   color                 String    @default("#6B7280") // hex (#rrggbb), used by calendar grid
   iconUrl               String?
-  defaultBufferBefore   Int       @default(1) // days, copied into new CalendarLink.bufferBefore
-  defaultBufferAfter    Int       @default(1)
+  defaultBufferBefore   Int       @default(0) // same-day turnover unless explicitly changed
+  defaultBufferAfter    Int       @default(0)
   importInstructionsKey String?   // i18n key for the "where to find your iCal" copy
   exportInstructionsKey String?   // i18n key for the "paste this back into the platform" copy
   isCustom              Boolean   @default(false)

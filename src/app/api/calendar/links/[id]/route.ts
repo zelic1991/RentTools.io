@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { canManageProperty } from "@/lib/ownership";
+import { canManageProperty, isPropertyOwner } from "@/lib/ownership";
 import { normalizeIcalUrl } from "@/lib/calendar-link-input";
 
 async function loadManageableLink(linkId: number, userId: number, role: string) {
@@ -34,6 +34,8 @@ export async function PATCH(
 
     const owned = await loadManageableLink(numId, session.userId, session.role);
     if (!owned) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    const canReadSecret = !session.impersonatorId &&
+      await isPropertyOwner(owned.propertyId, session.userId);
 
     const body = await request.json();
 
@@ -65,7 +67,10 @@ export async function PATCH(
       bufferAfter: body.bufferAfter,
     });
 
-    return NextResponse.json(updated);
+    if (canReadSecret) return NextResponse.json(updated);
+    const safeUpdated: Partial<typeof updated> = { ...updated };
+    Reflect.deleteProperty(safeUpdated, "icalExportUrl");
+    return NextResponse.json(safeUpdated);
   } catch (err) {
     console.error("Route error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

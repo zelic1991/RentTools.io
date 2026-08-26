@@ -347,8 +347,9 @@ export async function loadMobileOperations(options: {
     : [];
   const openEVisitor = canReadPii
     ? upcomingCards.filter((card) =>
-        card.guestState.eVisitorStatus === "READY_NOT_SUBMITTED"
-        || card.guestState.eVisitorStatus === "PRODUCTION_ERROR",
+        card.guestState.eVisitorStatus === "APPROVED_NOT_READY"
+          || card.guestState.eVisitorStatus === "READY_NOT_SUBMITTED"
+          || card.guestState.eVisitorStatus === "PRODUCTION_ERROR",
       )
     : [];
 

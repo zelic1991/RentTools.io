@@ -3,6 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { canManageProperty, listAccessiblePropertyIds } from "@/lib/ownership";
+import {
+  assertReservationExternalKeyBinding,
+  canonicalizeReservationPlatform,
+  createExternalReservationIdempotently,
+  ExternalReservationConflictError,
+  findIdempotentExternalReservation,
+  normalizeReservationExternalKey,
+} from "@/lib/reservation-external-key";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +19,7 @@ interface ParsedRow {
   propertyId: number;
   name: string;
   platform: string;
+  externalKey: string | null;
   checkIn: Date;
   checkOut: Date;
 }
@@ -128,7 +137,19 @@ export async function POST(request: NextRequest) {
       const get = (name: string) => (row[headerIndex[name]] ?? "").trim();
       const propertyIdRaw = get("propertyId");
       const name = get("name");
-      const platform = get("platform") || "airbnb";
+      let platform: string;
+      let externalKey: string | null;
+      try {
+        platform = canonicalizeReservationPlatform(get("platform") || "airbnb");
+        externalKey = normalizeReservationExternalKey(get("externalKey") || null);
+      } catch (error) {
+        results.push({
+          rowNumber,
+          status: "error",
+          reason: error instanceof Error ? error.message : "Invalid platform or externalKey",
+        });
+        continue;
+      }
       const checkInRaw = get("checkIn");
       const checkOutRaw = get("checkOut");
 
@@ -160,11 +181,63 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      validRows.push({ rowNumber, propertyId, name, platform, checkIn, checkOut });
+      if (externalKey) {
+        try {
+          assertReservationExternalKeyBinding({
+            propertyId,
+            platform,
+            checkIn: checkIn.toISOString().slice(0, 10),
+            checkOut: checkOut.toISOString().slice(0, 10),
+            externalKey,
+          });
+        } catch (error) {
+          results.push({
+            rowNumber,
+            status: "error",
+            reason: error instanceof Error ? error.message : "Invalid externalKey binding",
+          });
+          continue;
+        }
+      }
+
+      validRows.push({ rowNumber, propertyId, name, platform, externalKey, checkIn, checkOut });
     }
 
     // Check overlaps and (if not dry-run) insert.
     for (const v of validRows) {
+      const createData = {
+        name: v.name,
+        checkIn: v.checkIn,
+        checkOut: v.checkOut,
+        platform: v.platform,
+        ...(v.externalKey ? { externalKey: v.externalKey } : {}),
+        propertyId: v.propertyId,
+      };
+
+      if (v.externalKey) {
+        try {
+          const existing = await findIdempotentExternalReservation(prisma, {
+            ...createData,
+            externalKey: v.externalKey,
+          });
+          if (existing) {
+            results.push({
+              rowNumber: v.rowNumber,
+              status: "skipped",
+              reason: `Already imported as reservation #${existing.id}`,
+              reservationId: existing.id,
+            });
+            continue;
+          }
+        } catch (error) {
+          if (error instanceof ExternalReservationConflictError) {
+            results.push({ rowNumber: v.rowNumber, status: "error", reason: error.message });
+            continue;
+          }
+          throw error;
+        }
+      }
+
       const overlap = await prisma.reservation.findFirst({
         where: {
           propertyId: v.propertyId,
@@ -187,15 +260,35 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      const created = await prisma.reservation.create({
-        data: {
-          name: v.name,
-          checkIn: v.checkIn,
-          checkOut: v.checkOut,
-          platform: v.platform,
-          propertyId: v.propertyId,
-        },
-      });
+      let created;
+      let wasCreated = true;
+      try {
+        if (v.externalKey) {
+          const outcome = await createExternalReservationIdempotently(prisma, {
+            ...createData,
+            externalKey: v.externalKey,
+          });
+          created = outcome.reservation;
+          wasCreated = outcome.created;
+        } else {
+          created = await prisma.reservation.create({ data: createData });
+        }
+      } catch (error) {
+        if (error instanceof ExternalReservationConflictError) {
+          results.push({ rowNumber: v.rowNumber, status: "error", reason: error.message });
+          continue;
+        }
+        throw error;
+      }
+      if (!wasCreated) {
+        results.push({
+          rowNumber: v.rowNumber,
+          status: "skipped",
+          reason: `Already imported as reservation #${created.id}`,
+          reservationId: created.id,
+        });
+        continue;
+      }
       await logAudit(session.userId, "create", "reservation", created.id, {
         name: created.name,
         propertyId: v.propertyId,

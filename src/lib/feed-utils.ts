@@ -19,3 +19,18 @@ export function parseFeedFilename(filename: string): string {
   const match = filename.match(/^for-([a-z0-9_-]+)\.ics$/i);
   return match?.[1] || "airbnb";
 }
+
+/**
+ * Build the protected URL handed to an external calendar consumer.
+ * Fail closed when either part of the server-minted identity is absent:
+ * callers must never fall back to a numeric or tokenless property URL.
+ */
+export function buildProtectedFeedUrl(
+  origin: string,
+  feedSlug: string | null | undefined,
+  feedToken: string | null | undefined,
+  platform: string,
+): string | null {
+  if (!origin || !feedSlug || !feedToken || !platform) return null;
+  return `${origin}/api/calendar/feed/${encodeURIComponent(feedSlug)}/for-${encodeURIComponent(platform)}.ics?token=${encodeURIComponent(feedToken)}`;
+}

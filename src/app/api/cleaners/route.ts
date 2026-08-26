@@ -28,6 +28,10 @@ export async function GET(request: NextRequest) {
         ...(withAssignments
           ? {
               assignments: {
+                // Defense in depth for databases that were previously
+                // backfilled from the first assignment across several owners.
+                // A profile owner must never receive another owner's property.
+                where: { property: { userId: session.userId } },
                 select: {
                   propertyId: true,
                   priority: true,

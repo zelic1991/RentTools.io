@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { randomBytes } from "node:crypto";
-import { slugWithSuffix } from "@/lib/slugify";
+import {
+  ensureOnboardingDraftFeedIdentity,
+  mintNewPropertyFeedIdentity,
+} from "@/lib/feed-identity";
+import { normalizeIcalUrl, normalizePlatformSlug } from "@/lib/calendar-link-input";
 
 const COOKIE_NAME = "rt-onboard-token";
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 14; // 14 days
@@ -28,10 +32,13 @@ function isLinkArray(value: unknown): value is DraftLink[] {
   );
 }
 
-function sanitizeLink(l: DraftLink): DraftLink {
+function sanitizeLink(l: DraftLink): DraftLink | null {
+  const platformResult = normalizePlatformSlug(l.platform);
+  const urlResult = normalizeIcalUrl(l.icalExportUrl);
+  if (!platformResult.ok || !urlResult.ok) return null;
   const out: DraftLink = {
-    platform: l.platform.toLowerCase().trim().slice(0, 32),
-    icalExportUrl: l.icalExportUrl.trim().slice(0, 2000),
+    platform: platformResult.platform,
+    icalExportUrl: urlResult.url,
   };
   if (l.customName) out.customName = l.customName.trim().slice(0, 80);
   if (l.color && /^#[0-9a-fA-F]{6}$/.test(l.color)) out.color = l.color.toLowerCase();
@@ -52,21 +59,30 @@ export async function GET() {
       where: { sessionToken: token },
       select: {
         id: true,
-        sessionToken: true,
         propertyName: true,
         feedSlug: true,
+        feedToken: true,
         links: true,
         claimedByUserId: true,
         createdAt: true,
       },
     });
     if (!draft) return NextResponse.json({ draft: null });
-    return NextResponse.json({
-      draft: {
-        ...draft,
-        links: safeParseLinks(draft.links),
+    const feedIdentity = await ensureOnboardingDraftFeedIdentity(draft);
+    return NextResponse.json(
+      {
+        draft: {
+          id: draft.id,
+          propertyName: draft.propertyName,
+          feedSlug: feedIdentity.feedSlug,
+          feedToken: feedIdentity.feedToken,
+          links: safeParseLinks(draft.links),
+          claimedByUserId: draft.claimedByUserId,
+          createdAt: draft.createdAt,
+        },
       },
-    });
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (err) {
     console.error("Onboard GET error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -74,16 +90,18 @@ export async function GET() {
 }
 
 // POST /api/onboard — create or update the draft for this visitor.
-// On first call we mint both a sessionToken (for cookie auth) AND a
-// feedSlug (for the durable URL we hand the user). Both are stable;
-// the slug is what propagates to the materialised Property after signup.
+// On first call we mint a sessionToken (cookie auth) and a protected feed
+// identity. The exact slug+token pair propagates to the Property after signup.
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const propertyName =
       typeof body?.propertyName === "string" ? body.propertyName.trim().slice(0, 200) : "";
     const linksInput: DraftLink[] = isLinkArray(body?.links)
-      ? body.links.filter((l: DraftLink) => l.platform && l.icalExportUrl).map(sanitizeLink)
+      ? body.links
+          .filter((l: DraftLink) => l.platform && l.icalExportUrl)
+          .map(sanitizeLink)
+          .filter((link: DraftLink | null): link is DraftLink => link !== null)
       : [];
 
     const jar = await cookies();
@@ -93,14 +111,15 @@ export async function POST(request: NextRequest) {
       : null;
 
     if (!draft || draft.claimedByUserId) {
-      // Mint a new token + slug if missing or the previous draft was claimed.
+      // Mint a new cookie token + protected feed identity if missing or the
+      // previous draft was claimed.
       token = randomBytes(24).toString("base64url");
-      const feedSlug = await mintUniqueSlug(propertyName);
+      const feedIdentity = await mintNewPropertyFeedIdentity(propertyName);
       draft = await prisma.onboardingDraft.create({
         data: {
           sessionToken: token,
           propertyName,
-          feedSlug,
+          ...feedIdentity,
           links: JSON.stringify(linksInput),
         },
       });
@@ -112,33 +131,35 @@ export async function POST(request: NextRequest) {
         path: "/",
       });
     } else {
-      // Slug never changes once minted — even if propertyName is renamed,
-      // the URL we already handed the user must keep working.
-      let feedSlug = draft.feedSlug;
-      if (!feedSlug) {
-        feedSlug = await mintUniqueSlug(propertyName || draft.propertyName);
-      }
+      // The identity never changes once minted. Cookie-authorized legacy
+      // drafts are upgraded before any URL is returned.
+      await ensureOnboardingDraftFeedIdentity({
+        ...draft,
+        propertyName: propertyName || draft.propertyName,
+      });
       draft = await prisma.onboardingDraft.update({
         where: { id: draft.id },
         data: {
           propertyName: propertyName || draft.propertyName,
-          feedSlug,
           links: JSON.stringify(linksInput),
           updatedAt: new Date(),
         },
       });
     }
 
-    return NextResponse.json({
-      draft: {
-        id: draft.id,
-        sessionToken: draft.sessionToken,
-        propertyName: draft.propertyName,
-        feedSlug: draft.feedSlug,
-        links: safeParseLinks(draft.links),
-        createdAt: draft.createdAt,
+    return NextResponse.json(
+      {
+        draft: {
+          id: draft.id,
+          propertyName: draft.propertyName,
+          feedSlug: draft.feedSlug,
+          feedToken: draft.feedToken,
+          links: safeParseLinks(draft.links),
+          createdAt: draft.createdAt,
+        },
       },
-    });
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (err) {
     console.error("Onboard POST error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -148,26 +169,10 @@ export async function POST(request: NextRequest) {
 function safeParseLinks(raw: string): DraftLink[] {
   try {
     const parsed = JSON.parse(raw);
-    return isLinkArray(parsed) ? parsed.map(sanitizeLink) : [];
+    return isLinkArray(parsed)
+      ? parsed.map(sanitizeLink).filter((link): link is DraftLink => link !== null)
+      : [];
   } catch {
     return [];
   }
-}
-
-/**
- * Pick a feedSlug that doesn't collide with an existing Property OR
- * OnboardingDraft. Try up to 5 variations; if all collide (one in a
- * billion), fall back to a random-only slug.
- */
-async function mintUniqueSlug(propertyName: string): Promise<string> {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const candidate = slugWithSuffix(propertyName);
-    const [propHit, draftHit] = await Promise.all([
-      prisma.property.findUnique({ where: { feedSlug: candidate }, select: { id: true } }),
-      prisma.onboardingDraft.findUnique({ where: { feedSlug: candidate }, select: { id: true } }),
-    ]);
-    if (!propHit && !draftHit) return candidate;
-  }
-  // Pure-random fallback — slug-from-name failed 5 times somehow.
-  return slugWithSuffix("");
 }

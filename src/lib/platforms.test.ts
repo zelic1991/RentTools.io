@@ -134,11 +134,10 @@ describe("PLATFORM_PRESETS", () => {
     expect(direct?.defaultBufferAfter).toBe(0);
   });
 
-  it("non-direct presets default to 1-day buffers on each side", () => {
+  it("all presets default to same-day turnover with no implicit buffer", () => {
     for (const p of PLATFORM_PRESETS) {
-      if (p.slug === "direct") continue;
-      expect(p.defaultBufferBefore, p.slug).toBe(1);
-      expect(p.defaultBufferAfter, p.slug).toBe(1);
+      expect(p.defaultBufferBefore, p.slug).toBe(0);
+      expect(p.defaultBufferAfter, p.slug).toBe(0);
     }
   });
 

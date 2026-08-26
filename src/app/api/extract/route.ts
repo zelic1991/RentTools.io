@@ -3,6 +3,7 @@ import { getGeminiModel, PASSPORT_PROMPT } from "@/lib/gemini";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getSetting } from "@/lib/site-settings";
+import { canManageProperty } from "@/lib/ownership";
 import {
   sanitizeText,
   sanitizeAlphanumeric,
@@ -82,8 +83,26 @@ export async function POST(request: NextRequest) {
     }
 
     fileCount = files.length;
+    const resId = Number(reservationId);
+    if (!Number.isInteger(resId) || resId <= 0) {
+      return NextResponse.json({ error: "Invalid reservationId" }, { status: 400 });
+    }
+
+    // A reservation ID is not an authority token. Resolve its parent property
+    // and require owner/manager access before sending documents to Gemini or
+    // creating/updating any guest rows.
+    const reservation = await prisma.reservation.findUnique({
+      where: { id: resId },
+      select: { propertyId: true },
+    });
+    if (
+      !reservation ||
+      !(await canManageProperty(reservation.propertyId, session.userId, session.role))
+    ) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
     const model = await getGeminiModel();
-    const resId = parseInt(reservationId);
     const savedItems: unknown[] = [];
 
     for (const file of files) {

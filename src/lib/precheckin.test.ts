@@ -1,11 +1,59 @@
 import { describe, expect, it } from "vitest";
 import {
   ageOnDate,
+  nextPrecheckinHandoffStatus,
+  normalizePrecheckinStatus,
+  PRECHECKIN_WORKFLOW_STATUSES,
   precheckinWarnings,
   requiresNonEuBorderFields,
   suggestTaxCategory,
   validatePrecheckinPayload,
 } from "@/lib/precheckin";
+
+describe("manual eVisitor handoff state machine", () => {
+  it("publishes the canonical first-customer sequence in one order", () => {
+    expect(PRECHECKIN_WORKFLOW_STATUSES).toEqual([
+      "PENDING",
+      "GUEST_COMPLETE",
+      "OWNER_REVIEW",
+      "OWNER_APPROVED",
+      "EVISITOR_READY",
+      "EVISITOR_CONFIRMED_MANUAL",
+    ]);
+  });
+
+  it("permits only the ordered manual handoff transitions", () => {
+    expect(nextPrecheckinHandoffStatus("GUEST_COMPLETE", "start-review"))
+      .toBe("OWNER_REVIEW");
+    expect(nextPrecheckinHandoffStatus("OWNER_REVIEW", "approve"))
+      .toBe("OWNER_APPROVED");
+    expect(nextPrecheckinHandoffStatus("OWNER_APPROVED", "mark-evisitor-ready"))
+      .toBe("EVISITOR_READY");
+    expect(nextPrecheckinHandoffStatus("EVISITOR_READY", "confirm-evisitor-manual"))
+      .toBe("EVISITOR_CONFIRMED_MANUAL");
+  });
+
+  it("normalizes legacy stored values and permits their matching transition", () => {
+    expect(normalizePrecheckinStatus("NOT_INVITED")).toBe("PENDING");
+    expect(normalizePrecheckinStatus("INVITED")).toBe("PENDING");
+    expect(normalizePrecheckinStatus("IN_PROGRESS")).toBe("PENDING");
+    expect(normalizePrecheckinStatus("COMPLETE")).toBe("GUEST_COMPLETE");
+    expect(normalizePrecheckinStatus("OWNER_REVIEW_REQUIRED")).toBe("OWNER_REVIEW");
+    expect(normalizePrecheckinStatus("CORRUPT_STATUS")).toBeNull();
+    expect(nextPrecheckinHandoffStatus("COMPLETE", "start-review"))
+      .toBe("OWNER_REVIEW");
+    expect(nextPrecheckinHandoffStatus("OWNER_REVIEW_REQUIRED", "approve"))
+      .toBe("OWNER_APPROVED");
+  });
+
+  it("rejects replay, skips, reversal, and unknown actions", () => {
+    expect(nextPrecheckinHandoffStatus("OWNER_APPROVED", "approve")).toBeNull();
+    expect(nextPrecheckinHandoffStatus("OWNER_APPROVED", "confirm-evisitor-manual")).toBeNull();
+    expect(nextPrecheckinHandoffStatus("EVISITOR_READY", "mark-evisitor-ready")).toBeNull();
+    expect(nextPrecheckinHandoffStatus("EVISITOR_CONFIRMED_MANUAL", "approve")).toBeNull();
+    expect(nextPrecheckinHandoffStatus("OWNER_APPROVED", "submit-production")).toBeNull();
+  });
+});
 
 const traveler = {
   clientId: "lead-1",

@@ -45,13 +45,14 @@ export async function POST(
       return NextResponse.json({ error: "Secure calendar-feed setup is incomplete" }, { status: 503 });
     }
     const state = publicSubmissionState(submission);
-    if (state === "revoked" || state === "expired") {
-      return NextResponse.json({ error: "This link is no longer active." }, { status: 410 });
-    }
-    if (state === "submitted") {
+    if (state !== "active") {
       return NextResponse.json(
-        { error: "This form has already been submitted." },
-        { status: 409 }
+        {
+          error: state === "submitted"
+            ? "This form has already been submitted."
+            : "This link is no longer active.",
+        },
+        { status: state === "submitted" ? 409 : 410 },
       );
     }
 
@@ -113,22 +114,38 @@ export async function POST(
       })),
     });
 
-    await prisma.guestFormSubmission.update({
-      where: { id: submission.id },
+    // Claim the one-shot submission atomically. Two browser tabs (or a
+    // retried request racing the first one) may both have read the active
+    // state above; only one is allowed to persist identity data. A plain
+    // update would let the later request silently replace the first payload.
+    const claimed = await prisma.guestFormSubmission.updateMany({
+      where: {
+        id: submission.id,
+        submittedAt: null,
+        status: { in: ["PENDING", "NOT_INVITED", "INVITED", "IN_PROGRESS"] },
+        revokedAt: null,
+      },
       data: {
         // New structured submissions are encrypted as one canonical payload.
         // `answers` remains only for reading legacy rows created before this
         // hardening change.
         answers: "[]",
         securePayload,
-        status: "OWNER_REVIEW_REQUIRED",
+        status: "GUEST_COMPLETE",
         submittedAt: new Date(),
         lastChangedAt: new Date(),
         updatedAt: new Date(),
       },
     });
 
-    return NextResponse.json({ success: true, status: "OWNER_REVIEW_REQUIRED" });
+    if (claimed.count !== 1) {
+      return NextResponse.json(
+        { error: "This form has already been submitted." },
+        { status: 409 },
+      );
+    }
+
+    return NextResponse.json({ success: true, status: "GUEST_COMPLETE" });
   } catch (err) {
     console.error("Guest submit failed:", err instanceof Error ? err.message : "unknown");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
