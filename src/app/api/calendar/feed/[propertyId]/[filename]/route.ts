@@ -15,9 +15,9 @@ import { timingSafeEqual } from "node:crypto";
  *      old URL into Airbnb / Booking before slugs existed).
  *   2. Property.feedSlug match — durable URL minted at creation, never
  *      changes even if the property is renamed.
- *   3. OnboardingDraft.feedSlug match — pre-signup state. Returns an
- *      empty (but RFC-valid) calendar so the user can paste the URL into
- *      Airbnb / Booking immediately, before they've created an account.
+ *   3. OnboardingDraft.feedSlug match — protected pre-signup state. Returns
+ *      an empty (but RFC-valid) calendar only with the draft bearer token,
+ *      so the user can paste the URL before they've created an account.
  *      Once they sign up the draft is claimed and the slug points at a
  *      real Property — same URL keeps working.
  *
@@ -68,15 +68,19 @@ export async function GET(
       return icalResponse(result.ical, forPlatform);
     }
 
-    // Not a Property — try OnboardingDraft. Pre-signup users get a valid
-    // empty calendar at the URL we promised them, so anything they paste
-    // into Airbnb / Booking keeps working seamlessly across signup.
+    // Not a Property — try OnboardingDraft. Drafts are always protected;
+    // legacy null-token rows fail closed until the cookie-authorized
+    // onboarding route safely mints their identity.
     if (!numericId) {
       const draft = await prisma.onboardingDraft.findUnique({
         where: { feedSlug: idSegment },
-        select: { id: true, claimedByUserId: true },
+        select: { id: true, claimedByUserId: true, feedToken: true },
       });
       if (draft && !draft.claimedByUserId) {
+        const provided = request.nextUrl.searchParams.get("token") ?? "";
+        if (!draft.feedToken || !tokensMatch(provided, draft.feedToken)) {
+          return new NextResponse("Unauthorized", { status: 401 });
+        }
         const ical = generateEmptyFeed("RentTools onboarding");
         return icalResponse(ical, forPlatform);
       }

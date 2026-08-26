@@ -30,12 +30,42 @@ async function loadManageableGuest(guestId: number, userId: number, role: string
     where: { id: guestId },
     select: {
       id: true,
+      reservationId: true,
       reservation: { select: { propertyId: true } },
     },
   });
   if (!guest) return null;
   if (!(await canManageProperty(guest.reservation.propertyId, userId, role))) return null;
   return guest;
+}
+
+async function validParentChain(
+  parentId: number,
+  guestId: number,
+  reservationId: number,
+): Promise<boolean> {
+  const seen = new Set<number>([guestId]);
+  let currentId: number | null = parentId;
+
+  // A reservation should never approach this depth. The bound keeps a
+  // corrupted legacy chain from turning one PATCH into an unbounded DB walk.
+  for (let depth = 0; currentId !== null && depth < 100; depth++) {
+    if (seen.has(currentId)) return false;
+    seen.add(currentId);
+
+    const current: {
+      id: number;
+      reservationId: number;
+      parentId: number | null;
+    } | null = await prisma.guest.findUnique({
+      where: { id: currentId },
+      select: { id: true, reservationId: true, parentId: true },
+    });
+    if (!current || current.reservationId !== reservationId) return false;
+    currentId = current.parentId;
+  }
+
+  return currentId === null;
 }
 
 export async function PATCH(
@@ -59,7 +89,19 @@ export async function PATCH(
     const body = await request.json();
     const data: Record<string, unknown> = {};
 
-    if ("parentId" in body) data.parentId = body.parentId;
+    if ("parentId" in body) {
+      if (body.parentId === null) {
+        data.parentId = null;
+      } else if (
+        !Number.isInteger(body.parentId) ||
+        body.parentId <= 0 ||
+        !(await validParentChain(body.parentId, numId, owned.reservationId))
+      ) {
+        return NextResponse.json({ error: "Invalid parentId" }, { status: 400 });
+      } else {
+        data.parentId = body.parentId;
+      }
+    }
 
     for (const key of ALLOWED_STRING_FIELDS) {
       if (key in body && typeof body[key] === "string") {

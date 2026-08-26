@@ -155,7 +155,7 @@ async function _getSession(): Promise<{
     try {
       const user = await prisma.user.findUnique({
         where: { id: session.userId },
-        select: { suspendedAt: true },
+        select: { username: true, role: true, suspendedAt: true },
       });
       if (!user || user.suspendedAt) {
         // Cookie deletion only works in mutable contexts (route handlers /
@@ -165,6 +165,13 @@ async function _getSession(): Promise<{
         } catch {}
         return null;
       }
+
+      // Authorization claims in a seven-day JWT can become stale after an
+      // admin changes a user's role or username. Keep the signed token as the
+      // session identifier, but use current database truth for authorization
+      // and display identity on every request.
+      session.username = user.username;
+      session.role = user.role;
     } catch {
       // If the DB check fails, fail closed and treat as no session.
       return null;

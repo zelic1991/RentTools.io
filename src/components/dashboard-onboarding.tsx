@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { PlatformInstructions } from "@/components/platform-instructions";
 import { useI18n } from "@/lib/i18n/context";
+import { buildProtectedFeedUrl } from "@/lib/feed-utils";
 import type { Locale } from "@/lib/i18n/translations";
 import type { CalendarLink } from "@/lib/types";
 
@@ -87,6 +88,7 @@ interface CopyShape {
   addAnotherPlatform: string;
   notListing: string;
   manualReservationLink: string;
+  finish: string;
   hubTip: string;
 }
 
@@ -115,6 +117,7 @@ const COPY: Record<Locale, CopyShape> = {
     addAnotherPlatform: "Add another platform",
     notListing: "Not listing anywhere?",
     manualReservationLink: "Add a manual reservation instead →",
+    finish: "Continue to dashboard →",
     hubTip:
       "Tip: connect every platform to RentTools, and switch off any calendar links you set up directly between platforms. When RentTools is the single hub, each booking is counted once — cross-linking platforms makes the same booking echo around and look like a double-booking.",
   },
@@ -142,6 +145,7 @@ const COPY: Record<Locale, CopyShape> = {
     addAnotherPlatform: "Добавить другую платформу",
     notListing: "Не размещаете нигде?",
     manualReservationLink: "Добавить бронь вручную →",
+    finish: "Перейти в панель →",
     hubTip:
       "Совет: подключайте каждую платформу к RentTools и отключите прямые связи календарей между платформами. Когда RentTools — единый узел, каждая бронь учитывается один раз. Если же платформы синхронизируются ещё и друг с другом, одна бронь начинает «отражаться» по кругу и выглядит как двойное бронирование.",
   },
@@ -169,6 +173,7 @@ const COPY: Record<Locale, CopyShape> = {
     addAnotherPlatform: "Weitere Plattform hinzufügen",
     notListing: "Sie inserieren nirgends?",
     manualReservationLink: "Stattdessen eine Buchung manuell hinzufügen →",
+    finish: "Weiter zum Dashboard →",
     hubTip:
       "Tipp: Verbinden Sie jede Plattform mit RentTools und schalten Sie direkte Kalender-Verknüpfungen zwischen den Plattformen ab. Wenn RentTools der einzige Knotenpunkt ist, wird jede Buchung genau einmal gezählt — synchronisieren sich die Plattformen zusätzlich untereinander, läuft dieselbe Buchung im Kreis und sieht wie eine Doppelbuchung aus.",
   },
@@ -196,6 +201,7 @@ const COPY: Record<Locale, CopyShape> = {
     addAnotherPlatform: "Ajouter une autre plateforme",
     notListing: "Vous ne publiez nulle part ?",
     manualReservationLink: "Ajouter plutôt une réservation manuelle →",
+    finish: "Continuer vers le tableau de bord →",
     hubTip:
       "Astuce : connectez chaque plateforme à RentTools, et désactivez les liens de calendrier que vous auriez créés directement entre plateformes. Quand RentTools est le point central unique, chaque réservation est comptée une seule fois — si les plateformes se synchronisent aussi entre elles, la même réservation tourne en boucle et ressemble à une double réservation.",
   },
@@ -223,6 +229,7 @@ const COPY: Record<Locale, CopyShape> = {
     addAnotherPlatform: "Añadir otra plataforma",
     notListing: "¿No publica en ninguna plataforma?",
     manualReservationLink: "Añadir una reserva manual →",
+    finish: "Continuar al panel →",
     hubTip:
       "Consejo: conecte cada plataforma a RentTools y desactive los enlaces de calendario que haya creado directamente entre plataformas. Cuando RentTools es el único punto central, cada reserva se cuenta una sola vez — si las plataformas también se sincronizan entre sí, la misma reserva da vueltas en bucle y parece una reserva doble.",
   },
@@ -259,6 +266,10 @@ export function DashboardOnboarding({ onComplete }: DashboardOnboardingProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [propertyName, setPropertyName] = useState("");
   const [propertyId, setPropertyId] = useState<number | null>(null);
+  const [feedIdentity, setFeedIdentity] = useState<{
+    feedSlug: string;
+    feedToken: string;
+  } | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -292,8 +303,29 @@ export function DashboardOnboarding({ onComplete }: DashboardOnboardingProps) {
         setError(data.error ?? "Could not create property");
         return;
       }
-      const property = await res.json();
+      const property = await res.json() as {
+        id?: unknown;
+        feedSlug?: unknown;
+        feedToken?: unknown;
+      };
+      if (typeof property.id !== "number") {
+        setError("Property was created without a valid identifier");
+        return;
+      }
       setPropertyId(property.id);
+      if (
+        typeof property.feedSlug === "string" && property.feedSlug &&
+        typeof property.feedToken === "string" && property.feedToken
+      ) {
+        setFeedIdentity({
+          feedSlug: property.feedSlug,
+          feedToken: property.feedToken,
+        });
+      } else {
+        // The Property exists, but never offer a tokenless fallback URL.
+        setFeedIdentity(null);
+        setError("Protected feed URL unavailable. Open the property settings and try again.");
+      }
       setStep(2);
     } finally {
       setCreating(false);
@@ -403,18 +435,22 @@ export function DashboardOnboarding({ onComplete }: DashboardOnboardingProps) {
       if (displayName) {
         setCustomDrafts((prev) => prev.filter((d) => d.platform !== platform));
       }
-      // First successful save → wizard goal hit. Auto-exit to the real
-      // dashboard so the user sees their data, not the wizard, going
-      // forward.
-      onComplete();
+      // Stay in the wizard after saving: the owner still needs to copy the
+      // protected return-feed URL and may connect more channels. Completion
+      // is an explicit decision below, never an automatic unmount.
     } finally {
       setSavingPlatform(null);
     }
   };
 
   const feedUrl = (platform: string) => {
-    if (typeof window === "undefined" || !propertyId) return "";
-    return `${window.location.origin}/api/calendar/feed/${propertyId}/for-${platform}.ics`;
+    if (typeof window === "undefined" || !feedIdentity) return "";
+    return buildProtectedFeedUrl(
+      window.location.origin,
+      feedIdentity.feedSlug,
+      feedIdentity.feedToken,
+      platform,
+    ) ?? "";
   };
 
   const copyUrl = async (url: string, key: string) => {
@@ -544,6 +580,7 @@ export function DashboardOnboarding({ onComplete }: DashboardOnboardingProps) {
               const isSaving = savingPlatform === row.platform;
               const isTesting = testingPlatform === row.platform;
               const result = testResults[row.platform];
+              const outboundFeedUrl = feedUrl(row.platform);
               return (
                 <div
                   key={row.rowId}
@@ -668,14 +705,15 @@ export function DashboardOnboarding({ onComplete }: DashboardOnboardingProps) {
                       </p>
                       <div className="flex items-center gap-1.5">
                         <code className="flex-1 truncate rounded-md border border-[var(--line-2)] bg-[var(--bg)] px-2.5 py-1.5 text-[11px] text-[var(--ink-2)]">
-                          {feedUrl(row.platform)}
+                          {outboundFeedUrl || "Protected feed URL unavailable"}
                         </code>
                         <button
                           type="button"
                           onClick={() =>
-                            void copyUrl(feedUrl(row.platform), `feed-${row.platform}`)
+                            void copyUrl(outboundFeedUrl, `feed-${row.platform}`)
                           }
-                          className="shrink-0 rounded-md bg-[var(--line-2)] px-2.5 py-1.5 text-[11px] text-[var(--ink-2)] hover:bg-[var(--bg-3)]"
+                          disabled={!outboundFeedUrl}
+                          className="shrink-0 rounded-md bg-[var(--line-2)] px-2.5 py-1.5 text-[11px] text-[var(--ink-2)] hover:bg-[var(--bg-3)] disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           {copied === `feed-${row.platform}` ? t.copied : t.copy}
                         </button>
@@ -707,6 +745,18 @@ export function DashboardOnboarding({ onComplete }: DashboardOnboardingProps) {
             <p role="alert" className="mt-3 text-sm text-rose-400">
               {error}
             </p>
+          )}
+
+          {savedLinks.length > 0 && (
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={onComplete}
+                className="rounded-md bg-[var(--m-accent)] px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-[var(--m-accent-2)]"
+              >
+                {t.finish}
+              </button>
+            </div>
           )}
 
           {/* Soft escape — for hosts who don't list on any platform.

@@ -7,6 +7,20 @@ const JWT_SECRET_RAW = process.env.JWT_SECRET || "fallback-secret-change-me";
 const SECRET = new TextEncoder().encode(JWT_SECRET_RAW);
 const IS_DEFAULT_SECRET = JWT_SECRET_RAW === "fallback-secret-change-me";
 
+const SAFE_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+const IMPERSONATION_MUTATION_EXCEPTIONS = new Map([
+  ["/api/admin/exit-impersonation", "POST"],
+  ["/api/auth/logout", "POST"],
+]);
+
+function isUnsafeHttpMethod(method: string): boolean {
+  return !SAFE_HTTP_METHODS.has(method.toUpperCase());
+}
+
+function isImpersonationMutationException(pathname: string, method: string): boolean {
+  return IMPERSONATION_MUTATION_EXCEPTIONS.get(pathname) === method.toUpperCase();
+}
+
 // ─────────────────────────── i18n routing ───────────────────────────
 // Each non-default locale has its own URL prefix (`/ru/...`, `/de/...`,
 // etc.). This is what makes the site Google-indexable per language —
@@ -158,6 +172,41 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const startedAt = Date.now();
 
+  // Impersonation is a support-only, read-only mode. Enforce that invariant
+  // at the first server boundary so neither route handlers nor an early
+  // public/i18n middleware branch can accidentally omit a write guard.
+  //
+  // The only unsafe requests allowed are the two exact POST endpoints needed
+  // to leave impersonation mode. Invalid/expired tokens fall through to the
+  // normal public/authenticated-path handling below.
+  const sessionToken = request.cookies.get("rent-tool-session")?.value;
+  if (
+    sessionToken &&
+    isUnsafeHttpMethod(request.method) &&
+    !isImpersonationMutationException(pathname, request.method)
+  ) {
+    try {
+      const { payload } = await jwtVerify(sessionToken, SECRET);
+      const impersonatorId = (payload as { impersonatorId?: unknown }).impersonatorId;
+      if (typeof impersonatorId === "number") {
+        const userId = typeof (payload as { userId?: unknown }).userId === "number"
+          ? (payload as { userId: number }).userId
+          : undefined;
+        const r = withSecurityHeaders(
+          NextResponse.json(
+            { error: "Impersonation sessions are read-only" },
+            { status: 403 },
+          ),
+        );
+        logRequest(request, r, startedAt, userId);
+        return r;
+      }
+    } catch {
+      // Preserve the existing authentication behavior below. Protected paths
+      // will return 401; public paths remain usable without a valid session.
+    }
+  }
+
   // ── i18n routing ──
   // If the path begins with a known non-default locale prefix
   // (e.g. /ru, /de), strip it and rewrite internally. The page files
@@ -276,7 +325,7 @@ export async function middleware(request: NextRequest) {
   };
 
   // Check session cookie
-  const token = request.cookies.get("rent-tool-session")?.value;
+  const token = sessionToken;
   if (!token) {
     const r = pathname.startsWith("/api/")
       ? withSecurityHeaders(NextResponse.json({ error: "Unauthorized" }, { status: 401 }))

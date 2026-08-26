@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { decryptGuestData, hashShareToken } from "@/lib/precheckin-crypto";
+import { normalizePrecheckinStatus } from "@/lib/precheckin";
 
 export function mintGuestFormToken(): string {
   return randomBytes(32).toString("base64url");
@@ -45,10 +46,20 @@ export function publicSubmissionState(submission: {
   expiresAt: Date | null;
   submittedAt: Date | null;
   status: string;
-}): "active" | "revoked" | "expired" | "submitted" {
-  if (submission.revokedAt || submission.status === "REVOKED") return "revoked";
+}): "active" | "revoked" | "expired" | "submitted" | "invalid" {
+  if (submission.revokedAt) return "revoked";
+  const status = normalizePrecheckinStatus(submission.status);
+  if (!status) return "invalid";
+  if (status === "REVOKED") return "revoked";
   if (submission.expiresAt && submission.expiresAt.getTime() < Date.now()) return "expired";
-  if (submission.submittedAt || submission.status === "OWNER_REVIEW_REQUIRED" || submission.status === "OWNER_APPROVED") {
+  if (
+    submission.submittedAt ||
+    status === "GUEST_COMPLETE" ||
+    status === "OWNER_REVIEW" ||
+    status === "OWNER_APPROVED" ||
+    status === "EVISITOR_READY" ||
+    status === "EVISITOR_CONFIRMED_MANUAL"
+  ) {
     return "submitted";
   }
   return "active";

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseFeedFilename } from "./feed-utils";
+import { buildProtectedFeedUrl, parseFeedFilename } from "./feed-utils";
 
 describe("parseFeedFilename", () => {
   // The whole point of this parser is that it accepts ANY platform slug,
@@ -47,5 +47,32 @@ describe("parseFeedFilename", () => {
     // would fall back to "airbnb" rather than treat "../etc" as a slug.
     expect(parseFeedFilename("for-../etc.ics")).toBe("airbnb");
     expect(parseFeedFilename("for-foo bar.ics")).toBe("airbnb");
+  });
+});
+
+describe("buildProtectedFeedUrl", () => {
+  it("uses the durable slug and owner-authorized bearer token", () => {
+    expect(buildProtectedFeedUrl(
+      "https://renttools.test",
+      "vir-apartment-0123456789ab",
+      "owner-secret_token",
+      "booking",
+    )).toBe(
+      "https://renttools.test/api/calendar/feed/vir-apartment-0123456789ab/for-booking.ics?token=owner-secret_token",
+    );
+  });
+
+  it.each([
+    [null, "token"],
+    ["slug", null],
+    ["", "token"],
+    ["slug", ""],
+  ])("fails closed instead of producing a public or numeric fallback", (feedSlug, feedToken) => {
+    expect(buildProtectedFeedUrl(
+      "https://renttools.test",
+      feedSlug,
+      feedToken,
+      "airbnb",
+    )).toBeNull();
   });
 });

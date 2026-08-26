@@ -6,6 +6,7 @@ import { canManageProperty, listAccessiblePropertyIds } from "@/lib/ownership";
 import { normalizePlatformSlug } from "@/lib/platforms";
 import { parseReservationDate } from "@/lib/reservation-dates";
 import { loadEffectiveLinkedStayRange } from "@/lib/linked-stay";
+import { validateReservationRevenue } from "@/lib/reservation-revenue";
 import {
   DEFAULT_PROPERTY_TIME_ZONE,
   getOwnerCalendarWindow,
@@ -22,11 +23,23 @@ export async function GET(request: NextRequest) {
     const where = propertyId
       ? { propertyId: parseInt(propertyId), property: { id: { in: accessibleIds } } }
       : { property: { id: { in: accessibleIds } } };
-    const reservations = await prisma.reservation.findMany({
-      where,
-      orderBy: { checkIn: "asc" },
-      include: { _count: { select: { guests: true } } },
-    });
+    const reservations = session.role === "cleaner"
+      ? await prisma.reservation.findMany({
+          where,
+          orderBy: { checkIn: "asc" },
+          select: {
+            id: true,
+            propertyId: true,
+            platform: true,
+            checkIn: true,
+            checkOut: true,
+          },
+        })
+      : await prisma.reservation.findMany({
+          where,
+          orderBy: { checkIn: "asc" },
+          include: { _count: { select: { guests: true } } },
+        });
     return NextResponse.json(reservations);
   } catch (err) {
     console.error("Route error:", err);
@@ -52,6 +65,8 @@ export async function POST(request: NextRequest) {
       linkedEventPlatform,
       linkedEventRole,
       bookedGuestCount,
+      grossAmountCents,
+      currency,
     } = await request.json();
     if (
       typeof name !== "string" ||
@@ -71,6 +86,10 @@ export async function POST(request: NextRequest) {
         (!Number.isInteger(bookedGuestCount) || bookedGuestCount < 1 || bookedGuestCount > 50))
     ) {
       return NextResponse.json({ error: "Invalid reservation data" }, { status: 400 });
+    }
+    const revenue = validateReservationRevenue({ grossAmountCents, currency });
+    if (!revenue.ok) {
+      return NextResponse.json({ error: revenue.error }, { status: 400 });
     }
 
     if (!(await canManageProperty(propertyId, session.userId, session.role))) {
@@ -296,6 +315,7 @@ export async function POST(request: NextRequest) {
         linkedEventPlatform: sourceIdentity?.platform || null,
         linkedEventRole: sourceRole,
         ...(bookedGuestCount !== undefined ? { bookedGuestCount } : {}),
+        ...revenue.data,
         propertyId,
       },
     });

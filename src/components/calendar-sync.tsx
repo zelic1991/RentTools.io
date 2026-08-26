@@ -424,16 +424,6 @@ export function CalendarSync({ propertyId }: CalendarSyncProps) {
     }
   };
 
-  const handleClearToken = async () => {
-    setRotating(true);
-    try {
-      const res = await fetch(`/api/properties/${propertyId}/rotate-feed-token`, { method: "DELETE" });
-      if (res.ok) setFeedToken(null);
-    } finally {
-      setRotating(false);
-    }
-  };
-
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -599,19 +589,10 @@ export function CalendarSync({ propertyId }: CalendarSyncProps) {
         <div className="rounded-lg border border-[var(--line)] bg-[var(--bg)] p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="text-[11px] text-[var(--ink-3)]">
             {feedToken
-              ? "Feed URLs include a private token. Rotate to invalidate the old URL."
-              : "Feed URLs are public. Add a token to make them unguessable."}
+              ? "Feeds are protected by a private token. Rotate to invalidate the old URL."
+              : "This legacy feed is not protected yet. Generate a token before sharing it."}
           </div>
           <div className="flex gap-2">
-            {feedToken && (
-              <button
-                onClick={handleClearToken}
-                disabled={rotating}
-                className="rounded px-2.5 py-1 text-[11px] text-[var(--ink-3)] hover:text-[var(--ink)] disabled:opacity-40"
-              >
-                Make public
-              </button>
-            )}
             <button
               onClick={handleRotateToken}
               disabled={rotating}

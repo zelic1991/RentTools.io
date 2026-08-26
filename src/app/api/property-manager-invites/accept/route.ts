@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Token required" }, { status: 400 });
     }
 
-    const invite = await prisma.propertyManagerInvite.findUnique({
+    let invite = await prisma.propertyManagerInvite.findUnique({
       where: { token },
       include: {
         property: { select: { id: true, name: true, userId: true } },
@@ -44,24 +44,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Already accepted by this user → idempotent success
-    if (invite.acceptedById === session.userId) {
-      return NextResponse.json({
-        action: "already_accepted",
-        propertyId: invite.propertyId,
-        propertyName: invite.property.name,
+    let claimedNow = false;
+    if (invite.acceptedById === null) {
+      // The invite token is an authority capability. Claim it with one
+      // compare-and-set write so two users racing the same token cannot both
+      // pass a read-then-create sequence. Revocation and expiry are part of
+      // the same predicate and therefore fail closed at the claim boundary.
+      const claimed = await prisma.propertyManagerInvite.updateMany({
+        where: {
+          id: invite.id,
+          acceptedById: null,
+          acceptedAt: null,
+          revokedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: { acceptedById: session.userId, acceptedAt: new Date() },
       });
+      claimedNow = claimed.count === 1;
+
+      // Always reload after the CAS. On a lost race this identifies the one
+      // recorded accepter; on a same-user retry it also repairs a historical
+      // or crash-interrupted claim whose manager row is still missing.
+      const current = await prisma.propertyManagerInvite.findUnique({
+        where: { token },
+        include: {
+          property: { select: { id: true, name: true, userId: true } },
+        },
+      });
+      if (!current) {
+        return NextResponse.json({ error: "Invite not found" }, { status: 404 });
+      }
+      invite = current;
     }
 
-    // Already accepted by someone else
-    if (invite.acceptedById && invite.acceptedById !== session.userId) {
+    // Re-check mutable gates after the CAS/reload. A revoked or expired invite
+    // never becomes idempotently usable merely because it has acceptedById.
+    if (invite.revokedAt) {
+      return NextResponse.json({ error: "Invite has been revoked" }, { status: 410 });
+    }
+    if (invite.expiresAt < new Date()) {
+      return NextResponse.json({ error: "Invite has expired" }, { status: 410 });
+    }
+    if (invite.acceptedById !== session.userId) {
       return NextResponse.json(
         { error: "Invite has already been used by another user" },
         { status: 410 }
       );
     }
 
-    // Already a manager (e.g. added by username earlier) → mark invite accepted, return success
     const existing = await prisma.propertyManager.findUnique({
       where: {
         managerId_propertyId: {
@@ -72,28 +102,33 @@ export async function POST(request: NextRequest) {
       select: { id: true },
     });
 
-    if (!existing) {
-      await prisma.propertyManager.create({
-        data: {
-          propertyId: invite.propertyId,
+    // Upsert is deliberate even for an already-recorded accepter: if the
+    // process died after the CAS but before manager creation, their retry
+    // repairs the missing grant. The composite unique key keeps retries safe.
+    await prisma.propertyManager.upsert({
+      where: {
+        managerId_propertyId: {
           managerId: session.userId,
-          grantedById: invite.createdById,
+          propertyId: invite.propertyId,
         },
+      },
+      update: {},
+      create: {
+        propertyId: invite.propertyId,
+        managerId: session.userId,
+        grantedById: invite.createdById,
+      },
+    });
+
+    if (claimedNow || !existing) {
+      await logAudit(session.userId, "create", "manager", invite.id, {
+        action: claimedNow ? "invite_accepted" : "invite_acceptance_recovered",
+        propertyId: invite.propertyId,
       });
     }
 
-    await prisma.propertyManagerInvite.update({
-      where: { id: invite.id },
-      data: { acceptedById: session.userId, acceptedAt: new Date() },
-    });
-
-    await logAudit(session.userId, "create", "manager", invite.id, {
-      action: "invite_accepted",
-      propertyId: invite.propertyId,
-    });
-
     return NextResponse.json({
-      action: "accepted",
+      action: claimedNow ? "accepted" : "already_accepted",
       propertyId: invite.propertyId,
       propertyName: invite.property.name,
     });

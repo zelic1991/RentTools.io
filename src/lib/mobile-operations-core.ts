@@ -1,6 +1,9 @@
-import type { PrecheckinStatus } from "@/lib/precheckin";
+import {
+  normalizePrecheckinStatus,
+  type PrecheckinStatus,
+} from "@/lib/precheckin";
 
-export type MobileSection = "start" | "calendar" | "guests" | "portals";
+export type MobileSection = "start" | "calendar" | "guests" | "portals" | "cleaning";
 export type MobileAccessLevel = "owner" | "manager" | "cleaner";
 
 export const MOBILE_SECTIONS: readonly MobileSection[] = [
@@ -8,6 +11,7 @@ export const MOBILE_SECTIONS: readonly MobileSection[] = [
   "calendar",
   "guests",
   "portals",
+  "cleaning",
 ];
 
 export interface MobileReservationInput {
@@ -30,13 +34,15 @@ export interface MobileReservationInput {
 }
 
 export interface MobileGuestState {
-  status: PrecheckinStatus;
+  status: PrecheckinStatus | "INVALID";
   complete: boolean;
   ownerReviewRequired: boolean;
   missingFields: string[];
   eVisitorStatus:
     | "NOT_READY"
+    | "APPROVED_NOT_READY"
     | "READY_NOT_SUBMITTED"
+    | "MANUAL_CONFIRMED"
     | "PRODUCTION_PENDING"
     | "READBACK_CONFIRMED"
     | "PRODUCTION_ERROR";
@@ -54,42 +60,35 @@ export interface MobilePortalCard {
   lastKnownOccupancyEnd: string | null;
 }
 
-const KNOWN_PRECHECKIN_STATUSES = new Set<PrecheckinStatus>([
-  "NOT_INVITED",
-  "INVITED",
-  "IN_PROGRESS",
-  "COMPLETE",
-  "OWNER_REVIEW_REQUIRED",
-  "OWNER_APPROVED",
-  "REVOKED",
-]);
-
-function normalizePrecheckinStatus(value: string | undefined): PrecheckinStatus {
-  return KNOWN_PRECHECKIN_STATUSES.has(value as PrecheckinStatus)
-    ? (value as PrecheckinStatus)
-    : "NOT_INVITED";
-}
-
 export function latestSubmissionStatus(
   submissions: MobileReservationInput["submissions"],
-): PrecheckinStatus {
+): PrecheckinStatus | "INVALID" {
   const latest = [...submissions].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt),
   )[0];
-  return normalizePrecheckinStatus(latest?.status);
+  if (!latest) return "PENDING";
+  return normalizePrecheckinStatus(latest.status) ?? "INVALID";
 }
 
 export function deriveMobileGuestState(
   reservation: MobileReservationInput,
 ): MobileGuestState {
   const status = latestSubmissionStatus(reservation.submissions);
-  const complete = status === "COMPLETE" || status === "OWNER_REVIEW_REQUIRED" || status === "OWNER_APPROVED";
-  const ownerReviewRequired = status === "OWNER_REVIEW_REQUIRED" || status === "COMPLETE";
+  const complete =
+    status === "GUEST_COMPLETE" ||
+    status === "OWNER_REVIEW" ||
+    status === "OWNER_APPROVED" ||
+    status === "EVISITOR_READY" ||
+    status === "EVISITOR_CONFIRMED_MANUAL";
+  const ownerReviewRequired = status === "GUEST_COMPLETE" || status === "OWNER_REVIEW";
   const missingFields: string[] = [];
 
-  if (status === "NOT_INVITED") missingFields.push("Gästeformular noch nicht erstellt");
-  if (status === "INVITED") missingFields.push("Antwort der Gäste fehlt");
-  if (status === "IN_PROGRESS") missingFields.push("Gästedaten noch unvollständig");
+  if (reservation.submissions.length === 0) {
+    missingFields.push("Gästeformular noch nicht erstellt");
+  } else if (status === "PENDING") {
+    missingFields.push("Gästedaten noch unvollständig");
+  }
+  if (status === "INVALID") missingFields.push("Gaststatus ist ungültig — Owner-Prüfung nötig");
   if (status === "REVOKED") missingFields.push("Gastlink wurde widerrufen");
 
   const productionReceipts = reservation.eVisitorReceipts
@@ -105,8 +104,12 @@ export function deriveMobileGuestState(
     eVisitorStatus = /error|fail/i.test(latestProductionReceipt.status)
       ? "PRODUCTION_ERROR"
       : "PRODUCTION_PENDING";
-  } else if (status === "OWNER_APPROVED") {
+  } else if (status === "EVISITOR_CONFIRMED_MANUAL") {
+    eVisitorStatus = "MANUAL_CONFIRMED";
+  } else if (status === "EVISITOR_READY") {
     eVisitorStatus = "READY_NOT_SUBMITTED";
+  } else if (status === "OWNER_APPROVED") {
+    eVisitorStatus = "APPROVED_NOT_READY";
   }
 
   return {
@@ -151,7 +154,7 @@ export function canAccessMobileSection(
 ): boolean {
   if (access === "owner") return true;
   if (access === "manager") return MOBILE_SECTIONS.includes(section);
-  return false;
+  return section === "cleaning";
 }
 
 export function mobileAvailabilityOverrides(

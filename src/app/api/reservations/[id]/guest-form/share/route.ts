@@ -14,7 +14,13 @@ import {
   guestFormExpiry,
   mintGuestFormToken,
 } from "@/lib/guest-form-security";
-import { precheckinWarnings, type PrecheckinPayload } from "@/lib/precheckin";
+import {
+  nextPrecheckinHandoffStatus,
+  precheckinWarnings,
+  type PrecheckinHandoffAction,
+  type PrecheckinPayload,
+} from "@/lib/precheckin";
+import { validatedPrecheckinHandoffPayload } from "@/lib/precheckin-handoff";
 
 // RT-25.2 — find-or-create a GuestFormSubmission for this reservation
 // against the property's first GuestFormTemplate. Returns the share
@@ -214,7 +220,7 @@ export async function POST(
             shareToken: `hashed:${tokenHash}`,
             tokenHash,
             tokenCiphertext,
-            status: "INVITED",
+            status: "PENDING",
             expiresAt,
             revokedAt: null,
             securePayload: "",
@@ -232,7 +238,7 @@ export async function POST(
           shareToken: `hashed:${tokenHash}`,
           tokenHash,
           tokenCiphertext,
-          status: "INVITED",
+          status: "PENDING",
           expiresAt,
           lastChangedAt: new Date(),
         },
@@ -263,7 +269,12 @@ export async function PATCH(
     if (!Number.isInteger(reservationId)) return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
     const reservation = await prisma.reservation.findUnique({
       where: { id: reservationId },
-      select: { propertyId: true },
+      select: {
+        propertyId: true,
+        checkIn: true,
+        checkOut: true,
+        bookedGuestCount: true,
+      },
     });
     if (!reservation || !(await canManageProperty(reservation.propertyId, session.userId, session.role))) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -282,18 +293,66 @@ export async function PATCH(
       });
       return NextResponse.json({ status: "REVOKED" });
     }
-    if (action === "approve") {
-      if (submission.status !== "OWNER_REVIEW_REQUIRED" || !submission.securePayload) {
+    if (
+      action === "start-review" ||
+      action === "approve" ||
+      action === "mark-evisitor-ready" ||
+      action === "confirm-evisitor-manual"
+    ) {
+      const nextStatus = nextPrecheckinHandoffStatus(submission.status, action);
+      if (!nextStatus) {
+        return NextResponse.json({ error: "Invalid status transition" }, { status: 409 });
+      }
+      if (!submission.securePayload) {
         return NextResponse.json({ error: "Completed traveler data is required" }, { status: 409 });
       }
-      await prisma.guestFormSubmission.update({
-        where: { id: submission.id },
-        data: { status: "OWNER_APPROVED", ownerApprovedAt: new Date(), lastChangedAt: new Date(), updatedAt: new Date() },
-      });
-      return NextResponse.json({ status: "OWNER_APPROVED" });
+      if (
+        action === "mark-evisitor-ready" &&
+        !validatedPrecheckinHandoffPayload(submission.securePayload, reservation)
+      ) {
+        return NextResponse.json(
+          { error: "Traveler data no longer matches the reservation" },
+          { status: 409 },
+        );
+      }
+
+      const changedAt = new Date();
+      const updateData = {
+        status: nextStatus,
+        ...(action === "approve" ? { ownerApprovedAt: changedAt } : {}),
+        lastChangedAt: changedAt,
+        updatedAt: changedAt,
+      };
+      await prisma.$transaction([
+        prisma.guestFormSubmission.update({
+          // Including the source status prevents a concurrent request from
+          // replaying or skipping a transition after this read.
+          where: { id: submission.id, status: submission.status },
+          data: updateData,
+        }),
+        prisma.auditLog.create({
+          data: {
+            userId: session.userId,
+            action: "update",
+            resourceType: "guest",
+            resourceId: submission.id,
+            payload: JSON.stringify({
+              transition: action as PrecheckinHandoffAction,
+              fromStatus: submission.status,
+              toStatus: nextStatus,
+              reservationId,
+            }),
+            createdAt: changedAt,
+          },
+        }),
+      ]);
+      return NextResponse.json({ status: nextStatus });
     }
     return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
   } catch (err) {
+    if ((err as { code?: string })?.code === "P2025") {
+      return NextResponse.json({ error: "Invalid status transition" }, { status: 409 });
+    }
     console.error("Route error:", err instanceof Error ? err.message : "unknown");
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

@@ -11,6 +11,11 @@ const mocks = vi.hoisted(() => ({
   syncLogCreate: vi.fn(),
   syncLogFindMany: vi.fn(),
   syncLogDeleteMany: vi.fn(),
+  fetchIcalText: vi.fn(),
+}));
+
+vi.mock("@/lib/ical-fetch", () => ({
+  fetchIcalText: mocks.fetchIcalText,
 }));
 
 vi.mock("@/lib/prisma", () => ({
@@ -43,7 +48,7 @@ const link = {
   id: 3,
   propertyId,
   platform: "airbnb",
-  icalExportUrl: "https://example.test/calendar.ics",
+  icalExportUrl: "https://8.8.8.8/calendar.ics",
   property: { name: "Apt 68" },
 };
 const oldEvent = {
@@ -83,18 +88,13 @@ beforeEach(() => {
   mocks.syncLogCreate.mockResolvedValue({});
   mocks.syncLogFindMany.mockResolvedValue([]);
   mocks.syncLogDeleteMany.mockResolvedValue({ count: 0 });
+  mocks.fetchIcalText.mockResolvedValue(ical([]));
 });
 
 describe("calendar sync — durable linked reservation metadata", () => {
   it("migrates claims and extensions by exact source platform on UID reissue", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response(
-          ical([{ uid: "new-uid", start: "2099-08-19", end: "2099-08-23" }]),
-          { status: 200 },
-        ),
-      ),
+    mocks.fetchIcalText.mockResolvedValue(
+      ical([{ uid: "new-uid", start: "2099-08-19", end: "2099-08-23" }]),
     );
     mocks.calendarEventFindMany
       .mockResolvedValueOnce([oldEvent])
@@ -125,10 +125,7 @@ describe("calendar sync — durable linked reservation metadata", () => {
   });
 
   it("unlinks every segment and clears all link fields when the source is cancelled", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(new Response(ical([]), { status: 200 })),
-    );
+    mocks.fetchIcalText.mockResolvedValue(ical([]));
     mocks.calendarEventFindMany.mockResolvedValueOnce([oldEvent]);
 
     const result = await syncAllCalendars({ propertyIds: [propertyId] });

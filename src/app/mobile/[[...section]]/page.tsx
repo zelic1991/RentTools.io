@@ -12,10 +12,12 @@ import {
   ShieldCheck,
   UsersRound,
 } from "lucide-react";
+import { CleaningActions } from "@/components/mobile/cleaning-actions";
 import { MobileCalendar } from "@/components/mobile/mobile-calendar";
 import { MobilePwaRegister } from "@/components/mobile/mobile-pwa-register";
 import { MobileShell } from "@/components/mobile/mobile-shell";
 import { loadMobileOperations, type MobileOperationsData, type MobileReservationCard } from "@/lib/mobile-operations";
+import { loadMobileCleaning, type MobileCleaningData } from "@/lib/mobile-cleaning";
 import { MOBILE_SECTIONS, type MobileSection } from "@/lib/mobile-operations-core";
 
 const DATE = new Intl.DateTimeFormat("de-AT", {
@@ -183,18 +185,26 @@ function StartScreen({ data }: { data: MobileOperationsData }) {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  PENDING: "Gästedaten ausstehend",
+  GUEST_COMPLETE: "Vom Gast vollständig",
+  OWNER_REVIEW: "Owner-Review läuft",
   NOT_INVITED: "Nicht eingeladen",
   INVITED: "Link erstellt",
   IN_PROGRESS: "In Bearbeitung",
   COMPLETE: "Vollständig",
   OWNER_REVIEW_REQUIRED: "Owner-Review nötig",
   OWNER_APPROVED: "Freigegeben",
+  EVISITOR_READY: "Manuelle Übergabe bereit",
+  EVISITOR_CONFIRMED_MANUAL: "Manuell bestätigt",
   REVOKED: "Widerrufen",
+  INVALID: "Status ungültig",
 };
 
 const EVISITOR_LABELS: Record<string, string> = {
   NOT_READY: "Noch nicht bereit",
+  APPROVED_NOT_READY: "Freigegeben, Übergabe ausstehend",
   READY_NOT_SUBMITTED: "Bereit, nicht gesendet",
+  MANUAL_CONFIRMED: "Manuell in eVisitor bestätigt",
   PRODUCTION_PENDING: "Produktionslauf noch unbestätigt",
   READBACK_CONFIRMED: "Readback bestätigt",
   PRODUCTION_ERROR: "Produktionsfehler",
@@ -295,6 +305,62 @@ function PortalsScreen({ data }: { data: MobileOperationsData }) {
   );
 }
 
+const CLEANING_LABELS = {
+  PLANNED: "Geplant",
+  ASSIGNED: "Zugewiesen",
+  IN_PROGRESS: "In Arbeit",
+  READY: "Fertig",
+  ISSUE: "Problem",
+} as const;
+
+function CleaningScreen({ data }: { data: MobileCleaningData }) {
+  return (
+    <section aria-labelledby="cleaning-heading" className="space-y-4">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#7B2E62]">Reinigung</p>
+        <h2 id="cleaning-heading" className="mt-1 text-2xl font-semibold tracking-tight">Offene Aufgaben</h2>
+        <p className="mt-1 text-sm text-[#685C4B]">
+          Reinigungsstatus ist nur Betriebsinformation und verändert keine Verfügbarkeit.
+        </p>
+      </div>
+      {data.tasks.length === 0 ? (
+        <EmptyState>Keine offenen Reinigungsaufgaben für deine freigegebenen Objekte.</EmptyState>
+      ) : (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {data.tasks.map((task) => (
+            <article key={task.id} className="rounded-2xl border border-[#D6C8AE] bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="truncate font-semibold text-[#2B241D]">{task.propertyName}</h3>
+                  <p className="mt-1 text-sm text-[#685C4B]">{formatDate(task.date)}</p>
+                </div>
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${task.status === "ISSUE" ? "bg-rose-100 text-rose-800" : task.status === "IN_PROGRESS" ? "bg-amber-100 text-amber-800" : "bg-[#F8EFF4] text-[#3F1735]"}`}>
+                  {CLEANING_LABELS[task.status]}
+                </span>
+              </div>
+              <dl className="mt-4 grid gap-2 text-sm">
+                <div className="rounded-xl bg-[#F6F1E6] p-3">
+                  <dt className="text-xs text-[#685C4B]">Zuständig</dt>
+                  <dd className="mt-1 font-medium text-[#2B241D]">{task.assigneeName}</dd>
+                </div>
+                {task.notes && (
+                  <div className="rounded-xl bg-[#F6F1E6] p-3">
+                    <dt className="text-xs text-[#685C4B]">Notiz</dt>
+                    <dd className="mt-1 whitespace-pre-wrap text-[#2B241D]">{task.notes}</dd>
+                  </div>
+                )}
+              </dl>
+              {data.access === "cleaner" && data.canWrite && (
+                <CleaningActions propertyId={task.propertyId} date={task.date} status={task.status} />
+              )}
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default async function MobileOperationsPage({
   params,
 }: {
@@ -304,6 +370,15 @@ export default async function MobileOperationsPage({
   if ((route.section?.length ?? 0) > 1) notFound();
   const rawSection = route.section?.[0] ?? "start";
   if (!MOBILE_SECTIONS.includes(rawSection as MobileSection)) notFound();
+  if (rawSection === "cleaning") {
+    const data = await loadMobileCleaning();
+    return (
+      <MobileShell data={data}>
+        <MobilePwaRegister />
+        <CleaningScreen data={data} />
+      </MobileShell>
+    );
+  }
   const data = await loadMobileOperations({
     section: rawSection as MobileSection,
   });

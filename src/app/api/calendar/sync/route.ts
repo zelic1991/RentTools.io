@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { syncAllCalendars } from "@/lib/calendar-sync";
 import { getSession } from "@/lib/auth";
-import { canReadProperty, listAccessiblePropertyIds } from "@/lib/ownership";
+import {
+  canManageProperty,
+  canReadProperty,
+  listAccessiblePropertyIds,
+  listManageablePropertyIds,
+} from "@/lib/ownership";
 
 // POST /api/calendar/sync — trigger a manual sync.
 //
@@ -27,28 +32,19 @@ export async function POST(request: NextRequest) {
 
     let propertyIds: number[];
     if (propertyId != null && !Number.isNaN(propertyId)) {
-      if (!(await canReadProperty(propertyId, session.userId, session.role))) {
+      if (!(await canManageProperty(propertyId, session.userId, session.role))) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
       propertyIds = [propertyId];
     } else {
-      propertyIds = await listAccessiblePropertyIds(session.userId, session.role);
+      propertyIds = await listManageablePropertyIds(session.userId);
+    }
+
+    if (propertyIds.length === 0) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const result = await syncAllCalendars({ propertyIds });
-
-    // Record run
-    const now = new Date().toISOString();
-    await prisma.appSettings.upsert({
-      where: { key: "sync_last_run" },
-      update: { value: now },
-      create: { key: "sync_last_run", value: now },
-    });
-    await prisma.appSettings.upsert({
-      where: { key: "sync_last_result" },
-      update: { value: JSON.stringify(result) },
-      create: { key: "sync_last_result", value: JSON.stringify(result) },
-    });
 
     return NextResponse.json(result);
   } catch (err) {

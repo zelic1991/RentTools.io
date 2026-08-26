@@ -46,7 +46,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 import {
   addCalendarDays,
   getOwnerCalendarWindow,
@@ -498,6 +498,96 @@ describe("POST /api/reservations — linked calendar source", () => {
     expect(mocks.canManageProperty).not.toHaveBeenCalled();
     expect(mocks.reservationFindFirst).not.toHaveBeenCalled();
     expect(mocks.calendarEventFindFirst).not.toHaveBeenCalled();
+    expect(mocks.reservationCreate).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/reservations — cleaner finance boundary", () => {
+  it("returns an explicitly minimal cleaner projection without financial or contact fields", async () => {
+    mocks.getSession.mockResolvedValue({ userId: 31, role: "cleaner" });
+    mocks.listAccessiblePropertyIds.mockResolvedValue([propertyId]);
+
+    const response = await GET(
+      new NextRequest(`http://localhost/api/reservations?propertyId=${propertyId}`),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.reservationFindMany).toHaveBeenCalledWith({
+      where: {
+        propertyId,
+        property: { id: { in: [propertyId] } },
+      },
+      orderBy: { checkIn: "asc" },
+      select: {
+        id: true,
+        propertyId: true,
+        platform: true,
+        checkIn: true,
+        checkOut: true,
+      },
+    });
+    const query = mocks.reservationFindMany.mock.calls[0][0];
+    expect(query.select).not.toHaveProperty("grossAmountCents");
+    expect(query.select).not.toHaveProperty("currency");
+    expect(query.select).not.toHaveProperty("phone");
+  });
+});
+
+describe("POST /api/reservations — stored gross amount", () => {
+  it("allows an authorized manager through the existing manageability gate", async () => {
+    mocks.getSession.mockResolvedValue({ userId: 44, role: "manager" });
+    mocks.canManageProperty.mockResolvedValue(true);
+
+    const response = await POST(postRequest({ grossAmountCents: 25000 }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.canManageProperty).toHaveBeenCalledWith(propertyId, 44, "manager");
+    expect(mocks.reservationCreate).toHaveBeenCalled();
+  });
+
+  it("returns not found before a cleaner can write finance to a property", async () => {
+    mocks.getSession.mockResolvedValue({ userId: 31, role: "cleaner" });
+    mocks.canManageProperty.mockResolvedValue(false);
+
+    const response = await POST(postRequest({ grossAmountCents: 25000 }));
+
+    expect(response.status).toBe(404);
+    expect(mocks.reservationCreate).not.toHaveBeenCalled();
+  });
+
+  it("stores validated integer cents and normalized ISO currency", async () => {
+    const response = await POST(postRequest({
+      grossAmountCents: 12345,
+      currency: " eur ",
+    }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.reservationCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        grossAmountCents: 12345,
+        currency: "EUR",
+      }),
+    });
+  });
+
+  it("keeps omitted imported/manual prices unknown instead of inferring them", async () => {
+    const response = await POST(postRequest());
+
+    expect(response.status).toBe(200);
+    const data = mocks.reservationCreate.mock.calls[0][0].data;
+    expect(data).not.toHaveProperty("grossAmountCents");
+    expect(data).not.toHaveProperty("currency");
+  });
+
+  it.each([
+    { input: { grossAmountCents: -1 }, label: "negative" },
+    { input: { grossAmountCents: 1.5 }, label: "fractional" },
+    { input: { grossAmountCents: Number.MAX_SAFE_INTEGER + 1 }, label: "unsafe" },
+    { input: { currency: "ZZZ" }, label: "unsupported currency" },
+  ])("rejects $label revenue input", async ({ input }) => {
+    const response = await POST(postRequest(input));
+
+    expect(response.status).toBe(400);
     expect(mocks.reservationCreate).not.toHaveBeenCalled();
   });
 });

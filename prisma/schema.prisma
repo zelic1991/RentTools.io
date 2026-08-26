@@ -175,20 +175,26 @@ model MessageTemplate {
 }
 
 model CleaningRecord {
-  id            Int      @id @default(autoincrement())
-  propertyId    Int
-  property      Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  date          String   // YYYY-MM-DD
-  status        String   @default("pending") // "pending" | "done" | "skipped"
-  doneAt        DateTime?
-  doneByUserId  Int?
-  notes         String   @default("")
-  photos        String   @default("[]") // JSON array of URLs
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime?
+  id                 Int      @id @default(autoincrement())
+  propertyId         Int
+  property           Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  date               String   // YYYY-MM-DD; operational metadata only, never an availability block
+  status             String   @default("PLANNED") // PLANNED -> ASSIGNED -> IN_PROGRESS -> READY | ISSUE
+  assignedCleanerId  Int?
+  assignedAt         DateTime?
+  startedAt          DateTime?
+  issueAt            DateTime?
+  doneAt             DateTime?
+  doneByUserId       Int?
+  updatedByUserId    Int?
+  notes              String   @default("")
+  photos             String   @default("[]") // JSON array of URLs
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime?
 
   @@unique([propertyId, date])
   @@index([propertyId, date])
+  @@index([assignedCleanerId, status, date])
 }
 
 // Cleaner profile (RT-25.10). Account-level entity owned by a host;
@@ -308,6 +314,10 @@ model Reservation {
   // Confirmed party size. iCal imports usually cannot provide it, so legacy
   // rows may remain null until the owner confirms the booking details.
   bookedGuestCount Int?
+  // Optional owner-entered gross booking amount. Never inferred from nights,
+  // iCal data, rates, commissions, fees, or payment state; null means unknown.
+  grossAmountCents Int?
+  currency         String @default("EUR") // ISO 4217 code
   propertyId      Int
   property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   guests          Guest[]
@@ -387,6 +397,9 @@ model OnboardingDraft {
   // slug verbatim. Without it, post-signup feed URLs would change and
   // silently break anywhere the user already pasted them.
   feedSlug        String?   @unique
+  // Bearer token paired with feedSlug before the URL is shown. Nullable only
+  // so legacy drafts can be migrated safely through their httpOnly cookie.
+  feedToken       String?   @unique
   // JSON: { platform: string, customName?: string, color?: string,
   //         icalExportUrl: string, lastTestStatus?: "valid"|"invalid" }[]
   links           String    @default("[]")
@@ -563,7 +576,7 @@ model GuestFormSubmission {
   // plaintext.
   tokenHash      String?           @unique
   tokenCiphertext String?
-  status         String            @default("NOT_INVITED")
+  status         String            @default("PENDING")
   expiresAt      DateTime?
   revokedAt      DateTime?
   securePayload  String            @default("")

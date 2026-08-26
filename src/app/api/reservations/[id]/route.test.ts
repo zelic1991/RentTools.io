@@ -166,6 +166,58 @@ describe("PATCH /api/reservations/:id — owner calendar window", () => {
   });
 });
 
+describe("PATCH /api/reservations/:id — stored gross amount", () => {
+  it("returns not found before a cleaner can mutate reservation finance", async () => {
+    mocks.getSession.mockResolvedValue({ userId: 31, role: "cleaner" });
+    mocks.canManageProperty.mockResolvedValue(false);
+
+    const response = await PATCH(
+      patchRequest({ grossAmountCents: 98765 }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(404);
+    expect(mocks.reservationUpdate).not.toHaveBeenCalled();
+  });
+
+  it("updates validated integer cents and normalized ISO currency", async () => {
+    const response = await PATCH(
+      patchRequest({ grossAmountCents: 98765, currency: " usd " }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.reservationUpdate).toHaveBeenCalledWith({
+      where: { id: reservationId },
+      data: { grossAmountCents: 98765, currency: "USD" },
+    });
+  });
+
+  it("clears an amount to explicit unknown without inventing a replacement", async () => {
+    const response = await PATCH(
+      patchRequest({ grossAmountCents: null }),
+      patchParams(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.reservationUpdate).toHaveBeenCalledWith({
+      where: { id: reservationId },
+      data: { grossAmountCents: null },
+    });
+  });
+
+  it.each([
+    { grossAmountCents: -1 },
+    { grossAmountCents: 1.5 },
+    { currency: "ZZZ" },
+  ])("rejects invalid revenue input %j without writing", async (input) => {
+    const response = await PATCH(patchRequest(input), patchParams());
+
+    expect(response.status).toBe(400);
+    expect(mocks.reservationUpdate).not.toHaveBeenCalled();
+  });
+});
+
 describe("PATCH /api/reservations/:id — date edits", () => {
   it.each([
     ["checkIn", "not-a-date", "Invalid checkIn date"],

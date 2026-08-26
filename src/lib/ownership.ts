@@ -125,3 +125,28 @@ export async function listAccessiblePropertyIds(
 
   return Array.from(ids);
 }
+
+/**
+ * Get all property IDs a user may mutate (owner or manager only).
+ *
+ * Keep this separate from listAccessiblePropertyIds(): cleaners are allowed to
+ * read their assigned calendars, but must never be able to turn that read
+ * access into a calendar import/write operation.
+ */
+export async function listManageablePropertyIds(userId: number): Promise<number[]> {
+  const ids = new Set<number>();
+
+  const owned = await prisma.property.findMany({
+    where: { userId },
+    select: { id: true },
+  });
+  for (const property of owned) ids.add(property.id);
+
+  const managed = await prisma.propertyManager.findMany({
+    where: { managerId: userId },
+    select: { propertyId: true },
+  }).catch(() => []);
+  for (const assignment of managed) ids.add(assignment.propertyId);
+
+  return Array.from(ids);
+}

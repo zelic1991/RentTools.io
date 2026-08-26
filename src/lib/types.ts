@@ -53,6 +53,10 @@ export interface Reservation {
   phone?: string | null;
   /** Confirmed number of travelers in this booking. */
   bookedGuestCount?: number | null;
+  /** Optional owner-entered gross amount. Null means no amount is known. */
+  grossAmountCents?: number | null;
+  /** ISO 4217 currency code for grossAmountCents; defaults to EUR. */
+  currency?: string;
   propertyId: number;
   createdAt: string;
   guests?: Guest[];

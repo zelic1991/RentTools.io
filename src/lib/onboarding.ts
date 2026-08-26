@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { logAudit } from "@/lib/audit";
+import { ensureOnboardingDraftFeedIdentity } from "@/lib/feed-identity";
 
 export const ONBOARD_COOKIE = "rt-onboard-token";
 
@@ -55,17 +56,19 @@ export async function claimOnboardingDraft(userId: number): Promise<void> {
 
     const parsedLinks = parseLinks(draft.links);
     const propertyName = draft.propertyName.trim() || "My first property";
+    const feedIdentity = await ensureOnboardingDraftFeedIdentity({
+      ...draft,
+      propertyName,
+    });
 
-    // Carry the draft's feedSlug onto the new Property so any feed URL
-    // the visitor already pasted into Airbnb / Booking continues to
-    // resolve to their account after signup. Without this the URL
-    // would 404 the moment we delete the draft.
+    // Carry the exact protected identity onto the new Property so a URL the
+    // visitor already pasted before signup continues to work byte-for-byte.
     const property = await prisma.property.create({
       data: {
         name: propertyName,
         userId,
         minNights: 1,
-        feedSlug: draft.feedSlug ?? undefined,
+        ...feedIdentity,
       },
     });
     await logAudit(userId, "create", "property", property.id, { name: property.name, fromOnboarding: true });

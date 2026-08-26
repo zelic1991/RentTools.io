@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
+import { fetchIcalText } from "@/lib/ical-fetch";
 
 /**
  * POST /api/onboard/test-platform
@@ -48,60 +49,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, reason: "missing_url" satisfies Reason }, { status: 400 });
   }
 
-  let url: URL;
+  let text: string;
   try {
-    url = new URL(raw);
-  } catch {
-    return NextResponse.json({ ok: false, reason: "bad_url" satisfies Reason });
-  }
-  if (url.protocol !== "https:" && url.protocol !== "http:") {
-    return NextResponse.json({ ok: false, reason: "bad_url" satisfies Reason });
-  }
-
-  // Fetch with timeout. Some platforms (looking at you, Booking.com) are
-  // slow on first request — 5s is enough on the happy path and gives a
-  // clean "unreachable" verdict otherwise.
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  let res: Response;
-  try {
-    res = await fetch(url.toString(), {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "RentTools-Onboarding/1.0 (+https://renttools.io)",
-        Accept: "text/calendar, text/plain, */*",
-      },
-      redirect: "follow",
+    text = await fetchIcalText(raw, {
+      timeoutMs: FETCH_TIMEOUT_MS,
+      userAgent: "RentTools-Onboarding/1.0 (+https://renttools.io)",
     });
   } catch {
-    clearTimeout(timeout);
     return NextResponse.json({ ok: false, reason: "unreachable" satisfies Reason });
   }
-  clearTimeout(timeout);
 
-  if (!res.ok) {
-    return NextResponse.json({ ok: false, reason: "unreachable" satisfies Reason, status: res.status });
-  }
-
-  // Peek the first ~512 bytes. iCal MUST start with BEGIN:VCALENDAR
+  // Inspect the first ~512 bytes. iCal MUST start with BEGIN:VCALENDAR
   // (RFC 5545 §3.4) — anything else (HTML login page, JSON error,
   // empty body) means the URL isn't an iCal feed.
-  const reader = res.body?.getReader();
-  if (!reader) {
-    return NextResponse.json({ ok: false, reason: "not_ical" satisfies Reason });
-  }
-  let head = "";
-  let total = 0;
-  try {
-    while (total < PEEK_BYTES) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      head += new TextDecoder().decode(value);
-      total += value.byteLength;
-    }
-  } finally {
-    try { await reader.cancel(); } catch { /* swallow */ }
-  }
+  const head = text.substring(0, PEEK_BYTES);
   const trimmed = head.trim();
   if (!trimmed.startsWith("BEGIN:VCALENDAR")) {
     return NextResponse.json({ ok: false, reason: "not_ical" satisfies Reason });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseICal } from "@/lib/ical";
 import { getSession } from "@/lib/auth";
+import { fetchIcalText } from "@/lib/ical-fetch";
 
 /**
  * POST /api/calendar/test
@@ -24,26 +25,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        "User-Agent": "RentTool-CalendarSync/1.0",
-        Accept: "text/calendar, text/plain, */*",
-      },
-    });
-    clearTimeout(timeout);
-
-    if (!res.ok) {
-      return NextResponse.json({
-        success: false,
-        error: `HTTP ${res.status}: ${res.statusText}`,
-      });
-    }
-
-    const text = await res.text();
+    const text = await fetchIcalText(url);
 
     if (!text.includes("VCALENDAR")) {
       return NextResponse.json({

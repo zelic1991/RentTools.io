@@ -1,14 +1,93 @@
+export const PRECHECKIN_WORKFLOW_STATUSES = [
+  "PENDING",
+  "GUEST_COMPLETE",
+  "OWNER_REVIEW",
+  "OWNER_APPROVED",
+  "EVISITOR_READY",
+  "EVISITOR_CONFIRMED_MANUAL",
+] as const;
+
 export const PRECHECKIN_STATUSES = [
+  ...PRECHECKIN_WORKFLOW_STATUSES,
+  "REVOKED",
+] as const;
+
+export type PrecheckinStatus = (typeof PRECHECKIN_STATUSES)[number];
+
+export const LEGACY_PRECHECKIN_STATUSES = [
   "NOT_INVITED",
   "INVITED",
   "IN_PROGRESS",
   "COMPLETE",
   "OWNER_REVIEW_REQUIRED",
-  "OWNER_APPROVED",
-  "REVOKED",
 ] as const;
 
-export type PrecheckinStatus = (typeof PRECHECKIN_STATUSES)[number];
+export type LegacyPrecheckinStatus =
+  (typeof LEGACY_PRECHECKIN_STATUSES)[number];
+
+export function normalizePrecheckinStatus(
+  value: string | null | undefined,
+): PrecheckinStatus | null {
+  if (PRECHECKIN_STATUSES.includes(value as PrecheckinStatus)) {
+    return value as PrecheckinStatus;
+  }
+  if (
+    value === "NOT_INVITED" ||
+    value === "INVITED" ||
+    value === "IN_PROGRESS"
+  ) {
+    return "PENDING";
+  }
+  if (value === "COMPLETE") return "GUEST_COMPLETE";
+  if (value === "OWNER_REVIEW_REQUIRED") return "OWNER_REVIEW";
+  return null;
+}
+
+export const PRECHECKIN_HANDOFF_ACTIONS = [
+  "start-review",
+  "approve",
+  "mark-evisitor-ready",
+  "confirm-evisitor-manual",
+] as const;
+
+export type PrecheckinHandoffAction =
+  (typeof PRECHECKIN_HANDOFF_ACTIONS)[number];
+
+const PRECHECKIN_HANDOFF_TRANSITIONS: Record<
+  PrecheckinHandoffAction,
+  { from: PrecheckinStatus; to: PrecheckinStatus }
+> = {
+  "start-review": {
+    from: "GUEST_COMPLETE",
+    to: "OWNER_REVIEW",
+  },
+  approve: {
+    from: "OWNER_REVIEW",
+    to: "OWNER_APPROVED",
+  },
+  "mark-evisitor-ready": {
+    from: "OWNER_APPROVED",
+    to: "EVISITOR_READY",
+  },
+  "confirm-evisitor-manual": {
+    from: "EVISITOR_READY",
+    to: "EVISITOR_CONFIRMED_MANUAL",
+  },
+};
+
+export function nextPrecheckinHandoffStatus(
+  current: string,
+  action: string,
+): PrecheckinStatus | null {
+  if (!PRECHECKIN_HANDOFF_ACTIONS.includes(action as PrecheckinHandoffAction)) {
+    return null;
+  }
+  const transition =
+    PRECHECKIN_HANDOFF_TRANSITIONS[action as PrecheckinHandoffAction];
+  return normalizePrecheckinStatus(current) === transition.from
+    ? transition.to
+    : null;
+}
 
 export const DOCUMENT_TYPES = ["PASSPORT", "IDENTITY_CARD", "OTHER"] as const;
 export type DocumentType = (typeof DOCUMENT_TYPES)[number];

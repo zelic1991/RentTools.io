@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { canReadProperty, isPropertyOwner } from "@/lib/ownership";
+import { getPropertyAccess, isPropertyOwner } from "@/lib/ownership";
 
 export const dynamic = "force-dynamic";
 
@@ -26,12 +26,47 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Invalid propertyId" }, { status: 400 });
     }
 
-    if (!(await canReadProperty(propertyId, session.userId, session.role))) {
+    const access = await getPropertyAccess(propertyId, session.userId, session.role);
+    if (access === "none") {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    // Cleaners only need proof of their own active login assignment. Do not
+    // fetch or return coworker identities, owner-scoped profiles, or phones.
+    if (access === "cleaner") {
+      const assignments = await prisma.cleanerAssignment.findMany({
+        where: { propertyId, cleanerId: session.userId },
+        orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
+        select: {
+          id: true,
+          propertyId: true,
+          cleanerId: true,
+          priority: true,
+          createdAt: true,
+        },
+      });
+      return NextResponse.json(assignments);
+    }
+
+    const property = await prisma.property.findUnique({
+      where: { id: propertyId },
+      select: { userId: true },
+    });
+    if (!property) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     const assignments = await prisma.cleanerAssignment.findMany({
-      where: { propertyId },
+      where: {
+        propertyId,
+        // Legacy rows without a profile remain visible. Once a profile is
+        // present, it must belong to the property's owner; this prevents an
+        // old cross-owner backfill link from exposing another owner's profile.
+        OR: [
+          { cleanerProfileId: null },
+          { cleanerProfile: { ownerUserId: property.userId } },
+        ],
+      },
       orderBy: [{ priority: "asc" }, { createdAt: "asc" }],
       include: {
         cleaner: { select: { id: true, username: true } },
@@ -167,9 +202,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Already assigned" }, { status: 409 });
     }
 
+    // A login-capable legacy cleaner can serve several owners. Reuse an
+    // owner-correct profile already linked for this cleaner (preserving later
+    // name/phone edits), otherwise reuse/create this owner's named profile.
+    let cleanerProfile = await prisma.cleaner.findFirst({
+      where: {
+        ownerUserId: session.userId,
+        assignments: {
+          some: {
+            cleanerId: cleaner.id,
+            property: { userId: session.userId },
+          },
+        },
+      },
+      select: { id: true, name: true, phone: true },
+      orderBy: { id: "asc" },
+    });
+    cleanerProfile ??= await prisma.cleaner.findFirst({
+      where: { ownerUserId: session.userId, name: cleaner.username },
+      select: { id: true, name: true, phone: true },
+      orderBy: { id: "asc" },
+    });
+    cleanerProfile ??= await prisma.cleaner.create({
+      data: {
+        ownerUserId: session.userId,
+        name: cleaner.username,
+        phone: null,
+      },
+      select: { id: true, name: true, phone: true },
+    });
+
     const assignment = await prisma.cleanerAssignment.create({
       data: {
         cleanerId: cleaner.id,
+        cleanerProfileId: cleanerProfile.id,
         propertyId: propertyIdNum,
         priority: priorityNum,
       },
@@ -180,9 +246,9 @@ export async function POST(request: NextRequest) {
       propertyId: assignment.propertyId,
       cleanerId: assignment.cleanerId,
       username: cleaner.username,
-      cleanerProfileId: null,
-      cleanerName: cleaner.username,
-      cleanerPhone: null,
+      cleanerProfileId: cleanerProfile.id,
+      cleanerName: cleanerProfile.name,
+      cleanerPhone: cleanerProfile.phone,
       priority: assignment.priority,
       createdAt: assignment.createdAt,
     });

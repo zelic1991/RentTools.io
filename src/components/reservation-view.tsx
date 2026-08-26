@@ -15,6 +15,10 @@ import {
   validateReservationDateRange,
 } from "@/lib/reservation-dates";
 import {
+  normalizeCurrencyCode,
+  parseGrossAmountText,
+} from "@/lib/reservation-revenue";
+import {
   DEFAULT_PROPERTY_TIME_ZONE,
   getOwnerCalendarWindow,
 } from "@/lib/owner-calendar-window";
@@ -85,6 +89,39 @@ interface MessageTemplate {
   language: string;
   subject: string;
   body: string;
+}
+
+interface ManualEVisitorHandoff {
+  submissionId: number;
+  reservationId: number;
+  status: "EVISITOR_READY" | "EVISITOR_CONFIRMED_MANUAL";
+  stay: {
+    checkIn: string;
+    checkOut: string;
+    bookedGuestCount: number;
+    expectedArrivalTime: string;
+    arrivalOrganization: string;
+    serviceType: string;
+  };
+  travelers: Array<{
+    isLead: boolean;
+    firstName: string;
+    lastName: string;
+    dateOfBirth: string;
+    gender: string;
+    citizenshipCountry: string;
+    birthCountry: string;
+    birthPlace: string;
+    residenceCountry: string;
+    residencePlace: string;
+    residenceAddress: string;
+    documentType: string;
+    documentNumber: string;
+    borderEntryDate?: string;
+    borderEntryPlace?: string;
+    borderEntryPoint?: string;
+    taxCategorySuggestion?: string;
+  }>;
 }
 
 /** Short platform label matching how hosts name messenger groups by
@@ -231,6 +268,8 @@ interface ReservationViewProps {
       groupName?: string | null;
       phone?: string | null;
       bookedGuestCount?: number | null;
+      grossAmountCents?: number | null;
+      currency?: string;
     }
   ) => void | Promise<{ ok: true } | { ok: false; error: string }>;
   onUpdateParent: (childId: number, parentId: number | null) => void;
@@ -283,6 +322,12 @@ export function ReservationView({
   const [editCheckOut, setEditCheckOut] = useState(() =>
     toReservationDateInput(reservation.checkOut),
   );
+  const [editGrossAmount, setEditGrossAmount] = useState(() =>
+    reservation.grossAmountCents == null
+      ? ""
+      : (reservation.grossAmountCents / 100).toFixed(2),
+  );
+  const [editCurrency, setEditCurrency] = useState(reservation.currency ?? "EUR");
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [deletePending, setDeletePending] = useState(false);
@@ -348,7 +393,7 @@ export function ReservationView({
     shareUrl: string | null;
     sentAt: string;
     submittedAt: string | null;
-    status: "NOT_INVITED" | "INVITED" | "IN_PROGRESS" | "COMPLETE" | "OWNER_REVIEW_REQUIRED" | "OWNER_APPROVED" | "REVOKED";
+    status: "PENDING" | "GUEST_COMPLETE" | "OWNER_REVIEW" | "OWNER_APPROVED" | "EVISITOR_READY" | "EVISITOR_CONFIRMED_MANUAL" | "REVOKED" | "NOT_INVITED" | "INVITED" | "IN_PROGRESS" | "COMPLETE" | "OWNER_REVIEW_REQUIRED";
     expiresAt: string | null;
     revokedAt: string | null;
     ownerApprovedAt: string | null;
@@ -377,6 +422,9 @@ export function ReservationView({
     }>;
     answers: { fieldId: string; type: string; label: string; value: unknown }[];
   } | null>(null);
+  const [manualEVisitorHandoff, setManualEVisitorHandoff] =
+    useState<ManualEVisitorHandoff | null>(null);
+  const [manualEVisitorLoading, setManualEVisitorLoading] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const templateMenuRef = useRef<HTMLDivElement>(null);
   const editNameInputRef = useRef<HTMLInputElement>(null);
@@ -394,7 +442,20 @@ export function ReservationView({
     setEditName(reservation.name);
     setEditCheckIn(toReservationDateInput(reservation.checkIn));
     setEditCheckOut(toReservationDateInput(reservation.checkOut));
-  }, [editing, reservation.name, reservation.checkIn, reservation.checkOut]);
+    setEditGrossAmount(
+      reservation.grossAmountCents == null
+        ? ""
+        : (reservation.grossAmountCents / 100).toFixed(2),
+    );
+    setEditCurrency(reservation.currency ?? "EUR");
+  }, [
+    editing,
+    reservation.name,
+    reservation.checkIn,
+    reservation.checkOut,
+    reservation.grossAmountCents,
+    reservation.currency,
+  ]);
 
   // Opening the inline editor removes the invoking button from the DOM.
   // Move focus into the relevant field, then return it to the same
@@ -541,9 +602,13 @@ export function ReservationView({
   const guestFormStatusLabel = (): string | null => {
     if (!guestFormSubmission) return null;
     if (guestFormSubmission.status === "REVOKED") return "Link revoked";
+    if (guestFormSubmission.status === "EVISITOR_CONFIRMED_MANUAL") return "Manual eVisitor entry confirmed";
+    if (guestFormSubmission.status === "EVISITOR_READY") return "Ready for manual eVisitor entry";
     if (guestFormSubmission.status === "OWNER_APPROVED") return "Guest data checked and approved";
-    if (guestFormSubmission.status === "OWNER_REVIEW_REQUIRED") return "Complete — owner review required";
+    if (guestFormSubmission.status === "OWNER_REVIEW" || guestFormSubmission.status === "OWNER_REVIEW_REQUIRED") return "Owner review in progress";
+    if (guestFormSubmission.status === "GUEST_COMPLETE" || guestFormSubmission.status === "COMPLETE") return "Guest complete — owner review not started";
     if (guestFormSubmission.status === "IN_PROGRESS") return "Guest started — data incomplete";
+    if (guestFormSubmission.status === "PENDING" || guestFormSubmission.status === "INVITED" || guestFormSubmission.status === "NOT_INVITED") return "Awaiting guest completion";
     if (guestFormSubmission.submittedAt) {
       const days = Math.max(
         0,
@@ -571,7 +636,14 @@ export function ReservationView({
       : `Link generated ${days} day${days === 1 ? "" : "s"} ago, awaiting reply`;
   };
 
-  const updateGuestFormStatus = async (action: "approve" | "revoke") => {
+  const updateGuestFormStatus = async (
+    action:
+      | "start-review"
+      | "approve"
+      | "mark-evisitor-ready"
+      | "confirm-evisitor-manual"
+      | "revoke",
+  ) => {
     setGuestFormCopyState("idle");
     try {
       const response = await fetch(`/api/reservations/${reservation.id}/guest-form/share`, {
@@ -580,9 +652,28 @@ export function ReservationView({
         body: JSON.stringify({ action }),
       });
       if (!response.ok) throw new Error("status update failed");
+      setManualEVisitorHandoff(null);
       await refreshGuestFormSubmission();
     } catch {
       setGuestFormCopyState("error");
+    }
+  };
+
+  const openManualEVisitorHandoff = async () => {
+    setGuestFormCopyState("idle");
+    setManualEVisitorLoading(true);
+    try {
+      const response = await fetch(
+        `/api/reservations/${reservation.id}/guest-form/handoff`,
+        { cache: "no-store" },
+      );
+      if (!response.ok) throw new Error("handoff request failed");
+      setManualEVisitorHandoff(await response.json());
+    } catch {
+      setGuestFormCopyState("error");
+      setManualEVisitorHandoff(null);
+    } finally {
+      setManualEVisitorLoading(false);
     }
   };
 
@@ -843,6 +934,12 @@ export function ReservationView({
     setEditName(reservation.name);
     setEditCheckIn(toReservationDateInput(reservation.checkIn));
     setEditCheckOut(toReservationDateInput(reservation.checkOut));
+    setEditGrossAmount(
+      reservation.grossAmountCents == null
+        ? ""
+        : (reservation.grossAmountCents / 100).toFixed(2),
+    );
+    setEditCurrency(reservation.currency ?? "EUR");
     setEditError(null);
     editInitialFocusRef.current = target;
     editReturnFocusRef.current = target;
@@ -936,6 +1033,15 @@ export function ReservationView({
   const handleSaveEdit = async () => {
     if (editDateRangeError || !editName.trim()) return;
 
+    const parsedGrossAmount = parseGrossAmountText(editGrossAmount);
+    const normalizedCurrency = normalizeCurrencyCode(editCurrency);
+    if (!parsedGrossAmount.ok || !normalizedCurrency) {
+      setEditError(
+        "Enter a non-negative gross amount with at most two decimals and a valid ISO currency.",
+      );
+      return;
+    }
+
     const data: Parameters<typeof onUpdateReservation>[1] = {};
     const nextName = editName.trim();
     const currentCheckIn = toReservationDateInput(reservation.checkIn);
@@ -943,6 +1049,12 @@ export function ReservationView({
     if (nextName !== reservation.name) data.name = nextName;
     if (editCheckIn !== currentCheckIn) data.checkIn = editCheckIn;
     if (editCheckOut !== currentCheckOut) data.checkOut = editCheckOut;
+    if (parsedGrossAmount.cents !== (reservation.grossAmountCents ?? null)) {
+      data.grossAmountCents = parsedGrossAmount.cents;
+    }
+    if (normalizedCurrency !== (reservation.currency ?? "EUR")) {
+      data.currency = normalizedCurrency;
+    }
 
     if (Object.keys(data).length === 0) {
       closeEditing();
@@ -1112,6 +1224,43 @@ export function ReservationView({
                   />
                 </label>
               </div>
+
+              <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-3">
+                <label className="block min-w-0 space-y-1.5" htmlFor={`reservation-gross-amount-${reservation.id}`}>
+                  <span className="text-sm font-medium">Stored gross amount</span>
+                  <input
+                    id={`reservation-gross-amount-${reservation.id}`}
+                    type="text"
+                    inputMode="decimal"
+                    value={editGrossAmount}
+                    placeholder="Unknown"
+                    onChange={(event) => {
+                      setEditGrossAmount(event.target.value);
+                      setEditError(null);
+                    }}
+                    disabled={editSaving}
+                    className="h-11 w-full min-w-0 rounded-lg border border-border/60 bg-background px-3 text-base outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60 sm:text-sm"
+                  />
+                </label>
+                <label className="block min-w-0 space-y-1.5" htmlFor={`reservation-currency-${reservation.id}`}>
+                  <span className="text-sm font-medium">Currency</span>
+                  <input
+                    id={`reservation-currency-${reservation.id}`}
+                    type="text"
+                    value={editCurrency}
+                    maxLength={3}
+                    onChange={(event) => {
+                      setEditCurrency(event.target.value.toUpperCase());
+                      setEditError(null);
+                    }}
+                    disabled={editSaving}
+                    className="h-11 w-full rounded-lg border border-border/60 bg-background px-3 text-center text-base uppercase outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60 sm:text-sm"
+                  />
+                </label>
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Optional owner-entered amount. Leave blank when unknown; no price is inferred.
+              </p>
 
               {reservation.linkedEventUid && (
                 <p className="rounded-lg bg-sky-500/10 px-3 py-2 text-xs leading-relaxed text-sky-700 dark:text-sky-300">
@@ -1301,7 +1450,19 @@ export function ReservationView({
                     ? "Copy link again"
                     : "Copy form link"}
           </Button>
-          {guestFormSubmission?.status === "OWNER_REVIEW_REQUIRED" && (
+          {(guestFormSubmission?.status === "GUEST_COMPLETE" ||
+            guestFormSubmission?.status === "COMPLETE") && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => updateGuestFormStatus("start-review")}
+              className="rounded-lg text-xs"
+            >
+              Start owner review
+            </Button>
+          )}
+          {(guestFormSubmission?.status === "OWNER_REVIEW" ||
+            guestFormSubmission?.status === "OWNER_REVIEW_REQUIRED") && (
             <Button
               type="button"
               size="sm"
@@ -1309,6 +1470,39 @@ export function ReservationView({
               className="rounded-lg text-xs"
             >
               Approve checked data
+            </Button>
+          )}
+          {guestFormSubmission?.status === "OWNER_APPROVED" && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => updateGuestFormStatus("mark-evisitor-ready")}
+              className="rounded-lg text-xs"
+            >
+              Prepare manual eVisitor handoff
+            </Button>
+          )}
+          {(guestFormSubmission?.status === "EVISITOR_READY" ||
+            guestFormSubmission?.status === "EVISITOR_CONFIRMED_MANUAL") && (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={openManualEVisitorHandoff}
+              disabled={manualEVisitorLoading}
+              className="rounded-lg text-xs"
+            >
+              {manualEVisitorLoading ? "Opening…" : "Open manual handoff"}
+            </Button>
+          )}
+          {guestFormSubmission?.status === "EVISITOR_READY" && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => updateGuestFormStatus("confirm-evisitor-manual")}
+              className="rounded-lg text-xs"
+            >
+              Confirm manually entered
             </Button>
           )}
           {guestFormSubmission && guestFormSubmission.status !== "REVOKED" && (
@@ -1897,9 +2091,52 @@ export function ReservationView({
             ))}
           </div>
           <p className="mt-3 text-[11px] text-muted-foreground">
-            Document numbers remain masked in the browser. Approval confirms review only; it does not submit anything to eVisitor.{guestFormSubmission.lastChangedAt ? ` Last changed ${new Date(guestFormSubmission.lastChangedAt).toLocaleString()}.` : ""}
+            Document numbers remain masked in this review. Full numbers are loaded only from the protected manual handoff. No action here submits anything to eVisitor.{guestFormSubmission.lastChangedAt ? ` Last changed ${new Date(guestFormSubmission.lastChangedAt).toLocaleString()}.` : ""}
           </p>
         </div>
+      )}
+
+      {manualEVisitorHandoff && (
+        <section className="rounded-xl border border-amber-400/40 bg-amber-500/5 p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold">Manual eVisitor handoff</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Protected no-store view. Copy these values manually; RentTools does not contact eVisitor.
+              </p>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setManualEVisitorHandoff(null)}
+            >
+              Close
+            </Button>
+          </div>
+          <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+            <div><dt className="text-muted-foreground">Stay</dt><dd>{manualEVisitorHandoff.stay.checkIn} – {manualEVisitorHandoff.stay.checkOut}</dd></div>
+            <div><dt className="text-muted-foreground">Arrival</dt><dd>{manualEVisitorHandoff.stay.expectedArrivalTime}</dd></div>
+            <div><dt className="text-muted-foreground">Guests</dt><dd>{manualEVisitorHandoff.stay.bookedGuestCount}</dd></div>
+          </dl>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {manualEVisitorHandoff.travelers.map((traveler, index) => (
+              <div key={`${traveler.documentNumber}-${index}`} className="rounded-md border border-border/40 bg-background/50 p-3 text-xs">
+                <p className="font-medium">{traveler.firstName} {traveler.lastName}{traveler.isLead ? " · lead" : ""}</p>
+                <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
+                  <dt className="text-muted-foreground">Born</dt><dd>{traveler.dateOfBirth}</dd>
+                  <dt className="text-muted-foreground">Gender</dt><dd>{traveler.gender}</dd>
+                  <dt className="text-muted-foreground">Birth place</dt><dd>{traveler.birthPlace}, {traveler.birthCountry}</dd>
+                  <dt className="text-muted-foreground">Citizenship</dt><dd>{traveler.citizenshipCountry}</dd>
+                  <dt className="text-muted-foreground">Residence</dt><dd>{traveler.residenceAddress}, {traveler.residencePlace}, {traveler.residenceCountry}</dd>
+                  <dt className="text-muted-foreground">Document</dt><dd className="font-mono font-semibold">{traveler.documentType} {traveler.documentNumber}</dd>
+                  <dt className="text-muted-foreground">Tax suggestion</dt><dd>{traveler.taxCategorySuggestion ?? "Manual review required"}</dd>
+                  {traveler.borderEntryDate && <><dt className="text-muted-foreground">Border entry</dt><dd>{traveler.borderEntryDate} · {traveler.borderEntryPlace} · {traveler.borderEntryPoint}</dd></>}
+                </dl>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {/* Extraction Log — below guests */}

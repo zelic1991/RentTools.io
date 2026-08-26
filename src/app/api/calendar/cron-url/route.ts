@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { getSession } from "@/lib/auth";
+import { requireSuperadmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +12,15 @@ export const dynamic = "force-dynamic";
  * (e.g. cron-job.org). Server-side so the secret never ends up in the
  * client bundle.
  *
- * Auth: requires a logged-in user (superadmin in practice; not enforced
- * here because the secret is also reachable from server logs etc).
+ * Auth: platform superadmin only. The response contains the live cron secret.
  */
 export async function GET() {
   try {
-    const session = await getSession();
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireSuperadmin();
+    if (auth.response) return auth.response;
 
-    const secret = process.env.CRON_SECRET || process.env.JWT_SECRET;
-    if (!secret || secret === "fallback-secret-change-me") {
+    const secret = process.env.CRON_SECRET?.trim();
+    if (!secret) {
       return NextResponse.json({
         url: null,
         configured: false,

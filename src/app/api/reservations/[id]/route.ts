@@ -6,6 +6,7 @@ import { canManageProperty } from "@/lib/ownership";
 import { normalizePhone } from "@/lib/sanitize";
 import { parseReservationDate } from "@/lib/reservation-dates";
 import { loadEffectiveLinkedStayRange } from "@/lib/linked-stay";
+import { validateReservationRevenue } from "@/lib/reservation-revenue";
 import {
   DEFAULT_PROPERTY_TIME_ZONE,
   getOwnerCalendarWindow,
@@ -154,6 +155,15 @@ export async function PATCH(
         data.bookedGuestCount = body.bookedGuestCount;
       }
     }
+
+    const revenue = validateReservationRevenue({
+      grossAmountCents: body.grossAmountCents,
+      currency: body.currency,
+    });
+    if (!revenue.ok) {
+      return NextResponse.json({ error: revenue.error }, { status: 400 });
+    }
+    Object.assign(data, revenue.data);
 
     // If the date range is changing, check for overlap with OTHER
     // reservations on the same property. The POST endpoint already

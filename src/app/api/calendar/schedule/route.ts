@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSession, requireSuperadmin } from "@/lib/auth";
 
 // GET /api/calendar/schedule — get sync schedule settings
 export async function GET() {
@@ -30,8 +30,8 @@ export async function GET() {
 // PUT /api/calendar/schedule — update sync schedule settings
 export async function PUT(request: NextRequest) {
   try {
-    const session = await getSession();
-    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireSuperadmin();
+    if (auth.response) return auth.response;
 
     const body = await request.json();
 

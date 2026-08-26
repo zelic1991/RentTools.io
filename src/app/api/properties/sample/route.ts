@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { mintNewPropertyFeedIdentity } from "@/lib/feed-identity";
 
 // POST /api/properties/sample — bootstrap a populated demo property for the current user.
 export async function POST() {
@@ -8,6 +9,7 @@ export async function POST() {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    const feedIdentity = await mintNewPropertyFeedIdentity("Sample Apartment");
     const property = await prisma.property.create({
       data: {
         userId: session.userId,
@@ -16,6 +18,7 @@ export async function POST() {
         checkInTime: "15:00",
         checkOutTime: "11:00",
         bookingWindow: 365,
+        ...feedIdentity,
       },
     });
 
