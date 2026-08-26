@@ -53,24 +53,24 @@ function ReservationRow({
   const Icon = direction === "departure" ? LogOut : LogIn;
   const content = (
     <>
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--zf-surface)] text-[var(--zf-text-muted)] dark:bg-slate-800 dark:text-slate-300">
         <Icon aria-hidden className="h-5 w-5" />
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold">{reservation.label}</span>
-        <span className="mt-0.5 block text-xs text-slate-500 dark:text-slate-400">
+        <span className="mt-0.5 block text-xs text-[var(--zf-text-muted)] dark:text-slate-400">
           {formatDate(reservation.checkIn)}–{formatDate(reservation.checkOut)} · {reservation.sourceLabel}
           {reservation.guestCount ? ` · ${reservation.guestCount} Gäste` : ""}
         </span>
       </span>
-      <ArrowRight aria-hidden className="h-4 w-4 shrink-0 text-slate-400" />
+      <ArrowRight aria-hidden className="h-4 w-4 shrink-0 text-[var(--zf-text-muted)]" />
     </>
   );
-  const className = "flex min-h-16 items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-rose-500 dark:border-slate-800 dark:bg-slate-900";
+  const className = "flex min-h-16 items-center gap-3 rounded-xl border border-[var(--zf-border)] bg-[var(--zf-bg)] px-3 py-2.5 shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] dark:border-slate-800 dark:bg-slate-900";
   return !data.canWrite ? (
     <div className={className}>{content}</div>
   ) : (
-    <Link href={reservationHref(data, reservation.id)} className={`${className} hover:border-rose-200 hover:bg-rose-50/40 dark:hover:border-rose-900 dark:hover:bg-rose-950/20`}>
+    <Link href={reservationHref(data, reservation.id)} className={`${className} hover:border-[var(--zf-brand-pale)] hover:bg-[var(--zf-brand-soft)] dark:hover:border-[var(--zf-brand)] dark:hover:bg-[var(--zf-brand-dark)]/30`}>
       {content}
     </Link>
   );
@@ -78,7 +78,7 @@ function ReservationRow({
 
 function EmptyState({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-24 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-white/60 px-5 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
+    <div className="flex min-h-24 items-center justify-center rounded-2xl border border-dashed border-[var(--zf-control-border)] bg-[var(--zf-surface)]/55 px-5 text-center text-sm text-[var(--zf-text-muted)] dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
       {children}
     </div>
   );
@@ -98,7 +98,7 @@ function StartScreen({ data }: { data: MobileOperationsData }) {
       <section aria-labelledby="today-heading">
         <div className="mb-3 flex items-end justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-rose-600">Heute · {formatDate(data.today)}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--zf-brand)]">Heute · {formatDate(data.today)}</p>
             <h2 id="today-heading" className="mt-1 text-2xl font-semibold tracking-tight">Was passiert?</h2>
           </div>
           <span className={`rounded-full px-3 py-1 text-xs font-semibold ${data.start.occupied.length ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"}`}>
@@ -114,10 +114,10 @@ function StartScreen({ data }: { data: MobileOperationsData }) {
           ].map(([label, count, Icon]) => {
             const CardIcon = Icon as typeof LogIn;
             return (
-              <div key={String(label)} className="min-h-28 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-                <CardIcon aria-hidden className="h-5 w-5 text-rose-600" />
+              <div key={String(label)} className="min-h-28 rounded-2xl border border-[var(--zf-border)] bg-[var(--zf-bg)] p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <CardIcon aria-hidden className="h-5 w-5 text-[var(--zf-brand)]" />
                 <div className="mt-3 text-2xl font-semibold tabular-nums">{String(count)}</div>
-                <div className="text-xs text-slate-500 dark:text-slate-400">{String(label)}</div>
+                <div className="text-xs text-[var(--zf-text-muted)] dark:text-slate-400">{String(label)}</div>
               </div>
             );
           })}
@@ -138,7 +138,7 @@ function StartScreen({ data }: { data: MobileOperationsData }) {
       <section aria-labelledby="tasks-heading">
           <div className="mb-3 flex items-center justify-between gap-3">
             <h2 id="tasks-heading" className="text-lg font-semibold tracking-tight">Offene Punkte</h2>
-            <span className="text-xs text-slate-500">{openCount} insgesamt</span>
+            <span className="text-xs text-[var(--zf-text-muted)]">{openCount} insgesamt</span>
           </div>
           {openCount === 0 ? (
             <div className="flex min-h-24 items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 text-sm text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200">
@@ -157,8 +157,8 @@ function StartScreen({ data }: { data: MobileOperationsData }) {
                   ? [["Portal-/Feedproblem", data.start.portalProblems, "/mobile/portals"]]
                   : []),
               ].map(([label, count, href]) => (
-                <Link key={String(label)} href={String(href)} className="flex min-h-14 items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium shadow-sm outline-none hover:border-rose-200 focus-visible:ring-2 focus-visible:ring-rose-500 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-rose-900">
-                  <span>{String(label)}</span><span className="rounded-full bg-slate-100 px-2 py-0.5 tabular-nums dark:bg-slate-800">{String(count)}</span>
+                <Link key={String(label)} href={String(href)} className="flex min-h-14 items-center justify-between rounded-xl border border-[var(--zf-border)] bg-[var(--zf-bg)] px-4 text-sm font-medium shadow-sm outline-none hover:border-[var(--zf-brand-pale)] hover:bg-[var(--zf-brand-soft)] focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] dark:border-slate-800 dark:bg-slate-900 dark:hover:border-[var(--zf-brand)]">
+                  <span>{String(label)}</span><span className="rounded-full bg-[var(--zf-surface)] px-2 py-0.5 tabular-nums dark:bg-slate-800">{String(count)}</span>
                 </Link>
               ))}
             </div>
@@ -168,12 +168,12 @@ function StartScreen({ data }: { data: MobileOperationsData }) {
       <section aria-labelledby="quick-heading">
         <h2 id="quick-heading" className="mb-3 text-lg font-semibold tracking-tight">Schnellzugriff</h2>
         <div className="grid gap-2 sm:grid-cols-2">
-          <Link href="/mobile/calendar" className="flex min-h-14 items-center gap-3 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-rose-500 dark:bg-white dark:text-slate-950">
+          <Link href="/mobile/calendar" className="flex min-h-14 items-center gap-3 rounded-xl bg-[var(--zf-brand-dark)] px-4 text-sm font-semibold text-[var(--zf-on-brand)] outline-none hover:bg-[var(--zf-brand)] focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] dark:bg-white dark:text-slate-950">
             <Clock3 aria-hidden className="h-5 w-5" /> Kalender öffnen
           </Link>
           {data.canWrite && (
-            <Link href={`/dashboard?property=${data.selectedProperty.id}&view=calendar`} className="flex min-h-14 items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold outline-none hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-rose-500 dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800">
-              <CalendarPlus aria-hidden className="h-5 w-5 text-rose-600" /> Direktreservierung anlegen
+            <Link href={`/dashboard?property=${data.selectedProperty.id}&view=calendar`} className="flex min-h-14 items-center gap-3 rounded-xl border border-[var(--zf-border)] bg-[var(--zf-bg)] px-4 text-sm font-semibold outline-none hover:bg-[var(--zf-surface)] focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] dark:border-slate-800 dark:bg-slate-900 dark:hover:bg-slate-800">
+              <CalendarPlus aria-hidden className="h-5 w-5 text-[var(--zf-brand)]" /> Direktreservierung anlegen
             </Link>
           )}
         </div>
@@ -204,26 +204,26 @@ function GuestsScreen({ data }: { data: MobileOperationsData }) {
   return (
     <section aria-labelledby="guests-heading" className="space-y-4">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-rose-600">Gäste</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--zf-brand)]">Gäste</p>
         <h2 id="guests-heading" className="mt-1 text-2xl font-semibold tracking-tight">Pre-Check-in</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Nur bestätigte Backend-Zustände – keine automatische eVisitor-Aktion.</p>
+        <p className="mt-1 text-sm text-[var(--zf-text-muted)] dark:text-slate-400">Nur bestätigte Backend-Zustände – keine automatische eVisitor-Aktion.</p>
       </div>
       {data.guests.length === 0 ? <EmptyState>Keine aktuelle oder kommende Reservierung.</EmptyState> : (
         <div className="grid gap-3 lg:grid-cols-2">
           {data.guests.map((reservation) => (
-            <article key={reservation.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <article key={reservation.id} className="rounded-2xl border border-[var(--zf-border)] bg-[var(--zf-bg)] p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="truncate font-semibold">{reservation.label}</h3>
-                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{formatDate(reservation.checkIn)}–{formatDate(reservation.checkOut)} · {reservation.sourceLabel}</p>
+                  <p className="mt-0.5 text-xs text-[var(--zf-text-muted)] dark:text-slate-400">{formatDate(reservation.checkIn)}–{formatDate(reservation.checkOut)} · {reservation.sourceLabel}</p>
                 </div>
                 <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${reservation.guestState.complete ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"}`}>
                   {STATUS_LABELS[reservation.guestState.status] ?? reservation.guestState.status}
                 </span>
               </div>
               <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60"><dt className="text-xs text-slate-500 dark:text-slate-400">Gästezahl</dt><dd className="mt-1 font-semibold">{reservation.guestCount ?? "Nicht bestätigt"}</dd></div>
-                <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60"><dt className="text-xs text-slate-500 dark:text-slate-400">eVisitor</dt><dd className="mt-1 font-semibold">{EVISITOR_LABELS[reservation.guestState.eVisitorStatus]}</dd></div>
+                <div className="rounded-xl bg-[var(--zf-surface)] p-3 dark:bg-slate-800/60"><dt className="text-xs text-[var(--zf-text-muted)] dark:text-slate-400">Gästezahl</dt><dd className="mt-1 font-semibold">{reservation.guestCount ?? "Nicht bestätigt"}</dd></div>
+                <div className="rounded-xl bg-[var(--zf-surface)] p-3 dark:bg-slate-800/60"><dt className="text-xs text-[var(--zf-text-muted)] dark:text-slate-400">eVisitor</dt><dd className="mt-1 font-semibold">{EVISITOR_LABELS[reservation.guestState.eVisitorStatus]}</dd></div>
               </dl>
               {reservation.guestState.missingFields.length > 0 && (
                 <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
@@ -231,14 +231,14 @@ function GuestsScreen({ data }: { data: MobileOperationsData }) {
                 </div>
               )}
               {reservation.guestState.status === "IN_PROGRESS" && (
-                <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">Einzelne fehlende Felder werden im aktuellen sicheren Draft nicht als Klartext-Status gespeichert.</p>
+                <p className="mt-2 text-[11px] text-[var(--zf-text-muted)] dark:text-slate-400">Einzelne fehlende Felder werden im aktuellen sicheren Draft nicht als Klartext-Status gespeichert.</p>
               )}
               {data.canWrite ? (
-                <Link href={reservationHref(data, reservation.id)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-rose-500 dark:bg-white dark:text-slate-950">
+                <Link href={reservationHref(data, reservation.id)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--zf-brand-dark)] px-4 text-sm font-semibold text-[var(--zf-on-brand)] outline-none hover:bg-[var(--zf-brand)] focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] dark:bg-white dark:text-slate-950">
                   Gastdaten öffnen <ArrowRight aria-hidden className="h-4 w-4" />
                 </Link>
               ) : (
-                <p className="mt-4 rounded-xl bg-slate-100 px-4 py-3 text-center text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-300">Support-Ansicht ist schreibgeschützt.</p>
+                <p className="mt-4 rounded-xl bg-[var(--zf-surface)] px-4 py-3 text-center text-xs text-[var(--zf-text-muted)] dark:bg-slate-800 dark:text-slate-300">Support-Ansicht ist schreibgeschützt.</p>
               )}
             </article>
           ))}
@@ -252,16 +252,16 @@ function PortalsScreen({ data }: { data: MobileOperationsData }) {
   return (
     <section aria-labelledby="portals-heading" className="space-y-4">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-rose-600">Portale</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--zf-brand)]">Portale</p>
         <h2 id="portals-heading" className="mt-1 text-2xl font-semibold tracking-tight">Verbindungen</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Kompakte Statussicht ohne Feed-URLs oder technische Rohlogs.</p>
+        <p className="mt-1 text-sm text-[var(--zf-text-muted)] dark:text-slate-400">Kompakte Statussicht ohne Feed-URLs oder technische Rohlogs.</p>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
         {data.portals.map((portal) => {
           const Icon = portal.hasError ? AlertCircle : portal.connected === false ? CircleHelp : ShieldCheck;
           const tone = portal.hasError
             ? "border-rose-200 bg-rose-50/40 dark:border-rose-900 dark:bg-rose-950/20"
-            : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900";
+            : "border-[var(--zf-border)] bg-[var(--zf-bg)] dark:border-slate-800 dark:bg-slate-900";
           return (
             <article key={portal.id} className={`rounded-2xl border p-4 shadow-sm ${tone}`}>
               <div className="flex items-start gap-3">
@@ -269,27 +269,27 @@ function PortalsScreen({ data }: { data: MobileOperationsData }) {
                   <Icon aria-hidden className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-3"><h3 className="font-semibold">{portal.name}</h3><span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{portal.connected === null ? "Manuell" : portal.connected ? "Verbunden" : "Nicht verbunden"}</span></div>
-                  <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{portal.message}</p>
+                  <div className="flex items-center justify-between gap-3"><h3 className="font-semibold">{portal.name}</h3><span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--zf-text-muted)]">{portal.connected === null ? "Manuell" : portal.connected ? "Verbunden" : "Nicht verbunden"}</span></div>
+                  <p className="mt-1 text-sm text-[var(--zf-text-muted)] dark:text-slate-300">{portal.message}</p>
                 </div>
               </div>
               <dl className="mt-4 grid gap-2 text-xs sm:grid-cols-3">
-                <div className="rounded-xl bg-white/70 p-3 dark:bg-slate-950/50"><dt className="text-slate-500">Letzter Erfolg</dt><dd className="mt-1 font-medium">{formatDateTime(portal.lastSuccessfulSyncAt)}</dd></div>
-                <div className="rounded-xl bg-white/70 p-3 dark:bg-slate-950/50"><dt className="text-slate-500">Kommende Einträge</dt><dd className="mt-1 font-medium tabular-nums">{portal.upcomingEvents}</dd></div>
-                <div className="rounded-xl bg-white/70 p-3 dark:bg-slate-950/50"><dt className="text-slate-500">Belegt bis</dt><dd className="mt-1 font-medium">{portal.lastKnownOccupancyEnd ? formatDate(portal.lastKnownOccupancyEnd) : "Unbekannt"}</dd></div>
+                <div className="rounded-xl bg-[var(--zf-surface)] p-3 dark:bg-slate-950/50"><dt className="text-[var(--zf-text-muted)]">Letzter Erfolg</dt><dd className="mt-1 font-medium">{formatDateTime(portal.lastSuccessfulSyncAt)}</dd></div>
+                <div className="rounded-xl bg-[var(--zf-surface)] p-3 dark:bg-slate-950/50"><dt className="text-[var(--zf-text-muted)]">Kommende Einträge</dt><dd className="mt-1 font-medium tabular-nums">{portal.upcomingEvents}</dd></div>
+                <div className="rounded-xl bg-[var(--zf-surface)] p-3 dark:bg-slate-950/50"><dt className="text-[var(--zf-text-muted)]">Belegt bis</dt><dd className="mt-1 font-medium">{portal.lastKnownOccupancyEnd ? formatDate(portal.lastKnownOccupancyEnd) : "Unbekannt"}</dd></div>
               </dl>
               {portal.hasError && portal.lastAttemptAt && !portal.lastSuccessfulSyncAt && (
-                <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">Letzter Abruf: {formatDateTime(portal.lastAttemptAt)}. Der vorherige erfolgreiche Zeitpunkt wird im aktuellen Datenmodell nicht separat gespeichert.</p>
+                <p className="mt-2 text-[11px] text-[var(--zf-text-muted)] dark:text-slate-400">Letzter Abruf: {formatDateTime(portal.lastAttemptAt)}. Der vorherige erfolgreiche Zeitpunkt wird im aktuellen Datenmodell nicht separat gespeichert.</p>
               )}
               {data.canSeeTechnicalDetails && (
-                <Link href={`/dashboard?property=${data.selectedProperty.id}&view=sync`} className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-rose-700 outline-none focus-visible:ring-2 focus-visible:ring-rose-500 dark:text-rose-300">Details öffnen <ArrowRight aria-hidden className="h-4 w-4" /></Link>
+                <Link href={`/dashboard?property=${data.selectedProperty.id}&view=sync`} className="mt-3 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[var(--zf-brand)] outline-none hover:text-[var(--zf-brand-hover)] focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] dark:text-[var(--zf-brand-pale)]">Details öffnen <ArrowRight aria-hidden className="h-4 w-4" /></Link>
               )}
             </article>
           );
         })}
       </div>
       {!data.canSeeTechnicalDetails && (
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">Technische Feeddetails und Fehlertexte sind Owner-only.</div>
+        <div className="rounded-xl border border-[var(--zf-border)] bg-[var(--zf-bg)] px-4 py-3 text-sm text-[var(--zf-text-muted)] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">Technische Feeddetails und Fehlertexte sind Owner-only.</div>
       )}
     </section>
   );
