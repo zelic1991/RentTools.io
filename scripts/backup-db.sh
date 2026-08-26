@@ -21,6 +21,7 @@
 # Restore procedure: see docs/DROPLET-SETUP.md §7.
 
 set -euo pipefail
+umask 077
 
 DB="/home/app/rent-tool/data/prod.db"
 DEST="/home/app/backups"
