@@ -204,6 +204,7 @@ CREATE TABLE IF NOT EXISTS "SyncLog" (
 
   // Migrations: add new columns if missing
   const migrations = [
+    `ALTER TABLE "PropertyManager" ADD COLUMN "accessLevel" TEXT NOT NULL DEFAULT 'manager'`,
     `ALTER TABLE "Reservation" ADD COLUMN "platform" TEXT NOT NULL DEFAULT 'airbnb'`,
     `ALTER TABLE "Guest" ADD COLUMN "firstName" TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE "Guest" ADD COLUMN "lastName" TEXT NOT NULL DEFAULT ''`,
@@ -631,6 +632,7 @@ CREATE TABLE IF NOT EXISTS "PropertyManager" (
     "propertyId" INTEGER NOT NULL,
     "managerId" INTEGER NOT NULL,
     "grantedById" INTEGER NOT NULL,
+    "accessLevel" TEXT NOT NULL DEFAULT 'manager',
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "PropertyManager_propertyId_fkey" FOREIGN KEY ("propertyId") REFERENCES "Property" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "PropertyManager_managerId_fkey" FOREIGN KEY ("managerId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,

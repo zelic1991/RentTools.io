@@ -33,9 +33,9 @@ export async function getPropertyAccess(
   // Manager check (full daily ops)
   const manager = await prisma.propertyManager.findUnique({
     where: { managerId_propertyId: { managerId: userId, propertyId } },
-    select: { id: true },
+    select: { id: true, accessLevel: true },
   }).catch(() => null);
-  if (manager) return role === "family" ? "family" : "manager";
+  if (manager) return manager.accessLevel === "family" ? "family" : "manager";
 
   // Cleaner check (read-only + cleaning record writes)
   if (role === "cleaner") {

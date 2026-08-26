@@ -112,17 +112,14 @@ export async function POST(request: NextRequest) {
           propertyId: invite.propertyId,
         },
       },
-      update: {},
+      update: { accessLevel: invite.accessLevel === "family" ? "family" : "manager" },
       create: {
         propertyId: invite.propertyId,
         managerId: session.userId,
         grantedById: invite.createdById,
+        accessLevel: invite.accessLevel === "family" ? "family" : "manager",
       },
     });
-
-    if (invite.accessLevel === "family" && session.role !== "family") {
-      await prisma.user.update({ where: { id: session.userId }, data: { role: "family" } });
-    }
 
     if (claimedNow || !existing) {
       await logAudit(session.userId, "create", "manager", invite.id, {

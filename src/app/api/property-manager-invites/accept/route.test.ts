@@ -35,6 +35,7 @@ type InviteState = {
   acceptedAt: Date | null;
   revokedAt: Date | null;
   expiresAt: Date;
+  accessLevel: "manager" | "family";
   property: { id: number; name: string; userId: number };
 };
 
@@ -82,6 +83,7 @@ beforeEach(() => {
     acceptedAt: null,
     revokedAt: null,
     expiresAt: new Date(Date.now() + 60_000),
+    accessLevel: "manager",
     property: { id: 12, name: "Villa", userId: 1 },
   };
   managerIds = new Set();
@@ -140,6 +142,20 @@ describe("POST /api/property-manager-invites/accept", () => {
       40,
       { action: "invite_acceptance_recovered", propertyId: 12 },
     );
+  });
+
+  it("persists family access on the property membership without changing the global role", async () => {
+    invite.accessLevel = "family";
+    mocks.getSession.mockResolvedValue({ userId: 5, role: "user" });
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(200);
+    expect(mocks.managerUpsert).toHaveBeenCalledWith(expect.objectContaining({
+      update: { accessLevel: "family" },
+      create: expect.objectContaining({ accessLevel: "family" }),
+    }));
+    expect(invite.accessLevel).toBe("family");
   });
 
   it("does not grant a retry to anyone except the recorded accepter", async () => {

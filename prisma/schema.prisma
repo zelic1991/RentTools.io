@@ -155,6 +155,7 @@ model PropertyManager {
   grantedById Int
   grantedBy   User     @relation("ManagerGrants", fields: [grantedById], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
+  accessLevel String   @default("manager") // "manager" | "family"
 
   @@unique([managerId, propertyId])
   @@index([propertyId])

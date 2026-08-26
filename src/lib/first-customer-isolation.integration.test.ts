@@ -22,6 +22,7 @@ describe("first-customer three-owner authority graph", () => {
         "id" INTEGER NOT NULL PRIMARY KEY,
         "managerId" INTEGER NOT NULL,
         "propertyId" INTEGER NOT NULL,
+        "accessLevel" TEXT NOT NULL DEFAULT 'manager',
         UNIQUE("managerId", "propertyId")
       )
     `);
@@ -50,6 +51,9 @@ describe("first-customer three-owner authority graph", () => {
         (101, 50, 12),
         (102, 50, 31)
     `);
+    await prisma.$executeRawUnsafe(
+      `UPDATE "PropertyManager" SET accessLevel = 'family' WHERE managerId = 50 AND propertyId = 12`,
+    );
     // Cleaner 60 is deliberately assigned across Owner A and Owner B.
     await prisma.$executeRawUnsafe(`
       INSERT INTO "CleanerAssignment" (id, cleanerId, propertyId) VALUES
@@ -81,7 +85,7 @@ describe("first-customer three-owner authority graph", () => {
 
     await expect(listManageablePropertyIds(50)).resolves.toEqual([12, 31]);
     await expect(listAccessiblePropertyIds(50, "manager")).resolves.toEqual([12, 31]);
-    await expect(getPropertyAccess(12, 50, "manager")).resolves.toBe("manager");
+    await expect(getPropertyAccess(12, 50, "manager")).resolves.toBe("family");
     await expect(getPropertyAccess(31, 50, "manager")).resolves.toBe("manager");
     await expect(getPropertyAccess(21, 50, "manager")).resolves.toBe("none");
   });
