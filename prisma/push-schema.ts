@@ -814,13 +814,13 @@ CREATE TABLE IF NOT EXISTS "OperationalReminder" (
     "endDate" TEXT NOT NULL,
     "dueAt" DATETIME NOT NULL,
     "note" TEXT NOT NULL,
-    "createdByUserId" INTEGER NOT NULL,
+    "createdByUserId" INTEGER,
     "completedByUserId" INTEGER,
     "completedAt" DATETIME,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME,
     CONSTRAINT "OperationalReminder_propertyId_fkey" FOREIGN KEY ("propertyId") REFERENCES "Property" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT "OperationalReminder_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+    CONSTRAINT "OperationalReminder_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE,
     CONSTRAINT "OperationalReminder_completedByUserId_fkey" FOREIGN KEY ("completedByUserId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 

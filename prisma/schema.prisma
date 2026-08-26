@@ -220,8 +220,10 @@ model OperationalReminder {
   endDate           String    // exclusive checkout YYYY-MM-DD
   dueAt             DateTime
   note              String
-  createdByUserId   Int
-  createdBy         User      @relation("OperationalReminderCreators", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  // Preserve the operational history while honouring account deletion: the
+  // reminder stays, but the deleted creator identity is anonymised.
+  createdByUserId   Int?
+  createdBy         User?     @relation("OperationalReminderCreators", fields: [createdByUserId], references: [id], onDelete: SetNull)
   completedByUserId Int?
   completedBy       User?     @relation("OperationalReminderCompleters", fields: [completedByUserId], references: [id], onDelete: SetNull)
   completedAt       DateTime?
