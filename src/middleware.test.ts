@@ -9,7 +9,9 @@ vi.mock("@/lib/request-path", () => ({
 
 let middleware: typeof import("./middleware").middleware;
 
-const secret = new TextEncoder().encode("fallback-secret-change-me");
+const secret = new TextEncoder().encode(
+  process.env.JWT_SECRET ?? "fallback-secret-change-me",
+);
 
 async function sessionToken(impersonated = true): Promise<string> {
   const claims = impersonated
