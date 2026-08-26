@@ -531,6 +531,9 @@ interface DateActionsPanelProps {
    *  is selected. Drives the Create gate, the night count and the
    *  dates that get POSTed. */
   stayPlan: StayPlan | null;
+  /** Property master switch. When false, cleaning is neither a
+   *  calendar blocker nor a user-facing action/workflow. */
+  cleaningEnabled: boolean;
   onClose: () => void;
   onToggleDate: (dateStr: string) => void;
   onCloseDate: () => void;
@@ -573,6 +576,7 @@ export function DateActionsPopover({
   singleStatus,
   bulkCounts,
   stayPlan,
+  cleaningEnabled,
   onClose,
   onToggleDate,
   onCloseDate,
@@ -665,11 +669,11 @@ export function DateActionsPopover({
       return t("dateActions.statusBooked", { name: singleDateBars[0]?.name || "—" });
     }
     if (singleStatus.isOpenOverride) return t("dateActions.statusOpen");
-    if (singleStatus.isManualCleaning) return c.manualCleaning;
+    if (cleaningEnabled && singleStatus.isManualCleaning) return c.manualCleaning;
     if (singleStatus.isClosedOverride) return t("dateActions.statusClosed");
-    if (singleStatus.isBuffer) return t("dateActions.statusCleaning");
-    if (singleStatus.isSameDayCleaning) return t("dateActions.statusCleaning");
-    if (singleStatus.isPotential) return t("dateActions.statusPotential");
+    if (cleaningEnabled && singleStatus.isBuffer) return t("dateActions.statusCleaning");
+    if (cleaningEnabled && singleStatus.isSameDayCleaning) return t("dateActions.statusCleaning");
+    if (cleaningEnabled && singleStatus.isPotential) return t("dateActions.statusPotential");
     if (singleStatus.isUnbookable) return t("dateActions.statusUnbookable");
     return t("dateActions.statusFree");
   })();
@@ -678,6 +682,7 @@ export function DateActionsPopover({
     referencesSyncedEvent(a, b) || referencesSyncedEvent(b, a);
 
   const cleaningBetweenIndex = (() => {
+    if (!cleaningEnabled) return -1;
     for (let i = 0; i < singleDateBars.length - 1; i++) {
       const a = singleDateBars[i];
       const b = singleDateBars[i + 1];
@@ -742,10 +747,10 @@ export function DateActionsPopover({
       //     manual cleaning. Auto-cleaning can't go on a check-in
       //     day, but the host knows their cleaner's calendar best
       //     and may want the cleaner there before the next check-in.
-      //     Previously this case returned [] — no actions at all,
-      //     so the host had no UI path to schedule cleaning on a
-      //     booked day. Now it surfaces "Schedule cleaning" as a
-      //     manual override that overrides the auto-cleaning logic.
+      //     Previously this case returned [] — no actions at all.
+      //     When the property's cleaning workflow is enabled it now
+      //     surfaces "Schedule cleaning" as a manual override. With
+      //     the master switch off, no cleaning action is exposed.
       const lRemoveCleaningDesc = c.removeCleaningDescAuto;
       const lCancelCleaning = c.cancelCleaningOnBooked;
       const lCancelCleaningDesc = c.cancelCleaningOnBookedDesc;
@@ -820,34 +825,45 @@ export function DateActionsPopover({
         return null;
       })();
 
-      if (singleStatus.isManualCleaning) {
+      if (cleaningEnabled && singleStatus.isManualCleaning) {
         return [
           { kind: "removeCleaning", label: lCancelCleaning, description: lRemoveCleaningDesc, tone: "open", onClick: onRemoveOverride },
           ...(trimAction ? [trimAction] : []),
         ];
       }
-      if (singleStatus.isSameDayCleaning) {
+      if (cleaningEnabled && singleStatus.isSameDayCleaning) {
         return [
           { kind: "openForBooking", label: lCancelCleaning, description: lCancelCleaningDesc, tone: "open", onClick: onOpenDate },
           ...(trimAction ? [trimAction] : []),
         ];
       }
-      // Booked day, no cleaning chip — give the host the manual
-      // override action so they can force a cleaning here, plus the
-      // trim action when applicable.
+      // Booked day, no cleaning chip — when cleaning operations are
+      // enabled, give the host the manual override action so they can
+      // force a cleaning here. With the property master switch off,
+      // cleaning is not a user-facing workflow; only a valid trim
+      // action remains.
       return [
-        { kind: "scheduleCleaning", label: lSchedule, description: lScheduleDesc, tone: "cleaning", onClick: onScheduleCleaning },
+        ...(cleaningEnabled
+          ? [{ kind: "scheduleCleaning" as const, label: lSchedule, description: lScheduleDesc, tone: "cleaning" as const, onClick: onScheduleCleaning }]
+          : []),
         ...(trimAction ? [trimAction] : []),
       ];
     }
-    if (singleStatus.isManualCleaning) {
+    if (cleaningEnabled && singleStatus.isManualCleaning) {
       return [createAction, { kind: "removeCleaning", label: lRemoveCleaning, description: lRemoveOverrideDesc, tone: "open", onClick: onRemoveOverride }, { kind: "block", label: lBlock, description: lBlockDesc, tone: "block", onClick: onCloseDate }];
     }
     if (singleStatus.isClosedOverride) {
       return [createAction, { kind: "removeBlock", label: lUnblock, description: lRemoveOverrideDesc, tone: "open", onClick: onRemoveOverride }];
     }
     if (singleStatus.isOpenOverride) {
-      return [createAction, { kind: "removeOverride", label: lRemoveOverride, description: lRemoveOverrideDesc, tone: "neutral", onClick: onRemoveOverride }, { kind: "block", label: lBlock, description: lBlockDesc, tone: "block", onClick: onCloseDate }, { kind: "scheduleCleaning", label: lSchedule, description: lScheduleDesc, tone: "cleaning", onClick: onScheduleCleaning }];
+      return [
+        createAction,
+        { kind: "removeOverride", label: lRemoveOverride, description: lRemoveOverrideDesc, tone: "neutral", onClick: onRemoveOverride },
+        { kind: "block", label: lBlock, description: lBlockDesc, tone: "block", onClick: onCloseDate },
+        ...(cleaningEnabled
+          ? [{ kind: "scheduleCleaning" as const, label: lSchedule, description: lScheduleDesc, tone: "cleaning" as const, onClick: onScheduleCleaning }]
+          : []),
+      ];
     }
     // Auto-detected unavailable. Two label flavours:
     //   * Cleaning days (buffer / same-day / potential): "Cancel
@@ -855,7 +871,7 @@ export function DateActionsPopover({
     //     not coming this day, schedule it elsewhere".
     //   * Min-nights blocks (unbookable): "Make available" — the
     //     date is locked for booking-fit reasons, no cleaning concept.
-    if (singleStatus.isBuffer || singleStatus.isSameDayCleaning || singleStatus.isPotential) {
+    if (cleaningEnabled && (singleStatus.isBuffer || singleStatus.isSameDayCleaning || singleStatus.isPotential)) {
       const lCancelCleaning = c.cancelCleaningOnAuto;
       const lCancelCleaningDesc = c.cancelCleaningOnAutoDesc;
       return [createAction, { kind: "openForBooking", label: lCancelCleaning, description: lCancelCleaningDesc, tone: "open", onClick: onOpenDate }];
@@ -863,7 +879,13 @@ export function DateActionsPopover({
     if (singleStatus.isUnbookable) {
       return [createAction, { kind: "openForBooking", label: lOpen, description: lOpenDesc, tone: "open", onClick: onOpenDate }];
     }
-    return [createAction, { kind: "block", label: lBlock, description: lBlockDesc, tone: "block", onClick: onCloseDate }, { kind: "scheduleCleaning", label: lSchedule, description: lScheduleDesc, tone: "cleaning", onClick: onScheduleCleaning }];
+    return [
+      createAction,
+      { kind: "block", label: lBlock, description: lBlockDesc, tone: "block", onClick: onCloseDate },
+      ...(cleaningEnabled
+        ? [{ kind: "scheduleCleaning" as const, label: lSchedule, description: lScheduleDesc, tone: "cleaning" as const, onClick: onScheduleCleaning }]
+        : []),
+    ];
   })();
 
   // Bulk-mode actions: simpler — operate on the whole selection.
@@ -894,14 +916,14 @@ export function DateActionsPopover({
         out.push({ kind: "openForBooking", label: lOpenAll, tone: "open", onClick: onOpenDate });
       }
     }
-    // Bulk "Schedule cleaning" is allowed regardless of whether the
-    // selection includes booked dates. Same rationale as the
-    // single-mode fix in commit a629700: a manual cleaning override
-    // creates a chip on top of the reservation bar (the host knows
-    // their cleaner's calendar best, e.g. early-morning before next
-    // check-in). Block / Make-available remain gated on allUnbooked
-    // because they conflict with the existing booking.
-    out.push({ kind: "scheduleCleaning", label: lScheduleAll, tone: "cleaning", onClick: onScheduleCleaning });
+    // When cleaning operations are enabled, bulk "Schedule cleaning"
+    // is allowed regardless of whether the selection includes booked
+    // dates. With the master switch off there is deliberately no
+    // cleaning action at all. Block / Make-available remain gated on
+    // allUnbooked because they conflict with the existing booking.
+    if (cleaningEnabled) {
+      out.push({ kind: "scheduleCleaning", label: lScheduleAll, tone: "cleaning", onClick: onScheduleCleaning });
+    }
     if (bulkCounts.openOverride + bulkCounts.closedOverride + bulkCounts.cleaningOverride > 0) {
       out.push({ kind: "removeOverride", label: lResetAll, tone: "neutral", onClick: onRemoveOverride });
     }
@@ -988,13 +1010,13 @@ export function DateActionsPopover({
       ? "bg-[var(--m-accent)]/10 text-[var(--m-accent)]"
       : singleStatus.isOpenOverride
         ? "bg-emerald-500/10 text-emerald-500"
-        : singleStatus.isManualCleaning
+        : cleaningEnabled && singleStatus.isManualCleaning
           ? "bg-[var(--cleaning-bg)] text-[var(--cleaning-fg)]"
           : singleStatus.isClosedOverride
             ? "bg-rose-500/10 text-rose-500"
-            : (singleStatus.isBuffer || singleStatus.isSameDayCleaning)
+            : cleaningEnabled && (singleStatus.isBuffer || singleStatus.isSameDayCleaning)
               ? "bg-[var(--cleaning-bg)] text-[var(--cleaning-fg)]"
-              : singleStatus.isPotential
+              : cleaningEnabled && singleStatus.isPotential
                 ? "bg-[var(--ink)]/5 text-[var(--ink-2)]"
                 : singleStatus.isUnbookable
                   ? "bg-[var(--ink-4)]/10 text-[var(--ink-3)]"

@@ -16,7 +16,8 @@ EnvironmentFile=/home/app/rent-tool/.env.production
 EnvironmentFile=-/home/app/rent-tool/.env.release
 Environment=NODE_ENV=production
 Environment=PORT=3000
-ExecStart=/usr/bin/npm run start
+# Keep Next.js private to the host. nginx is the only public entry point.
+ExecStart=/usr/bin/npm run start -- --hostname 127.0.0.1
 Restart=always
 RestartSec=5
 StandardOutput=journal

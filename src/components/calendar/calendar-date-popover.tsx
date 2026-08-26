@@ -212,6 +212,7 @@ export function CalendarDatePopover({
         autoBlocked: countAutoBlocked,
       }}
       stayPlan={stayPlan}
+      cleaningEnabled={cleaningEnabled}
       onClose={onClose}
       onToggleDate={onToggleDate}
       onCloseDate={() =>
