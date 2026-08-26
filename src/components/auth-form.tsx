@@ -7,7 +7,7 @@ export const AuthInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLIn
     return (
       <input
         ref={ref}
-        className={`h-11 w-full rounded-md border border-[var(--line-2)] bg-[var(--bg)] px-3 text-[14px] text-[var(--ink)] placeholder-[var(--ink-4)] outline-none focus:border-[var(--ink)] transition-colors ${className}`}
+        className={`h-11 w-full rounded-md border border-[var(--line-2)] bg-[var(--bg)] px-3 text-[14px] text-[var(--ink)] placeholder-[var(--ink-4)] outline-none focus:border-[var(--auth-focus)] focus:ring-2 focus:ring-[var(--auth-focus)]/20 transition-colors ${className}`}
         {...rest}
       />
     );
@@ -31,7 +31,7 @@ export function AuthSubmit({ loading, disabled, children, className = "", ...res
     <button
       type="submit"
       disabled={loading || disabled}
-      className={`h-11 w-full rounded-md bg-[var(--m-accent)] text-[14px] font-medium text-white transition-colors hover:bg-[var(--m-accent-2)] disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
+      className={`h-11 w-full rounded-md bg-[var(--m-accent)] text-[14px] font-medium text-[var(--auth-button-text)] transition-colors hover:bg-[var(--m-accent-2)] disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
       {...rest}
     >
       {children}
@@ -43,7 +43,7 @@ export function AuthError({ message }: { message: string }) {
   return (
     <div
       role="alert"
-      className="rounded-md border border-[var(--m-accent)]/30 bg-[var(--m-accent-soft)] px-3 py-2 text-[13px] text-[var(--m-accent)]"
+      className="rounded-md border border-[var(--auth-error)]/30 bg-[var(--auth-error-soft)] px-3 py-2 text-[13px] text-[var(--auth-error)]"
     >
       {message}
     </div>

@@ -13,6 +13,8 @@ describe("mobile PWA manifest", () => {
       scope: "/mobile",
       display: "standalone",
       name: "Zelic Family Vir Betrieb",
+      background_color: "#F6F1E6",
+      theme_color: "#F6F1E6",
     });
     expect(manifest.icons).toEqual(expect.not.arrayContaining([
       expect.objectContaining({ purpose: "maskable" }),

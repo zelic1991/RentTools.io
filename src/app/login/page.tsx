@@ -18,7 +18,7 @@ function safeNext(raw: string | null): string {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="editorial min-h-screen bg-[var(--bg)]" />}>
+    <Suspense fallback={<div className="editorial zf-brand min-h-screen bg-[var(--bg)]" />}>
       <LoginPageInner />
     </Suspense>
   );
@@ -74,7 +74,7 @@ function LoginPageInner() {
   };
 
   return (
-    <div className="editorial min-h-screen flex flex-col">
+    <div className="editorial zf-brand min-h-screen flex flex-col">
       <GoogleOneTap next={next !== "/dashboard" ? next : undefined} />
 
       {/* ── Header ── matches the editorial header on / so the login
@@ -162,7 +162,7 @@ function LoginPageInner() {
                   <AuthLabel htmlFor="password">{t("login.password")}</AuthLabel>
                   <Link
                     href="/reset-password"
-                    className="text-[12px] text-[var(--ink-3)] underline-offset-2 hover:text-[var(--ink)] hover:underline"
+                    className="text-[12px] text-[var(--m-accent)] underline-offset-2 hover:text-[var(--m-accent-2)] hover:underline"
                   >
                     {t("login.forgotPassword")}
                   </Link>
@@ -194,7 +194,7 @@ function LoginPageInner() {
               // the infinite-variant URLs we don't want crawlers queuing.
               // Plain /signup is indexable; let Google follow it freely.
               rel={next !== "/dashboard" ? "nofollow" : undefined}
-              className="text-[var(--ink)] underline-offset-2 hover:underline"
+              className="text-[var(--m-accent)] underline-offset-2 hover:text-[var(--m-accent-2)] hover:underline"
             >
               {t("login.signUpLink")}
             </Link>

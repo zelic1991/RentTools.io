@@ -10,8 +10,8 @@ export function GET() {
     scope: "/mobile",
     display: "standalone",
     orientation: "portrait-primary",
-    background_color: "#f8fafc",
-    theme_color: "#f8fafc",
+    background_color: "#F6F1E6",
+    theme_color: "#F6F1E6",
     lang: "de",
     icons: [
       { src: "/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },

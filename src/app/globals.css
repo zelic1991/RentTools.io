@@ -49,6 +49,25 @@
 }
 
 :root {
+  /* Zelic Family Vir — canonical "Kalk und Kiefer" palette.
+     Source: zelic1991/zelic-family-vir src/styles/tokens.css.
+     Kept as a scoped extension of the existing theme variables so the
+     dashboard and the other editorial pages do not inherit this branding. */
+  --zf-bg: #F6F1E6;
+  --zf-surface: #ECE1CC;
+  --zf-surface-deep: #DFD2B9;
+  --zf-brand: #7B2E62;
+  --zf-brand-dark: #3F1735;
+  --zf-brand-hover: #9A3B72;
+  --zf-brand-soft: #F8EFF4;
+  --zf-brand-pale: #E8C7DC;
+  --zf-brand-line: #E2CDDB;
+  --zf-on-brand: #F9F4EF;
+  --zf-text: #2B241D;
+  --zf-text-muted: #685C4B;
+  --zf-border: #D6C8AE;
+  --zf-control-border: #8F7E65;
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -81,6 +100,27 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* Mobile operations reuses the established dashboard variable contract.
+   Channel and status colours stay separate from the branding palette. */
+.zf-brand {
+  --bg: var(--zf-bg);
+  --bg-2: var(--zf-bg);
+  --bg-3: var(--zf-surface);
+  --ink: var(--zf-text);
+  --ink-2: var(--zf-text);
+  --ink-3: var(--zf-text-muted);
+  --ink-4: var(--zf-text-muted);
+  --line: var(--zf-border);
+  --line-2: var(--zf-control-border);
+  --m-accent: var(--zf-brand);
+  --m-accent-2: var(--zf-brand-hover);
+  --channel-airbnb: #FF385C;
+  --cleaning-cell-bg: var(--zf-brand-soft);
+  --cleaning-fg: var(--zf-brand);
+  --cleaning-bg: var(--zf-brand-soft);
+  --cleaning-border: var(--zf-brand-line);
 }
 
 /* Hybrid dark theme: Apple precision + Airbnb warmth */
@@ -163,6 +203,10 @@
   --m-accent: #ff385c;
   --m-accent-2: #ff6680;
   --m-accent-soft: #fff0f3;
+  --auth-focus: var(--ink);
+  --auth-button-text: #fff;
+  --auth-error: var(--m-accent);
+  --auth-error-soft: var(--m-accent-soft);
   /* Background-pill tints — strong enough to be readable on the warm
      off-white hero, gentle enough to stay decorative. Tuned per theme. */
   --pill-coral: rgba(255, 56, 92, 0.14);
@@ -182,6 +226,25 @@
   color: var(--ink);
   font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   letter-spacing: -0.011em;
+}
+.editorial.zf-brand {
+  --bg: var(--zf-bg);
+  --bg-2: var(--zf-surface);
+  --bg-3: var(--zf-surface-deep);
+  --ink: var(--zf-text);
+  --ink-2: var(--zf-text);
+  --ink-3: var(--zf-text-muted);
+  --ink-4: var(--zf-text-muted);
+  --line: var(--zf-border);
+  --line-2: var(--zf-control-border);
+  --m-accent: var(--zf-brand);
+  --m-accent-2: var(--zf-brand-hover);
+  --m-accent-soft: var(--zf-brand-soft);
+  --auth-focus: var(--zf-brand);
+  --auth-button-text: var(--zf-on-brand);
+  /* Authentication errors remain semantic red, not brand purple. */
+  --auth-error: #FF385C;
+  --auth-error-soft: #FFF0F3;
 }
 .dark .editorial {
   --bg: #0d1117;

@@ -478,7 +478,7 @@ export function CalendarGrid({
                           isConflict ? "bg-rose-500 ring-1 ring-rose-500/40" :
                           seg.isExtension ? "bg-slate-600 ring-1 ring-slate-300/40" :
                           seg.platform === "booking" ? "bg-[#003580]" :
-                          seg.platform === "airbnb" ? "bg-[var(--m-accent)]" :
+                          seg.platform === "airbnb" ? "bg-[var(--channel-airbnb,var(--m-accent))]" :
                           seg.platform === "vrbo" ? "bg-[#2c5da9]" :
                           // direct / manual / custom / unknown — slate
                           // neutral with a dashed ring so the user can
