@@ -43,7 +43,10 @@ export async function POST(
 
     await prisma.user.update({
       where: { id: userId },
-      data: { suspendedAt: new Date() },
+      data: {
+        suspendedAt: new Date(),
+        sessionVersion: { increment: 1 },
+      },
     });
     await logAudit(auth.session.userId, "update", "user", userId, { suspended: true });
     return NextResponse.json({ success: true });

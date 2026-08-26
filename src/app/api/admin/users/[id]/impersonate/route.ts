@@ -52,7 +52,7 @@ export async function POST(
 
   const target = await prisma.user.findUnique({
     where: { id: targetId },
-    select: { id: true, username: true, role: true, suspendedAt: true },
+    select: { id: true, username: true, role: true, suspendedAt: true, sessionVersion: true },
   });
   if (!target) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -91,6 +91,8 @@ export async function POST(
     target.role,
     session.userId,
     session.username,
+    target.sessionVersion,
+    session.sessionVersion,
   );
   await setSessionCookie(impersonationToken, 60 * 30);
 

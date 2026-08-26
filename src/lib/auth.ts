@@ -29,7 +29,20 @@ export async function verifyPassword(
 }
 
 export async function createSession(userId: number, username: string, role: string) {
-  const token = await new SignJWT({ userId, username, role })
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { sessionVersion: true, suspendedAt: true },
+  });
+  if (!user || user.suspendedAt) {
+    throw new Error("Cannot create a session for a missing or suspended user");
+  }
+
+  const token = await new SignJWT({
+    userId,
+    username,
+    role,
+    sessionVersion: user.sessionVersion,
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("7d")
     .sign(SECRET);
@@ -63,6 +76,8 @@ export async function createImpersonationSession(
   targetRole: string,
   impersonatorId: number,
   impersonatorUsername: string,
+  targetSessionVersion: number,
+  impersonatorSessionVersion: number,
 ): Promise<string> {
   return await new SignJWT({
     userId: targetUserId,
@@ -70,6 +85,8 @@ export async function createImpersonationSession(
     role: targetRole,
     impersonatorId,
     impersonatorUsername,
+    sessionVersion: targetSessionVersion,
+    impersonatorSessionVersion,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setExpirationTime("30m")
@@ -108,6 +125,12 @@ export async function clearImpersonatorCookie(): Promise<void> {
   cookieStore.delete(IMPERSONATOR_COOKIE_NAME);
 }
 
+export async function clearSessionCookies(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete(COOKIE_NAME);
+  cookieStore.delete(IMPERSONATOR_COOKIE_NAME);
+}
+
 export async function readCurrentSessionToken(): Promise<string | null> {
   const cookieStore = await cookies();
   return cookieStore.get(COOKIE_NAME)?.value ?? null;
@@ -127,6 +150,7 @@ async function _getSession(): Promise<{
   userId: number;
   username: string;
   role: string;
+  sessionVersion: number;
   /** Set when the current session is a superadmin impersonating
    *  another user. The session.userId is the TARGET user (so render
    *  + permission checks see them as that user); impersonatorId is
@@ -141,60 +165,89 @@ async function _getSession(): Promise<{
   if (!token) return null;
 
   try {
-    const { payload } = await jwtVerify(token, SECRET);
-    const session = payload as {
-      userId: number;
-      username: string;
-      role: string;
-      impersonatorId?: number;
-      impersonatorUsername?: string;
-    };
-
-    // Suspended users (RT-15.11) are kicked on the next request: clear the
-    // cookie and return null so the client is redirected to /login.
-    try {
-      const user = await prisma.user.findUnique({
-        where: { id: session.userId },
-        select: { username: true, role: true, suspendedAt: true },
-      });
-      if (!user || user.suspendedAt) {
-        // Cookie deletion only works in mutable contexts (route handlers /
-        // server actions); swallow the error if we're in a server component.
-        try {
-          cookieStore.delete(COOKIE_NAME);
-        } catch {}
-        return null;
-      }
-
-      // Authorization claims in a seven-day JWT can become stale after an
-      // admin changes a user's role or username. Keep the signed token as the
-      // session identifier, but use current database truth for authorization
-      // and display identity on every request.
-      session.username = user.username;
-      session.role = user.role;
-    } catch {
-      // If the DB check fails, fail closed and treat as no session.
-      return null;
+    const session = await validateSessionToken(token);
+    if (!session) {
+      try {
+        cookieStore.delete(COOKIE_NAME);
+        cookieStore.delete(IMPERSONATOR_COOKIE_NAME);
+      } catch {}
     }
-
     return session;
   } catch {
     return null;
   }
 }
 
-export async function clearSession() {
-  const cookieStore = await cookies();
-  cookieStore.delete(COOKIE_NAME);
-}
-
-type Session = {
+export type Session = {
   userId: number;
   username: string;
   role: string;
+  sessionVersion: number;
   impersonatorId?: number;
   impersonatorUsername?: string;
+  impersonatorSessionVersion?: number;
 };
+
+/** Validate both JWT integrity and the current database authority version. */
+export async function validateSessionToken(token: string): Promise<Session | null> {
+  try {
+    const { payload } = await jwtVerify(token, SECRET);
+    const session = payload as Partial<Session>;
+    if (
+      !Number.isInteger(session.userId) ||
+      !Number.isInteger(session.sessionVersion) ||
+      typeof session.username !== "string" ||
+      typeof session.role !== "string"
+    ) {
+      return null;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { username: true, role: true, suspendedAt: true, sessionVersion: true },
+    });
+    if (
+      !user ||
+      user.suspendedAt ||
+      user.sessionVersion !== session.sessionVersion
+    ) {
+      return null;
+    }
+
+    session.username = user.username;
+    session.role = user.role;
+
+    if (session.impersonatorId !== undefined) {
+      if (
+        !Number.isInteger(session.impersonatorId) ||
+        !Number.isInteger(session.impersonatorSessionVersion)
+      ) {
+        return null;
+      }
+      const impersonator = await prisma.user.findUnique({
+        where: { id: session.impersonatorId },
+        select: { username: true, role: true, suspendedAt: true, sessionVersion: true },
+      });
+      if (
+        !impersonator ||
+        impersonator.suspendedAt ||
+        impersonator.role !== "superadmin" ||
+        impersonator.sessionVersion !== session.impersonatorSessionVersion
+      ) {
+        return null;
+      }
+      session.impersonatorUsername = impersonator.username;
+    }
+
+    return session as Session;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearSession() {
+  await clearSessionCookies();
+}
 
 export type RequireSuperadminResult =
   | { session: Session; response: null }

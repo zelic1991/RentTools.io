@@ -22,6 +22,10 @@ model User {
   createdAt          DateTime             @default(now())
   lastLoginAt        DateTime?
   suspendedAt        DateTime?
+  // Incrementing this value revokes every JWT minted with an older value.
+  // Password changes/resets, suspension and explicit revoke-all actions use
+  // it as the server-side authority boundary for otherwise stateless tokens.
+  sessionVersion     Int                  @default(0)
   alertsDismissedAt  DateTime?
   properties         Property[]
   cleanerAssignments CleanerAssignment[]  @relation("CleanerAssignments")

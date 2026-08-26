@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS "User" (
     "username" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "role" TEXT NOT NULL DEFAULT 'user',
+    "sessionVersion" INTEGER NOT NULL DEFAULT 0,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -238,6 +239,7 @@ CREATE TABLE IF NOT EXISTS "SyncLog" (
     `ALTER TABLE "User" ADD COLUMN "alertsDismissedAt" DATETIME`,
     `ALTER TABLE "User" ADD COLUMN "lastLoginAt" DATETIME`,
     `ALTER TABLE "User" ADD COLUMN "suspendedAt" DATETIME`,
+    `ALTER TABLE "User" ADD COLUMN "sessionVersion" INTEGER NOT NULL DEFAULT 0`,
     `ALTER TABLE "Property" ADD COLUMN "feedToken" TEXT`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "Property_feedToken_key" ON "Property"("feedToken")`,
     `ALTER TABLE "User" ADD COLUMN "email" TEXT`,
