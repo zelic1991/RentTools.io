@@ -211,6 +211,14 @@ export function buildMobilePortalCards(options: {
   feedSlug: string | null;
   feedToken: string | null;
 }): MobilePortalCard[] {
+  const upcomingMasterIdentities = new Set([
+    ...options.events
+      .filter((event) => event.endDate > options.today)
+      .map((event) => `${event.startDate}|${event.endDate}`),
+    ...options.reservations
+      .filter((reservation) => dateOnly(reservation.checkOut) > options.today)
+      .map((reservation) => `${dateOnly(reservation.checkIn)}|${dateOnly(reservation.checkOut)}`),
+  ]);
   const portalDefs: Array<[MobilePortalCard["id"], string]> = [
     ["airbnb", "Airbnb"],
     ["booking", "Booking.com"],
@@ -290,8 +298,10 @@ export function buildMobilePortalCards(options: {
         ? "Ausgangsfeed ist eingerichtet und mit Token geschützt."
         : "Ausgangsfeed ist eingerichtet, aber nicht mit Token geschützt."
       : "Kein dauerhafter Ausgangsfeed eingerichtet.",
-    upcomingEvents: options.events.filter((event) => event.endDate > options.today).length
-      + options.reservations.filter((reservation) => dateOnly(reservation.checkOut) > options.today).length,
+    // The master can contain both an imported event and its locally claimed
+    // reservation. Count the date range once, matching the feed's public
+    // date-range deduplication instead of exposing internal row count.
+    upcomingEvents: upcomingMasterIdentities.size,
     lastKnownOccupancyEnd: [
       ...options.events.map((event) => event.endDate),
       ...options.reservations.map((reservation) => dateOnly(reservation.checkOut)),
