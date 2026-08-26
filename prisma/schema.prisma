@@ -280,6 +280,10 @@ model Reservation {
   // separately in linkedEventPlatform so feeds and UI do not mistake the
   // added nights for inventory owned by the source channel.
   platform            String  @default("airbnb")
+  // Durable booking/import identity within one property + booking channel.
+  // This is deliberately separate from linkedEventUid/linkedEventPlatform,
+  // which remain calendar/feed linkage only. Never store guest PII here.
+  externalKey         String?
   linkedEventUid      String? // UID is unique only inside one platform feed
   linkedEventPlatform String? // exact source platform paired with linkedEventUid
   linkedEventRole     String? // "claim" (overlaps source) | "extension" (abuts source)
@@ -312,6 +316,7 @@ model Reservation {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  @@unique([propertyId, platform, externalKey])
   @@index([propertyId, linkedEventPlatform, linkedEventUid])
 }
 
