@@ -34,7 +34,7 @@ export function buildMobileCleaningTasks(options: {
   records: MobileCleaningRecordInput[];
   properties: Array<{ id: number; name: string }>;
   assignees: Array<{ id: number; username: string }>;
-  access: "owner" | "manager" | "cleaner";
+  access: "owner" | "manager" | "family" | "cleaner";
   viewerUserId: number;
 }): MobileCleaningTask[] {
   const properties = new Map(options.properties.map((property) => [property.id, property.name]));

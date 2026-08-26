@@ -71,6 +71,17 @@ export async function GET(request: NextRequest) {
       delete safeProperty.feedToken;
       return safeProperty;
     };
+    const addAccessLevel = async <T extends { userId: number; managers?: Array<{ managerId: number; accessLevel?: string }> }>(property: T) => {
+      if (!property.managers) return property;
+      return {
+        ...property,
+        accessLevel: property.userId === session.userId
+          ? "owner"
+          : property.managers.find((manager) => manager.managerId === session.userId)?.accessLevel === "family"
+            ? "family"
+            : "manager",
+      };
+    };
 
     // Backward-compatible: when neither page nor limit is supplied, return the full array.
     if (pageParam === null && limitParam === null) {
@@ -87,7 +98,7 @@ export async function GET(request: NextRequest) {
         orderBy,
         include,
       });
-      return NextResponse.json(properties.map(redactManagedFeedToken));
+        return NextResponse.json(await Promise.all(properties.map((p) => addAccessLevel(redactManagedFeedToken(p)))));
     }
 
     const page = Math.max(1, parseInt(pageParam ?? "1") || 1);
@@ -114,7 +125,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({
-      data: data.map(redactManagedFeedToken),
+      data: await Promise.all(data.map((p) => addAccessLevel(redactManagedFeedToken(p)))),
       total,
       page,
       limit,

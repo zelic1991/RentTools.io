@@ -12,7 +12,7 @@
 
 import { prisma } from "@/lib/prisma";
 
-export type AccessLevel = "owner" | "manager" | "cleaner" | "none";
+export type AccessLevel = "owner" | "manager" | "family" | "cleaner" | "none";
 
 /**
  * Determine a user's access level to a property.
@@ -31,11 +31,20 @@ export async function getPropertyAccess(
   if (property.userId === userId) return "owner";
 
   // Manager check (full daily ops)
-  const manager = await prisma.propertyManager.findUnique({
-    where: { managerId_propertyId: { managerId: userId, propertyId } },
-    select: { id: true },
-  }).catch(() => null);
-  if (manager) return "manager";
+  let manager: { id: number; accessLevel?: string } | null = null;
+  try {
+    manager = await prisma.propertyManager.findUnique({
+      where: { managerId_propertyId: { managerId: userId, propertyId } },
+      select: { id: true, accessLevel: true },
+    });
+  } catch {
+    // Backward-compatible read for pre-accessLevel databases during rollout.
+    manager = await prisma.propertyManager.findUnique({
+      where: { managerId_propertyId: { managerId: userId, propertyId } },
+      select: { id: true },
+    });
+  }
+  if (manager) return manager.accessLevel === "family" ? "family" : "manager";
 
   // Cleaner check (read-only + cleaning record writes)
   if (role === "cleaner") {
@@ -60,7 +69,7 @@ export async function canManageProperty(
   role: string
 ): Promise<boolean> {
   const access = await getPropertyAccess(propertyId, userId, role);
-  return access === "owner" || access === "manager";
+  return access === "owner" || access === "manager" || access === "family";
 }
 
 /**

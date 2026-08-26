@@ -112,13 +112,15 @@ export async function POST(request: NextRequest) {
           propertyId: invite.propertyId,
         },
       },
-      update: {},
+      update: { accessLevel: invite.accessLevel },
       create: {
         propertyId: invite.propertyId,
         managerId: session.userId,
         grantedById: invite.createdById,
+        accessLevel: invite.accessLevel,
       },
     });
+
 
     if (claimedNow || !existing) {
       await logAudit(session.userId, "create", "manager", invite.id, {
@@ -131,6 +133,7 @@ export async function POST(request: NextRequest) {
       action: claimedNow ? "accepted" : "already_accepted",
       propertyId: invite.propertyId,
       propertyName: invite.property.name,
+      accessLevel: invite.accessLevel,
     });
   } catch (err) {
     console.error("Route error:", err);
@@ -177,6 +180,7 @@ export async function GET(request: NextRequest) {
       propertyName: invite.property.name,
       invitedBy: invite.createdBy.username,
       expiresAt: invite.expiresAt,
+      accessLevel: invite.accessLevel,
     });
   } catch (err) {
     console.error("Route error:", err);

@@ -158,8 +158,8 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
         setState({ status: "error", message: data.error || `HTTP ${res.status}` });
         return;
       }
-      // Success — redirect to dashboard
-      router.replace("/dashboard");
+      // Family access is property-scoped; use the mobile surface after accept.
+      router.replace(data.accessLevel === "family" ? "/mobile" : "/dashboard");
     } catch (e) {
       setState({ status: "error", message: e instanceof Error ? e.message : "Network error" });
     } finally {

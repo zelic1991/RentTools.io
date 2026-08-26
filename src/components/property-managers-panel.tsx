@@ -43,6 +43,7 @@ interface Invite {
   token: string;
   expiresAt: string;
   createdAt: string;
+  accessLevel?: "manager" | "family";
 }
 
 interface SessionInfo {
@@ -72,6 +73,7 @@ export function PropertyManagersPanel({ propertyId, ownerUserId }: PropertyManag
   const [error, setError] = useState<string | null>(null);
   const [forbidden, setForbidden] = useState(false);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
+  const [inviteAccessLevel, setInviteAccessLevel] = useState<"manager" | "family">("manager");
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -126,7 +128,7 @@ export function PropertyManagersPanel({ propertyId, ownerUserId }: PropertyManag
       const res = await fetch("/api/property-manager-invites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ propertyId }),
+        body: JSON.stringify({ propertyId, accessLevel: inviteAccessLevel }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -211,6 +213,13 @@ export function PropertyManagersPanel({ propertyId, ownerUserId }: PropertyManag
         <h2 className="text-sm font-semibold text-[var(--ink)]">{t("managers.title")}</h2>
         <p className="text-xs text-[var(--ink-3)]">{t("managers.desc")}</p>
       </div>
+      <label className="flex items-center gap-2 text-xs text-[var(--ink-3)]">
+        <span>Zugang</span>
+        <select value={inviteAccessLevel} onChange={(event) => setInviteAccessLevel(event.target.value as "manager" | "family")} className="rounded border border-[var(--line)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--ink)]">
+          <option value="family">Familie (einfach)</option>
+          <option value="manager">Manager (vollständig)</option>
+        </select>
+      </label>
 
       {/* Owner row + manager list */}
       <div className="space-y-1.5">
