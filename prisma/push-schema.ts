@@ -205,6 +205,10 @@ CREATE TABLE IF NOT EXISTS "SyncLog" (
   // Migrations: add new columns if missing
   const migrations = [
     `ALTER TABLE "PropertyManager" ADD COLUMN "accessLevel" TEXT NOT NULL DEFAULT 'manager'`,
+    // The invite table was introduced before access levels. Existing live
+    // databases can therefore already contain the table without this column;
+    // add it idempotently before the invite API uses Prisma's accessLevel.
+    `ALTER TABLE "PropertyManagerInvite" ADD COLUMN "accessLevel" TEXT NOT NULL DEFAULT 'manager'`,
     `ALTER TABLE "Reservation" ADD COLUMN "platform" TEXT NOT NULL DEFAULT 'airbnb'`,
     `ALTER TABLE "Guest" ADD COLUMN "firstName" TEXT NOT NULL DEFAULT ''`,
     `ALTER TABLE "Guest" ADD COLUMN "lastName" TEXT NOT NULL DEFAULT ''`,
@@ -665,6 +669,7 @@ CREATE TABLE IF NOT EXISTS "PropertyManagerInvite" (
     "acceptedAt" DATETIME,
     "expiresAt" DATETIME NOT NULL,
     "revokedAt" DATETIME,
+    "accessLevel" TEXT NOT NULL DEFAULT 'manager',
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "PropertyManagerInvite_propertyId_fkey" FOREIGN KEY ("propertyId") REFERENCES "Property" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "PropertyManagerInvite_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
