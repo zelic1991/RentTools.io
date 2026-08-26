@@ -197,8 +197,30 @@ export async function POST(
       orderBy: { createdAt: "asc" },
     });
 
+    const existingToken = existing
+      ? decryptOwnerShareToken(existing.tokenCiphertext)
+      : null;
+    if (existing && !existingToken) {
+      // Never repair an unreadable share-token envelope by resetting a row
+      // that already contains guest data. That would destroy a completed (or
+      // partially completed) pre-check-in merely because the encryption key
+      // changed or the ciphertext was damaged. An empty invitation may still
+      // be rotated below; rows with data require an explicit recovery path.
+      const hasGuestData = Boolean(
+        existing.securePayload ||
+        existing.submittedAt ||
+        existing.ownerApprovedAt ||
+        (existing.answers && existing.answers !== "[]")
+      );
+      if (hasGuestData) {
+        return NextResponse.json(
+          { error: "Existing guest data cannot be safely re-shared" },
+          { status: 409 },
+        );
+      }
+    }
+
     if (existing && !existing.revokedAt && (!existing.expiresAt || existing.expiresAt > new Date())) {
-      const existingToken = decryptOwnerShareToken(existing.tokenCiphertext);
       if (existingToken) {
         return NextResponse.json({
           shareUrl: `/g/${existingToken}`,

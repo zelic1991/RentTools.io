@@ -252,6 +252,13 @@ database without rotating `JWT_SECRET` (or equivalently advancing every
 account's session version beyond the restored value) is not an approved
 recovery procedure.
 
+The same revocation boundary applies to code rollback: never roll production
+back to a release from before `User.sessionVersion` support while retaining the
+current `JWT_SECRET`. Such code cannot enforce database-backed revocations and
+could accept a still-unexpired token that the newer release had revoked. Rotate
+`JWT_SECRET` before any pre-sessionVersion rollback becomes reachable, then
+require every user to authenticate again.
+
 If anything goes wrong, swap `prod.db.preroll` back. After a successful
 restore, delete the `.preroll` file once you've verified a few hours of
 clean operation.

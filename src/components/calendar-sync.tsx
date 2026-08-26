@@ -68,8 +68,8 @@ function buildCalendarMonths(
     const start = parseYMD(ev.startDate);
     const end = parseYMD(ev.endDate);
     const link = ev.platform === "airbnb" ? airbnbLink : bookingLink;
-    const bBefore = link?.bufferBefore ?? 1;
-    const bAfter = link?.bufferAfter ?? 1;
+    const bBefore = link?.bufferBefore ?? 0;
+    const bAfter = link?.bufferAfter ?? 0;
 
     for (let i = 1; i <= bBefore; i++) {
       const d = fmtDate(addDays(start, -i));
@@ -385,8 +385,8 @@ export function CalendarSync({ propertyId }: CalendarSyncProps) {
   const [syncing, setSyncing] = useState(false);
   const [editingLink, setEditingLink] = useState<string | null>(null);
   const [urlInput, setUrlInput] = useState("");
-  const [bufferBefore, setBufferBefore] = useState(1);
-  const [bufferAfter, setBufferAfter] = useState(1);
+  const [bufferBefore, setBufferBefore] = useState(0);
+  const [bufferAfter, setBufferAfter] = useState(0);
   const [testing, setTesting] = useState<string | null>(null); // platform being tested
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
   const [copied, setCopied] = useState<string | null>(null);
@@ -533,8 +533,8 @@ export function CalendarSync({ propertyId }: CalendarSyncProps) {
     const existing = links.find((l) => l.platform === platform);
     setEditingLink(platform);
     setUrlInput(existing?.icalExportUrl || "");
-    setBufferBefore(existing?.bufferBefore ?? 1);
-    setBufferAfter(existing?.bufferAfter ?? 1);
+    setBufferBefore(existing?.bufferBefore ?? 0);
+    setBufferAfter(existing?.bufferAfter ?? 0);
     setTestResults((prev) => { const next = { ...prev }; delete next[platform]; return next; });
   };
 

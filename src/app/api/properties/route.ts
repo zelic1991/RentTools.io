@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
     const redactManagedFeedToken = <T extends { userId: number; feedToken?: unknown }>(
       property: T,
     ) => {
-      if (property.userId === session.userId) return property;
+      if (!session.impersonatorId && property.userId === session.userId) return property;
       const safeProperty = { ...property };
       delete safeProperty.feedToken;
       return safeProperty;

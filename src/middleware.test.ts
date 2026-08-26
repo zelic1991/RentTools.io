@@ -56,6 +56,7 @@ describe("impersonation server boundary", () => {
     ["POST", "/api/auth/change-password"],
     ["PUT", "/api/calendar/schedule"],
     ["POST", "/api/calendar/cron"],
+    ["GET", "/api/calendar/cron?secret=cron-secret"],
     ["POST", "/de/onboard"],
   ])("rejects %s %s while impersonating", async (method, path) => {
     const response = await middleware(await request(path, method));
@@ -79,6 +80,24 @@ describe("impersonation server boundary", () => {
 
   it("keeps safe reads available while impersonating", async () => {
     const response = await middleware(await request("/api/properties/17", "GET"));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("keeps the cron denial scoped to the exact state-changing GET route", async () => {
+    const response = await middleware(
+      await request("/api/calendar/cron-url", "GET"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
+  it("preserves ordinary secret-authenticated cron requests", async () => {
+    const response = await middleware(
+      await request("/api/calendar/cron?secret=cron-secret", "GET", false),
+    );
 
     expect(response.status).toBe(200);
     expect(response.headers.get("x-middleware-next")).toBe("1");

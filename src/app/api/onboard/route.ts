@@ -55,7 +55,6 @@ export async function GET() {
       where: { sessionToken: token },
       select: {
         id: true,
-        sessionToken: true,
         propertyName: true,
         feedSlug: true,
         feedToken: true,
@@ -69,9 +68,13 @@ export async function GET() {
     return NextResponse.json(
       {
         draft: {
-          ...draft,
-          ...feedIdentity,
+          id: draft.id,
+          propertyName: draft.propertyName,
+          feedSlug: feedIdentity.feedSlug,
+          feedToken: feedIdentity.feedToken,
           links: safeParseLinks(draft.links),
+          claimedByUserId: draft.claimedByUserId,
+          createdAt: draft.createdAt,
         },
       },
       { headers: { "Cache-Control": "no-store" } },
@@ -141,7 +144,6 @@ export async function POST(request: NextRequest) {
       {
         draft: {
           id: draft.id,
-          sessionToken: draft.sessionToken,
           propertyName: draft.propertyName,
           feedSlug: draft.feedSlug,
           feedToken: draft.feedToken,

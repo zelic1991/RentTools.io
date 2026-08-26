@@ -81,6 +81,8 @@ export async function claimOnboardingDraft(userId: number): Promise<void> {
             propertyId: property.id,
             platform: link.platform,
             icalExportUrl: link.icalExportUrl.trim(),
+            bufferBefore: 0,
+            bufferAfter: 0,
           },
         });
         await logAudit(userId, "create", "calendarLink", created.id, {

@@ -32,6 +32,17 @@ beforeEach(() => {
 });
 
 describe("POST /api/properties/sample secure feed defaults", () => {
+  it("does not let a cleaner create an owned sample property", async () => {
+    mocks.getSession.mockResolvedValue({ userId: 9, username: "cleaner", role: "cleaner" });
+
+    const response = await POST();
+
+    expect(response.status).toBe(403);
+    expect(mocks.mintNewPropertyFeedIdentity).not.toHaveBeenCalled();
+    expect(mocks.propertyCreate).not.toHaveBeenCalled();
+    expect(mocks.reservationCreate).not.toHaveBeenCalled();
+  });
+
   it("creates the sample property with a protected feed identity", async () => {
     const response = await POST();
 

@@ -35,8 +35,16 @@ export async function PUT(
     }
     const body = await request.json().catch(() => null);
     const draft = sanitizePrecheckinDraft(body?.precheckin);
-    await prisma.guestFormSubmission.update({
-      where: { id: submission.id },
+    // The public page autosaves in the background. A final submit can win the
+    // race after the state read above, so the draft write must claim the still
+    // editable row atomically instead of overwriting completed identity data.
+    const saved = await prisma.guestFormSubmission.updateMany({
+      where: {
+        id: submission.id,
+        submittedAt: null,
+        status: { in: ["PENDING", "NOT_INVITED", "INVITED", "IN_PROGRESS"] },
+        revokedAt: null,
+      },
       data: {
         securePayload: encryptGuestData(draft),
         status: "IN_PROGRESS",
@@ -44,6 +52,12 @@ export async function PUT(
         updatedAt: new Date(),
       },
     });
+    if (saved.count !== 1) {
+      return NextResponse.json(
+        { error: "This form has already been submitted." },
+        { status: 409 },
+      );
+    }
     return NextResponse.json({ success: true, status: "IN_PROGRESS" });
   } catch (err) {
     console.error("Guest draft save failed:", err instanceof Error ? err.message : "unknown");

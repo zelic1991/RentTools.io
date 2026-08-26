@@ -73,12 +73,14 @@ describe("/api/onboard protected draft identity", () => {
         feedToken: "draft-secure-token",
       }),
     });
-    await expect(response.json()).resolves.toEqual({
+    const body = await response.json();
+    expect(body).toEqual({
       draft: expect.objectContaining({
         feedSlug: "vir-draft-0123456789ab",
         feedToken: "draft-secure-token",
       }),
     });
+    expect(body.draft).not.toHaveProperty("sessionToken");
   });
 
   it("migrates a cookie-authorized legacy draft before returning its URL identity", async () => {
@@ -101,11 +103,13 @@ describe("/api/onboard protected draft identity", () => {
     expect(mocks.ensureIdentity).toHaveBeenCalledWith(
       expect.objectContaining({ id: 13, feedToken: null }),
     );
-    await expect(response.json()).resolves.toEqual({
+    const body = await response.json();
+    expect(body).toEqual({
       draft: expect.objectContaining({
         feedSlug: "vir-draft-0123456789ab",
         feedToken: "draft-secure-token",
       }),
     });
+    expect(body.draft).not.toHaveProperty("sessionToken");
   });
 });

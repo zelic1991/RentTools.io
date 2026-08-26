@@ -59,12 +59,19 @@ export async function GET(request: NextRequest) {
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    // Sync logs and imported CalendarEvent rows contain provider diagnostics
+    // and may contain the source platform's unredacted event summary. Cleaners
+    // only need the operational turnover DTOs, never the raw sync surface.
+    if (session.role === "cleaner") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const propertyId = request.nextUrl.searchParams.get("propertyId");
     const limit = Number(request.nextUrl.searchParams.get("limit") || "50");
 
-    // Resolve which propertyIds the current user can access (owner / manager /
-    // cleaner). Logs/events are scoped to that set (logs without propertyId are
-    // global — keep them visible to everyone authenticated).
+    // Resolve which propertyIds this owner/manager can access. Never include
+    // global (propertyId=null) logs in a tenant response: they can describe a
+    // different owner's background sync.
     const ownedIds = await listAccessiblePropertyIds(session.userId, session.role);
 
     if (propertyId) {
@@ -78,14 +85,9 @@ export async function GET(request: NextRequest) {
       ? { propertyId: Number(propertyId) }
       : { propertyId: { in: ownedIds } };
 
-    // RT-25.4 — when a propertyId is supplied, drop global (null
-    // propertyId) entries from the result. Each property's settings
-    // page should show only its own log entries; "Sync started"
-    // banners belong on the dashboard-level Tasks panel which queries
-    // without a propertyId filter.
     const logsWhere = propertyId
       ? { propertyId: Number(propertyId) }
-      : { OR: [{ propertyId: { in: ownedIds } }, { propertyId: null }] };
+      : { propertyId: { in: ownedIds } };
 
     const [logs, events] = await Promise.all([
       prisma.syncLog.findMany({

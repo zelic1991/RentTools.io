@@ -250,8 +250,8 @@ model CalendarLink {
   property      Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   platform      String    // "airbnb" or "booking"
   icalExportUrl String    // iCal export URL from the platform
-  bufferBefore  Int       @default(1) // days before booking to block
-  bufferAfter   Int       @default(1) // days after booking to block
+  bufferBefore  Int       @default(0) // opt-in days before booking to block
+  bufferAfter   Int       @default(0) // opt-in days from checkout to block
   lastFetchedAt DateTime?
   lastError     String?
   failureCount  Int       @default(0)
@@ -626,8 +626,8 @@ model CalendarPlatform {
   displayName           String
   color                 String    @default("#6B7280") // hex (#rrggbb), used by calendar grid
   iconUrl               String?
-  defaultBufferBefore   Int       @default(1) // days, copied into new CalendarLink.bufferBefore
-  defaultBufferAfter    Int       @default(1)
+  defaultBufferBefore   Int       @default(0) // same-day turnover unless explicitly changed
+  defaultBufferAfter    Int       @default(0)
   importInstructionsKey String?   // i18n key for the "where to find your iCal" copy
   exportInstructionsKey String?   // i18n key for the "paste this back into the platform" copy
   isCustom              Boolean   @default(false)

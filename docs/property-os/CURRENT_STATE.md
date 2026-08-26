@@ -19,7 +19,7 @@ was created or changed.
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Full test suite | PASS | 86 files, 612 tests |
+| Full test suite | PASS | 90 files, 640 tests |
 | Three-owner authority integration | PASS | three owners, six Properties, cross-owner Manager/Cleaner assignments and immediate revocation |
 | TypeScript | PASS | `npx tsc --noEmit` |
 | Production build | PASS | Next.js 16 build, 90 routes |
@@ -78,6 +78,9 @@ AUTHORITY_MODEL: `TEMPORARY_FIRST_CUSTOMER_AUTHORITY_MODEL`
   stale sessions. Unsuspending an account cannot revive an old token.
 - Support impersonation validates both the target account and the originating
   superadmin, including current role, suspension and session version.
+- Support impersonation remains read-only on the legacy state-changing cron
+  GET and cannot retrieve reusable Property feed tokens or provider iCal URLs.
+  Manager write responses apply the same secret projection.
 
 ### Calendar and feed continuity
 
@@ -88,15 +91,22 @@ AUTHORITY_MODEL: `TEMPORARY_FIRST_CUSTOMER_AUTHORITY_MODEL`
 - Draft URLs remain identical after account claim because slug and token are
   transferred together.
 - Manager and Cleaner DTOs do not expose feed tokens.
-- Legacy Properties with a null token are not silently rotated because that
-  could break an already connected portal URL. A non-null token is an explicit
-  admission check before a real customer is connected.
+- Legacy Properties with a null token fail closed instead of remaining public.
+  They are not silently rotated because that could break an already connected
+  portal URL; inventory and an explicit cutover remain production gates.
 - Durable reservation `externalKey` values are scoped by Property and canonical
   platform. Known direct keys are immutable and date-bound; POST/CSV import use
   the database unique index as the atomic authority and return only a fully
   compatible existing row after a concurrent duplicate.
 
 ### Guest pre-check-in and manual eVisitor boundary
+
+- Guest draft autosave uses an atomic submitted-state guard, so a delayed
+  autosave cannot overwrite the final submission.
+- Existing guest data is never reset merely because a legacy share-token
+  envelope is missing or unreadable; recovery fails closed.
+- Passport/document fields are masked before update metadata reaches the
+  plaintext audit log.
 
 Canonical status flow:
 
@@ -131,6 +141,10 @@ PENDING
 - Cleaning records are operational metadata only; they never write
   availability or create a false cleaning day. Same-day checkout/check-in
   remains valid.
+- New calendar links and missing destination links default to zero buffer days.
+  A positive buffer is an explicit host choice. Existing stored positive
+  buffers are preserved, so production admission must inventory them and
+  confirm each one before a first external customer is enabled.
 - Owners/Managers can store an optional gross reservation amount in integer
   cents and ISO currency. Reports sum only explicit stored values and count
   unknown amounts separately; nothing is inferred from nights, iCal, rates,
@@ -147,10 +161,13 @@ These are real next gates, not hidden parts of this local-ready claim:
    and Cleaner accounts on the deployed candidate.
 3. Migrate the real database on a backup copy first; verify every existing
    Property has a protected feed token before changing any connected URL.
+   Legacy null-token feeds now fail closed rather than remaining public.
 4. Verify backup and restore after the migrated schema, including encrypted
    guest payloads. A production restore must rotate `JWT_SECRET` before the app
    is reachable again so older restored session-version values cannot revive a
    previously revoked JWT.
+   A rollback to code from before `sessionVersion` support has the same rule:
+   rotate `JWT_SECRET` before that old code is reachable.
 5. Include the intentional one-time login cutover in release acceptance:
    pre-deployment cookies do not contain `sessionVersion` and fail closed, so
    every existing user must authenticate again after deployment.

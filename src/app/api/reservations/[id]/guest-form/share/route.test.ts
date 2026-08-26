@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   decryptGuestData: vi.fn(),
   encryptGuestData: vi.fn(),
   hashShareToken: vi.fn(),
+  decryptOwnerShareToken: vi.fn(),
   mintGuestFormToken: vi.fn(),
   guestFormExpiry: vi.fn(),
   validatedHandoff: vi.fn(),
@@ -44,7 +45,7 @@ vi.mock("@/lib/precheckin-crypto", () => ({
   maskDocumentNumber: vi.fn(() => "MASKED-56"),
 }));
 vi.mock("@/lib/guest-form-security", () => ({
-  decryptOwnerShareToken: vi.fn(() => null),
+  decryptOwnerShareToken: mocks.decryptOwnerShareToken,
   guestFormExpiry: mocks.guestFormExpiry,
   mintGuestFormToken: mocks.mintGuestFormToken,
 }));
@@ -139,6 +140,7 @@ beforeEach(() => {
   mocks.decryptGuestData.mockReturnValue(payload);
   mocks.encryptGuestData.mockReturnValue("encrypted-token");
   mocks.hashShareToken.mockReturnValue("token-hash");
+  mocks.decryptOwnerShareToken.mockReturnValue(null);
   mocks.mintGuestFormToken.mockReturnValue("raw-share-token");
   mocks.guestFormExpiry.mockReturnValue(new Date("2027-05-21T23:59:59.999Z"));
 });
@@ -344,5 +346,65 @@ describe("guest-form sharing", () => {
         status: "PENDING",
       }),
     });
+  });
+
+  it.each([
+    ["missing", null],
+    ["undecryptable", "corrupted-token-envelope"],
+  ])("fails closed when an existing payload has a %s token envelope", async (_kind, tokenCiphertext) => {
+    mocks.submissionFindFirst.mockResolvedValue({
+      ...submission("GUEST_COMPLETE"),
+      tokenCiphertext,
+    });
+    mocks.decryptOwnerShareToken.mockReturnValue(null);
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/reservations/7/guest-form/share", {
+        method: "POST",
+      }),
+      params,
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: "Existing guest data cannot be safely re-shared",
+    });
+    expect(mocks.submissionUpdate).not.toHaveBeenCalled();
+    expect(mocks.submissionCreate).not.toHaveBeenCalled();
+  });
+
+  it("may rotate a truly empty pending invitation without guest data", async () => {
+    mocks.submissionFindFirst.mockResolvedValue({
+      ...submission("PENDING"),
+      tokenCiphertext: null,
+      securePayload: "",
+      submittedAt: null,
+      ownerApprovedAt: null,
+      answers: "[]",
+    });
+    mocks.submissionUpdate.mockResolvedValue({
+      submittedAt: null,
+      status: "PENDING",
+      expiresAt: new Date("2027-05-21T23:59:59.999Z"),
+    });
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/reservations/7/guest-form/share", {
+        method: "POST",
+      }),
+      params,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.submissionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 40 },
+        data: expect.objectContaining({
+          securePayload: "",
+          submittedAt: null,
+          ownerApprovedAt: null,
+        }),
+      }),
+    );
   });
 });

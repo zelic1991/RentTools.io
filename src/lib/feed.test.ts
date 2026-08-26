@@ -280,4 +280,22 @@ describe("generateFeed — Direct linked extensions", () => {
       expect.objectContaining({ startDate: "2027-06-30", endDate: "2027-07-04" }),
     ]);
   });
+
+  it("does not invent buffer days when the destination has no CalendarLink yet", async () => {
+    mocks.calendarLinkFindMany.mockResolvedValue([
+      { platform: "booking", bufferBefore: 2, bufferAfter: 2 },
+    ]);
+    mocks.calendarEventFindMany.mockResolvedValue([
+      { ...source, uid: "booking-no-target", startDate: "2027-06-30", endDate: "2027-07-04", platform: "booking" },
+    ]);
+    mocks.reservationFindMany.mockResolvedValue([]);
+
+    const result = await generateFeed(12, "airbnb");
+    if ("error" in result) throw new Error(result.error);
+    const events = parseICal(result.ical).filter((event) => event.uid !== "renttools-placeholder");
+
+    expect(events).toEqual([
+      expect.objectContaining({ startDate: "2027-06-30", endDate: "2027-07-04" }),
+    ]);
+  });
 });

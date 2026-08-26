@@ -17,6 +17,12 @@ function isUnsafeHttpMethod(method: string): boolean {
   return !SAFE_HTTP_METHODS.has(method.toUpperCase());
 }
 
+function isImpersonationStateChange(pathname: string, method: string): boolean {
+  return isUnsafeHttpMethod(method) || (
+    method.toUpperCase() === "GET" && pathname === "/api/calendar/cron"
+  );
+}
+
 function isImpersonationMutationException(pathname: string, method: string): boolean {
   return IMPERSONATION_MUTATION_EXCEPTIONS.get(pathname) === method.toUpperCase();
 }
@@ -182,7 +188,7 @@ export async function middleware(request: NextRequest) {
   const sessionToken = request.cookies.get("rent-tool-session")?.value;
   if (
     sessionToken &&
-    isUnsafeHttpMethod(request.method) &&
+    isImpersonationStateChange(pathname, request.method) &&
     !isImpersonationMutationException(pathname, request.method)
   ) {
     try {

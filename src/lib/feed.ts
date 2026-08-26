@@ -123,8 +123,11 @@ export async function generateFeed(propertyId: number, forPlatform: string): Pro
   );
 
   const targetLink = links.find((l) => l.platform === forPlatform);
-  const bufferBefore = targetLink?.bufferBefore ?? 1;
-  const bufferAfter = targetLink?.bufferAfter ?? 1;
+  // A missing target link must not invent cleaning days. Explicit stored
+  // buffers remain authoritative; otherwise checkout stays exclusive and a
+  // same-day arrival remains possible.
+  const bufferBefore = targetLink?.bufferBefore ?? 0;
+  const bufferAfter = targetLink?.bufferAfter ?? 0;
 
   // Other-platform events (block dates + buffer)
   const otherEvents: ICalEvent[] = allEvents

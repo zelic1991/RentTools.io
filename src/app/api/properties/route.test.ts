@@ -184,6 +184,31 @@ describe("GET /api/properties cleaner projection", () => {
     expect(JSON.stringify(body)).not.toContain("other-owner-secret");
   });
 
+  it("redacts owned feedToken during support impersonation", async () => {
+    mocks.getSession.mockResolvedValue({
+      userId: 1,
+      username: "owner",
+      role: "user",
+      impersonatorId: 99,
+    });
+    mocks.propertyFindMany.mockResolvedValue([{
+      id: 11,
+      userId: 1,
+      name: "Owned Apartment",
+      feedToken: "owned-secret",
+      feedSlug: "owned-feed",
+      reservations: [],
+    }]);
+
+    const response = await GET(new NextRequest("http://localhost/api/properties"));
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body[0]).not.toHaveProperty("feedToken");
+    expect(body[0].feedSlug).toBe("owned-feed");
+    expect(JSON.stringify(body)).not.toContain("owned-secret");
+  });
+
   it("applies the same manager redaction to paginated responses", async () => {
     mocks.getSession.mockResolvedValue({ userId: 1, username: "manager", role: "user" });
     mocks.propertyFindMany.mockResolvedValue([{

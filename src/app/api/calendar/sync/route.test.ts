@@ -27,7 +27,7 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -59,5 +59,34 @@ describe("POST /api/calendar/sync — write authorization", () => {
     expect(response.status).toBe(403);
     expect(mocks.listManageablePropertyIds).toHaveBeenCalledWith(9);
     expect(mocks.syncAllCalendars).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/calendar/sync — raw sync-data isolation", () => {
+  it("does not expose sync logs or imported event summaries to cleaners", async () => {
+    const request = new NextRequest("http://localhost/api/calendar/sync");
+
+    const response = await GET(request);
+
+    expect(response.status).toBe(403);
+    expect(mocks.syncLogFindMany).not.toHaveBeenCalled();
+    expect(mocks.calendarEventFindMany).not.toHaveBeenCalled();
+  });
+
+  it("scopes owner/manager log reads to accessible properties and excludes global logs", async () => {
+    mocks.getSession.mockResolvedValue({ userId: 7, role: "manager" });
+    mocks.listAccessiblePropertyIds.mockResolvedValue([12, 14]);
+    mocks.syncLogFindMany.mockResolvedValue([]);
+    mocks.calendarEventFindMany.mockResolvedValue([]);
+
+    const response = await GET(new NextRequest("http://localhost/api/calendar/sync"));
+
+    expect(response.status).toBe(200);
+    expect(mocks.syncLogFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { propertyId: { in: [12, 14] } },
+    }));
+    expect(mocks.calendarEventFindMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { propertyId: { in: [12, 14] } },
+    }));
   });
 });

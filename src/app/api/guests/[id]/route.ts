@@ -4,6 +4,7 @@ import { stripSpaces, sanitizeAlphanumeric, normalizePhone } from "@/lib/sanitiz
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { canManageProperty } from "@/lib/ownership";
+import { maskGuestDocs } from "@/lib/guest-privacy";
 
 const ALLOWED_STRING_FIELDS = [
   "fullName",
@@ -133,7 +134,15 @@ export async function PATCH(
       where: { id: numId },
       data,
     });
-    await logAudit(session.userId, "update", "guest", numId, data);
+    // Audit which fields changed without duplicating travel-document and
+    // identity details into a long-lived plaintext log.
+    await logAudit(
+      session.userId,
+      "update",
+      "guest",
+      numId,
+      maskGuestDocs(data, true),
+    );
     return NextResponse.json(guest);
   } catch (err) {
     console.error("Route error:", err);

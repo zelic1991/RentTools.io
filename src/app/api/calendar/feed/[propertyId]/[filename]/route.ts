@@ -21,10 +21,9 @@ import { timingSafeEqual } from "node:crypto";
  *      Once they sign up the draft is claimed and the slug points at a
  *      real Property — same URL keeps working.
  *
- * If the property has a feedToken set, the request must include
- * ?token=<value> matching it; otherwise we return 401. Properties
- * without a token (legacy) keep working publicly until the user
- * opts in via the rotate-feed-token endpoint.
+ * Every Property feed requires its durable bearer token. Legacy rows without
+ * a token fail closed; production admission must inventory and rotate them
+ * before any connected URL is cut over.
  */
 export async function GET(
   request: NextRequest,
@@ -55,11 +54,9 @@ export async function GET(
     });
 
     if (property) {
-      if (property.feedToken) {
-        const provided = request.nextUrl.searchParams.get("token") ?? "";
-        if (!tokensMatch(provided, property.feedToken)) {
-          return new NextResponse("Unauthorized", { status: 401 });
-        }
+      const provided = request.nextUrl.searchParams.get("token") ?? "";
+      if (!property.feedToken || !tokensMatch(provided, property.feedToken)) {
+        return new NextResponse("Unauthorized", { status: 401 });
       }
       const result = await generateFeed(property.id, forPlatform);
       if ("error" in result) {

@@ -132,7 +132,7 @@ describe("generateBufferedEvents", () => {
     expect(generateBufferedEvents([], 1, 1, "airbnb")).toEqual([]);
   });
 
-  it("expands a single event by buffer days on each side and +1 for checkout", () => {
+  it("expands a single event by the exact configured buffer days", () => {
     const buffered = generateBufferedEvents(
       [{ uid: "x", summary: "S", startDate: "2026-05-10", endDate: "2026-05-15" }],
       2,
@@ -141,7 +141,7 @@ describe("generateBufferedEvents", () => {
     );
     expect(buffered).toHaveLength(1);
     expect(buffered[0].startDate).toBe("2026-05-08"); // -2 buffer before
-    expect(buffered[0].endDate).toBe("2026-05-17");   // +1 checkout +1 buffer after
+    expect(buffered[0].endDate).toBe("2026-05-16");   // checkout day blocked once
   });
 
   it("emits separate blocks for adjacent stays under 0-buffer (same-day turnover)", () => {
@@ -179,12 +179,12 @@ describe("generateBufferedEvents", () => {
   });
 
   it("merges events when their buffers overlap", () => {
-    // A: 06-01..06-05 +1 checkout +2 buffer-after → ends 06-08
-    // B: starts 06-08 (within A's buffer) → ranges touch → merge
+    // A: 06-01..06-05 +2 buffer-after → ends 06-07
+    // B: starts 06-07 (at A's exclusive buffered end) → ranges touch → merge
     const buffered = generateBufferedEvents(
       [
         { uid: "a", summary: "S", startDate: "2026-06-01", endDate: "2026-06-05" },
-        { uid: "b", summary: "S", startDate: "2026-06-08", endDate: "2026-06-12" },
+        { uid: "b", summary: "S", startDate: "2026-06-07", endDate: "2026-06-12" },
       ],
       0,
       2,
@@ -192,7 +192,7 @@ describe("generateBufferedEvents", () => {
     );
     expect(buffered).toHaveLength(1);
     expect(buffered[0].startDate).toBe("2026-06-01");
-    expect(buffered[0].endDate).toBe("2026-06-15"); // 06-12 +1 checkout +2 buffer
+    expect(buffered[0].endDate).toBe("2026-06-14"); // 06-12 +2 buffer
   });
 
   it("includes the source platform in the event UID and summary", () => {
@@ -233,9 +233,9 @@ describe("generateBufferOnlyEvents", () => {
     // before: 09-08..09-10 (exclusive end on booking start)
     expect(events[0].startDate).toBe("2026-09-08");
     expect(events[0].endDate).toBe("2026-09-10");
-    // after: starts day after checkout, runs +bufferAfter days
-    expect(events[1].startDate).toBe("2026-09-16");
-    expect(events[1].endDate).toBe("2026-09-17");
+    // after: starts on checkout day, runs exactly bufferAfter days
+    expect(events[1].startDate).toBe("2026-09-15");
+    expect(events[1].endDate).toBe("2026-09-16");
   });
 
   it("skips the before-buffer when bufferBefore is 0", () => {
@@ -245,7 +245,7 @@ describe("generateBufferOnlyEvents", () => {
       2
     );
     expect(events).toHaveLength(1);
-    expect(events[0].startDate).toBe("2026-09-16");
+    expect(events[0].startDate).toBe("2026-09-15");
   });
 
   it("skips the after-buffer when bufferAfter is 0", () => {

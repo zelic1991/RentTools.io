@@ -29,10 +29,14 @@ const guestId = 7;
 const reservationId = 20;
 
 function request(parentId: unknown) {
+  return patchRequest({ parentId });
+}
+
+function patchRequest(body: Record<string, unknown>) {
   return new NextRequest(`http://localhost/api/guests/${guestId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ parentId }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -68,6 +72,48 @@ describe("PATCH /api/guests/:id parent authority", () => {
       where: { id: guestId },
       data: { parentId: null },
     });
+  });
+
+  it("never copies travel-document or identity details into plaintext audit data", async () => {
+    const response = await PATCH(
+      patchRequest({
+        fullName: "Ana Horvat",
+        passportNumber: "P 123 456",
+        visaNumber: "VISA-999",
+        dateOfBirth: "1990-05-20",
+        expiryDate: "2030-05-20",
+        citizenshipCode: "HRV",
+      }),
+      params(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.guestUpdate).toHaveBeenCalledWith({
+      where: { id: guestId },
+      data: expect.objectContaining({
+        fullName: "Ana Horvat",
+        passportNumber: "P123456",
+        visaNumber: "VISA-999",
+      }),
+    });
+    expect(mocks.logAudit).toHaveBeenCalledWith(
+      3,
+      "update",
+      "guest",
+      guestId,
+      expect.objectContaining({
+        fullName: "Ana Horvat",
+        passportNumber: "••••••",
+        visaNumber: "••••••",
+        dateOfBirth: "••••••",
+        expiryDate: "••••••",
+        citizenshipCode: "••••••",
+      }),
+    );
+    const auditPayload = JSON.stringify(mocks.logAudit.mock.calls[0][4]);
+    expect(auditPayload).not.toContain("P123456");
+    expect(auditPayload).not.toContain("VISA-999");
+    expect(auditPayload).not.toContain("1990-05-20");
   });
 
   it("allows a parent from the same reservation", async () => {

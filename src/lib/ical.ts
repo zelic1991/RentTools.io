@@ -150,20 +150,12 @@ export function generateBufferedEvents(
 
   // Only export cleaning buffer days to platforms, NOT unbookable gap days.
   // Platforms handle their own min-night rules.
-  // endDate is iCal exclusive (checkout day). Two cases:
-  //   bufferAfter > 0 — the cleaner needs the checkout day plus N days
-  //     of cleaning, so the block extends through (checkout + 1 + N).
-  //     A new check-in is only possible after the cleaning window.
-  //   bufferAfter === 0 — same-day turnover is the entire point of
-  //     0-buffer mode: the previous guest leaves by checkOutTime and
-  //     the new guest arrives at checkInTime on the SAME calendar
-  //     day. Leave the checkout day OPEN in the outgoing iCal so the
-  //     other platform can accept a check-in on that date.
+  // endDate is iCal exclusive (checkout day). bufferAfter counts calendar
+  // days starting with that checkout date. Therefore 0 keeps checkout open,
+  // while 1 closes exactly checkout day (exclusive end = checkout + 1).
   const buffered = events.map((event) => ({
     start: addDays(event.startDate, -bufferBefore),
-    end: bufferAfter > 0
-      ? addDays(event.endDate, 1 + bufferAfter)
-      : event.endDate,
+    end: addDays(event.endDate, bufferAfter),
     count: 1,
   }));
 
@@ -217,11 +209,11 @@ export function generateBufferOnlyEvents(
       });
     }
 
-    // Buffer after: day after checkout (endDate is checkout day)
-    // Checkout day is guest's day, buffer starts next day
+    // Buffer after starts on checkout day. With a value of 1, that exact
+    // calendar day is closed; with 0, same-day turnover stays possible.
     if (bufferAfter > 0) {
-      const start = addDays(event.endDate, 1); // day after checkout
-      const end = addDays(event.endDate, 1 + bufferAfter);
+      const start = event.endDate;
+      const end = addDays(event.endDate, bufferAfter);
       result.push({
         uid: `renttool-buffer-after-${event.endDate}-${event.uid}`,
         summary: label,

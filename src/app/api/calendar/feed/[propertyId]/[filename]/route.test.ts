@@ -82,3 +82,30 @@ describe("pre-signup draft feed protection", () => {
     expect(mocks.generateEmptyFeed).not.toHaveBeenCalled();
   });
 });
+
+describe("Property feed protection", () => {
+  it("fails closed for a legacy Property without a feed token", async () => {
+    mocks.propertyFindFirst.mockResolvedValue({ id: 12, feedToken: null });
+
+    const response = await GET(
+      new NextRequest("http://localhost/api/calendar/feed/12/for-airbnb.ics"),
+      { params: Promise.resolve({ propertyId: "12", filename: "for-airbnb.ics" }) },
+    );
+
+    expect(response.status).toBe(401);
+    expect(mocks.generateFeed).not.toHaveBeenCalled();
+  });
+
+  it("serves a Property feed only for the exact bearer token", async () => {
+    mocks.propertyFindFirst.mockResolvedValue({ id: 12, feedToken: "property-secret" });
+    mocks.generateFeed.mockResolvedValue({ ical: "BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n" });
+
+    const response = await GET(
+      new NextRequest("http://localhost/api/calendar/feed/12/for-airbnb.ics?token=property-secret"),
+      { params: Promise.resolve({ propertyId: "12", filename: "for-airbnb.ics" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.generateFeed).toHaveBeenCalledWith(12, "airbnb");
+  });
+});
