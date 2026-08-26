@@ -1,0 +1,78 @@
+{
+  "missionId": "RENTOOLS_PRE_ADMISSION_BACKUP_AND_SQLITE_DEFAULT_REPAIR_V1",
+  "receiptVersion": 1,
+  "production": {
+    "codeHead": "6657d0704c52cd4282f126a74e466dabba23ede1",
+    "health": "PASS",
+    "service": "PASS",
+    "databaseIntegrity": "ok"
+  },
+  "backup": {
+    "canonicalScript": "scripts/backup-db.sh",
+    "createdAtUtc": "2026-08-26T05:51:15Z",
+    "snapshotName": "prod-20260826-0551.db",
+    "snapshotSizeBytes": 7802880,
+    "snapshotSha256": "c37b17f6a3ef53105b481be1cfb568c745407be1e747367ba4deef34c62d0222"
+  },
+  "offsite": {
+    "authenticatedFormat": "V2_GPG_AES256_OCB",
+    "objectName": "rtbackup-20260826-0551.db.v2.gpg",
+    "objectSizeBytes": 7804184,
+    "downloadedObjectSha256": "56297635c2ad6f2030f3d87b31d6be2b29b2aaa29c6e9327750364ed18ca8883",
+    "uploadVerifiedAtUtc": "2026-08-26T05:51:22Z",
+    "uploadQueueEmpty": true
+  },
+  "independentDownloadAndRestore": {
+    "objectDownloadedSeparately": true,
+    "canonicalFormatTool": "scripts/offsite-backup-format.sh decrypt",
+    "manifestAuthenticated": true,
+    "payloadAuthenticated": true,
+    "restoredSizeBytes": 7802880,
+    "restoredSha256": "c37b17f6a3ef53105b481be1cfb568c745407be1e747367ba4deef34c62d0222",
+    "sourceAndRestoredShaMatch": true,
+    "sqliteIntegrity": "ok"
+  },
+  "officialOffsiteRestoreDrill": {
+    "canonicalScript": "scripts/test-offsite-restore.sh",
+    "completedAtUtc": "2026-08-26T05:52:07Z",
+    "authenticityVerified": true,
+    "sqliteIntegrityVerified": true
+  },
+  "calendarLinkBefore": {
+    "schemaDefaultBefore": 1,
+    "schemaDefaultAfter": 1,
+    "rowCount": 2,
+    "rowsWithBufferBeforeZero": 2,
+    "rowsWithBufferAfterZero": 2,
+    "rowsWithPositiveBuffer": 0,
+    "rowsWithNegativeBuffer": 0
+  },
+  "isolatedMigrationRehearsal": {
+    "productionDatabaseWasTarget": false,
+    "firstRun": "MIGRATED",
+    "secondRun": "NOOP",
+    "schemaDefaultAfterFirstRun": "0/0",
+    "schemaDefaultAfterSecondRun": "0/0",
+    "sourceIntegrity": "ok",
+    "firstRunIntegrity": "ok",
+    "secondRunIntegrity": "ok",
+    "foreignKeyViolations": 0,
+    "tableCountMismatches": [],
+    "tableDataHashMismatches": [],
+    "nonCalendarSchemaMatch": true,
+    "calendarLinkIdSetMatch": true,
+    "calendarLinkPropertyRelationsMatch": true,
+    "calendarLinkBufferValuesMatch": true,
+    "calendarLinkUrlValueHashesMatch": true,
+    "calendarLinkFullRowHashesMatch": true,
+    "secondRunSchemaMatch": true,
+    "secondRunDataHashMismatches": []
+  },
+  "privacy": {
+    "databaseCommitted": false,
+    "guestPiiCommitted": false,
+    "providerUrlsCommitted": false,
+    "secretsCommitted": false,
+    "temporaryPlaintextCopiesRemoved": true
+  }
+}

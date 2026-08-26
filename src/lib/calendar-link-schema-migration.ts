@@ -7,7 +7,10 @@ type TableInfoRow = {
   notnull: number;
   dflt_value: string | number | null;
   pk: number;
+  hidden: number;
 };
+
+type TableSqlRow = { sql: string | null };
 
 type SchemaObjectRow = {
   type: "index" | "trigger";
@@ -41,7 +44,45 @@ const EXPECTED_COLUMNS = [
 const COLUMN_LIST = EXPECTED_COLUMNS.map((column) => `"${column}"`).join(", ");
 const REBUILD_TABLE = "CalendarLink__default0_rebuild";
 
-function normalizeIntegerDefault(value: string | number | null): string | null {
+const EXPECTED_LEGACY_COLUMN_SHAPE = [
+  { name: "id", type: "INTEGER", notnull: 1, dflt_value: null, pk: 1, hidden: 0 },
+  { name: "propertyId", type: "INTEGER", notnull: 1, dflt_value: null, pk: 0, hidden: 0 },
+  { name: "platform", type: "TEXT", notnull: 1, dflt_value: null, pk: 0, hidden: 0 },
+  { name: "icalExportUrl", type: "TEXT", notnull: 1, dflt_value: null, pk: 0, hidden: 0 },
+  { name: "bufferBefore", type: "INTEGER", notnull: 1, dflt_value: "1", pk: 0, hidden: 0 },
+  { name: "bufferAfter", type: "INTEGER", notnull: 1, dflt_value: "1", pk: 0, hidden: 0 },
+  { name: "lastFetchedAt", type: "DATETIME", notnull: 0, dflt_value: null, pk: 0, hidden: 0 },
+  { name: "lastError", type: "TEXT", notnull: 0, dflt_value: null, pk: 0, hidden: 0 },
+  {
+    name: "createdAt",
+    type: "DATETIME",
+    notnull: 1,
+    dflt_value: "CURRENT_TIMESTAMP",
+    pk: 0,
+    hidden: 0,
+  },
+  { name: "failureCount", type: "INTEGER", notnull: 1, dflt_value: "0", pk: 0, hidden: 0 },
+] as const;
+
+const LEGACY_TABLE_SQL = `
+  CREATE TABLE "CalendarLink" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "propertyId" INTEGER NOT NULL,
+    "platform" TEXT NOT NULL,
+    "icalExportUrl" TEXT NOT NULL,
+    "bufferBefore" INTEGER NOT NULL DEFAULT 1,
+    "bufferAfter" INTEGER NOT NULL DEFAULT 1,
+    "lastFetchedAt" DATETIME,
+    "lastError" TEXT,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "failureCount" INTEGER NOT NULL DEFAULT 0,
+    CONSTRAINT "CalendarLink_propertyId_fkey"
+      FOREIGN KEY ("propertyId") REFERENCES "Property" ("id")
+      ON DELETE CASCADE ON UPDATE CASCADE
+  )
+`;
+
+function normalizeSqlDefault(value: string | number | null): string | null {
   if (value === null) return null;
   let normalized = String(value).trim();
   while (normalized.startsWith("(") && normalized.endsWith(")")) {
@@ -55,6 +96,16 @@ function normalizeIntegerDefault(value: string | number | null): string | null {
   }
   return normalized;
 }
+
+function normalizeCreateTableSql(value: string): string {
+  return value
+    .trim()
+    .replace(/;$/, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*([(),])\s*/g, "$1");
+}
+
+const EXPECTED_LEGACY_TABLE_SQL = normalizeCreateTableSql(LEGACY_TABLE_SQL);
 
 function asNumber(value: number | bigint): number {
   return typeof value === "bigint" ? Number(value) : value;
@@ -75,7 +126,7 @@ export async function alignCalendarLinkBufferDefaults(
   prisma: PrismaClient,
 ): Promise<CalendarLinkDefaultMigrationResult> {
   const columns = await prisma.$queryRawUnsafe<TableInfoRow[]>(
-    `PRAGMA table_info("CalendarLink")`,
+    `PRAGMA table_xinfo("CalendarLink")`,
   );
   if (columns.length === 0) {
     throw new Error("CalendarLink table is missing");
@@ -83,8 +134,8 @@ export async function alignCalendarLinkBufferDefaults(
 
   const before = columns.find((column) => column.name === "bufferBefore");
   const after = columns.find((column) => column.name === "bufferAfter");
-  const beforeDefault = normalizeIntegerDefault(before?.dflt_value ?? null);
-  const afterDefault = normalizeIntegerDefault(after?.dflt_value ?? null);
+  const beforeDefault = normalizeSqlDefault(before?.dflt_value ?? null);
+  const afterDefault = normalizeSqlDefault(after?.dflt_value ?? null);
   const rowCountRows = await prisma.$queryRawUnsafe<CountRow[]>(
     `SELECT COUNT(*) AS count FROM "CalendarLink"`,
   );
@@ -99,12 +150,27 @@ export async function alignCalendarLinkBufferDefaults(
     );
   }
 
-  const actualColumns = columns.map((column) => column.name);
+  const actualColumnShape = columns.map((column) => ({
+    name: column.name,
+    type: column.type.toUpperCase(),
+    notnull: column.notnull,
+    dflt_value: normalizeSqlDefault(column.dflt_value),
+    pk: column.pk,
+    hidden: column.hidden,
+  }));
+  if (JSON.stringify(actualColumnShape) !== JSON.stringify(EXPECTED_LEGACY_COLUMN_SHAPE)) {
+    throw new Error("Unexpected CalendarLink column shape; refusing unsafe rebuild");
+  }
+
+  const tableSqlRows = await prisma.$queryRawUnsafe<TableSqlRow[]>(
+    `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'CalendarLink'`,
+  );
   if (
-    actualColumns.length !== EXPECTED_COLUMNS.length ||
-    actualColumns.some((column, index) => column !== EXPECTED_COLUMNS[index])
+    tableSqlRows.length !== 1 ||
+    tableSqlRows[0].sql === null ||
+    normalizeCreateTableSql(tableSqlRows[0].sql) !== EXPECTED_LEGACY_TABLE_SQL
   ) {
-    throw new Error(`Unexpected CalendarLink columns: ${actualColumns.join(",")}`);
+    throw new Error("Unexpected CalendarLink table definition; refusing unsafe rebuild");
   }
 
   const candidateTables = await prisma.$queryRawUnsafe<Array<{ name: string }>>(
@@ -242,12 +308,12 @@ export async function alignCalendarLinkBufferDefaults(
   });
 
   const finalColumns = await prisma.$queryRawUnsafe<TableInfoRow[]>(
-    `PRAGMA table_info("CalendarLink")`,
+    `PRAGMA table_xinfo("CalendarLink")`,
   );
-  const finalBefore = normalizeIntegerDefault(
+  const finalBefore = normalizeSqlDefault(
     finalColumns.find((column) => column.name === "bufferBefore")?.dflt_value ?? null,
   );
-  const finalAfter = normalizeIntegerDefault(
+  const finalAfter = normalizeSqlDefault(
     finalColumns.find((column) => column.name === "bufferAfter")?.dflt_value ?? null,
   );
   if (finalBefore !== "0" || finalAfter !== "0") {

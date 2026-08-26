@@ -37,6 +37,7 @@ async function createFixture(
   prisma: PrismaClient,
   defaultBefore: number,
   defaultAfter: number,
+  extraTableConstraint = "",
 ) {
   await prisma.$executeRawUnsafe(`PRAGMA foreign_keys = ON`);
   await prisma.$executeRawUnsafe(`
@@ -60,7 +61,7 @@ async function createFixture(
       "failureCount" INTEGER NOT NULL DEFAULT 0,
       CONSTRAINT "CalendarLink_propertyId_fkey"
         FOREIGN KEY ("propertyId") REFERENCES "Property" ("id")
-        ON DELETE CASCADE ON UPDATE CASCADE
+        ON DELETE CASCADE ON UPDATE CASCADE${extraTableConstraint}
     )
   `);
 }
@@ -229,6 +230,60 @@ describe("alignCalendarLinkBufferDefaults", () => {
       await expect(alignCalendarLinkBufferDefaults(prisma)).rejects.toThrow(
         "CalendarLink has referencing tables; refusing unsafe rebuild",
       );
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
+
+  it("fails closed without dropping a generated column hidden from table_info", async () => {
+    const { prisma } = createClient();
+    try {
+      await createFixture(prisma, 1, 1);
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "CalendarLink"
+         ADD COLUMN "generatedPlatform" TEXT
+         GENERATED ALWAYS AS ("platform" || '-generated') VIRTUAL`,
+      );
+      const before = await prisma.$queryRawUnsafe(`PRAGMA table_xinfo("CalendarLink")`);
+
+      await expect(alignCalendarLinkBufferDefaults(prisma)).rejects.toThrow(
+        "Unexpected CalendarLink column shape; refusing unsafe rebuild",
+      );
+
+      expect(await prisma.$queryRawUnsafe(`PRAGMA table_xinfo("CalendarLink")`)).toEqual(before);
+      expect(before).toEqual(
+        expect.arrayContaining([expect.objectContaining({ name: "generatedPlatform" })]),
+      );
+      expect(await defaults(prisma)).toEqual({ bufferBefore: "1", bufferAfter: "1" });
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
+
+  it("fails closed without removing an unknown CHECK constraint", async () => {
+    const { prisma } = createClient();
+    try {
+      await createFixture(
+        prisma,
+        1,
+        1,
+        `, CONSTRAINT "CalendarLink_nonnegative_buffers"
+           CHECK ("bufferBefore" >= 0 AND "bufferAfter" >= 0)`,
+      );
+      const before = await prisma.$queryRawUnsafe<Array<{ sql: string }>>(
+        `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'CalendarLink'`,
+      );
+
+      await expect(alignCalendarLinkBufferDefaults(prisma)).rejects.toThrow(
+        "Unexpected CalendarLink table definition; refusing unsafe rebuild",
+      );
+
+      const after = await prisma.$queryRawUnsafe<Array<{ sql: string }>>(
+        `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'CalendarLink'`,
+      );
+      expect(after).toEqual(before);
+      expect(after[0].sql).toContain("CalendarLink_nonnegative_buffers");
+      expect(await defaults(prisma)).toEqual({ bufferBefore: "1", bufferAfter: "1" });
     } finally {
       await prisma.$disconnect();
     }
