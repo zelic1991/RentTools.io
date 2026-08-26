@@ -83,6 +83,7 @@ export default function AdminUsersPage() {
   const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [magicLink, setMagicLink] = useState<{ url: string; username: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -149,6 +150,14 @@ export default function AdminUsersPage() {
     window.alert(data?.error || "Impersonation failed");
   };
 
+  const createMagicLink = async (id: number, username: string) => {
+    setMagicLink(null);
+    const res = await fetch(`/api/admin/users/${id}/magic-link`, { method: "POST" });
+    if (!res.ok) { window.alert("Unable to create link"); return; }
+    const data = await res.json();
+    setMagicLink({ url: data.url, username });
+  };
+
   const isSuperAdmin = role === "superadmin";
 
   return (
@@ -193,6 +202,17 @@ export default function AdminUsersPage() {
               {error && <p className="text-xs text-rose-400">{error}</p>}
             </div>
           </form>
+        </div>
+      )}
+
+      {magicLink && (
+        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm">
+          <p className="font-medium text-[var(--ink)]">Einmal-Login-Link für {magicLink.username}</p>
+          <div className="mt-2 flex gap-2">
+            <input readOnly value={magicLink.url} className="min-w-0 flex-1 rounded-md border border-[var(--line-2)] bg-[var(--bg)] px-2 text-xs text-[var(--ink)]" />
+            <button type="button" onClick={() => void navigator.clipboard.writeText(magicLink.url)} className="rounded-md bg-[var(--m-accent)] px-3 py-1.5 text-xs text-white">Kopieren</button>
+          </div>
+          <p className="mt-1 text-xs text-[var(--ink-4)]">30 Minuten gültig · einmal verwendbar</p>
         </div>
       )}
 
@@ -244,6 +264,11 @@ export default function AdminUsersPage() {
                     <td className="px-2 py-3 text-right">
                       {u.role !== "superadmin" && (
                         <div className="flex items-center justify-end gap-0.5">
+                          <button
+                            type="button"
+                            onClick={() => void createMagicLink(u.id, u.username)}
+                            className="rounded-md px-1.5 py-1 text-xs text-[var(--ink-4)] hover:bg-emerald-500/15 hover:text-emerald-500"
+                          >Link</button>
                           <button
                             type="button"
                             onClick={() => impersonate(u.id, u.username)}
