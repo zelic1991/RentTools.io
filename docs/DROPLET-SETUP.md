@@ -235,11 +235,22 @@ mv /home/app/rent-tool/data/prod.db /home/app/rent-tool/data/prod.db.preroll
 cp /home/app/backups/daily/prod-YYYYMMDD-HHMM.db /home/app/rent-tool/data/prod.db
 chown app:app /home/app/rent-tool/data/prod.db
 
-# 5. Start the app and smoke-test (login, list properties).
+# 5. Revoke every pre-restore session before the app is reachable again.
+# Rotate JWT_SECRET in .env.production to a fresh cryptographically random
+# value. Do not print or commit the new value. This is mandatory because the
+# restored DB may contain older sessionVersion values that could otherwise
+# make a still-unexpired JWT valid again.
+
+# 6. Start the app and smoke-test (fresh login, list properties).
 sudo systemctl start rent-tool
 sudo journalctl -u rent-tool -n 50 --no-pager
 curl -fsS http://127.0.0.1:3000/api/health
 ```
+
+After a production restore, all users must authenticate again. Restoring the
+database without rotating `JWT_SECRET` (or equivalently advancing every
+account's session version beyond the restored value) is not an approved
+recovery procedure.
 
 If anything goes wrong, swap `prod.db.preroll` back. After a successful
 restore, delete the `.preroll` file once you've verified a few hours of

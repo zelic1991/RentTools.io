@@ -112,8 +112,10 @@ green. `FIRST_CUSTOMER_LOCAL_READY` may be reported only when:
 The local implementation passed the admission gates on 2026-08-26:
 
 - synthetic three-owner/six-Property authority and revocation test: PASS;
-- full suite: 565 tests in 76 files: PASS;
+- full suite: 612 tests in 86 files: PASS;
 - canonical pre-check-in through manual eVisitor confirmation: PASS;
+- session revocation, suspend/unsuspend and impersonation authority: PASS;
+- atomic durable reservation identity including concurrent retry: PASS;
 - fresh and repeated SQLite schema push: PASS;
 - TypeScript and production build: PASS;
 - dependency audit: 0 vulnerabilities;

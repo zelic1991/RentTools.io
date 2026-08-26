@@ -240,9 +240,6 @@ function GuestsScreen({ data }: { data: MobileOperationsData }) {
                   {reservation.guestState.missingFields.join(" · ")}
                 </div>
               )}
-              {reservation.guestState.status === "IN_PROGRESS" && (
-                <p className="mt-2 text-[11px] text-[var(--zf-text-muted)] dark:text-slate-400">Einzelne fehlende Felder werden im aktuellen sicheren Draft nicht als Klartext-Status gespeichert.</p>
-              )}
               {data.canWrite ? (
                 <Link href={reservationHref(data, reservation.id)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--zf-brand-dark)] px-4 text-sm font-semibold text-[var(--zf-on-brand)] outline-none hover:bg-[var(--zf-brand)] focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] dark:bg-white dark:text-slate-950">
                   Gastdaten öffnen <ArrowRight aria-hidden className="h-4 w-4" />

@@ -6,23 +6,23 @@ STATUS: `FIRST_CUSTOMER_LOCAL_READY`
 
 VERIFIED_AT: 2026-08-26
 
-BASE_HEAD: `88ff2aacbba4a2125c4d63ad6d090518b2ec37cb`
+BASE_HEAD: `62ba90c2e23b9ae6ea2c21ae56b746ad06692c4d`
 
-WORKTREE: uncommitted local implementation on
+WORKTREE: committed local implementation on
 `feat/property-os-tenant-foundation-v1`
 
 SCOPE: Local code, synthetic SQLite data, tests and production build only. No
-real guest record, production database, live secret, portal, DNS, deployment,
-commit, push or PR was created or changed.
+real guest record, production database, live secret, portal, DNS or deployment
+was created or changed.
 
 ## Combined verification
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Full test suite | PASS | 76 files, 565 tests |
+| Full test suite | PASS | 86 files, 612 tests |
 | Three-owner authority integration | PASS | three owners, six Properties, cross-owner Manager/Cleaner assignments and immediate revocation |
 | TypeScript | PASS | `npx tsc --noEmit` |
-| Production build | PASS | Next.js 16 build, 89 pages |
+| Production build | PASS | Next.js 16 build, 90 routes |
 | Dependency audit | PASS | `npm audit --audit-level=high`: 0 vulnerabilities |
 | Fresh SQLite migration | PASS | combined schema created and inspected |
 | Migration rerun | PASS | second `db:push` idempotent |
@@ -30,11 +30,11 @@ commit, push or PR was created or changed.
 | Changed-file ESLint | PASS WITH LEGACY EXCLUSIONS | 0 errors, 5 warnings after disabling the three already-present React compiler rule families |
 | Repository-wide ESLint | LEGACY RED | 53 errors, 23 warnings across existing Admin/Dashboard/UI code |
 
-The build still emits two upstream/legacy warnings: Next.js is deprecating the
-`middleware` filename in favour of `proxy`, and Turbopack reports broad NFT
-tracing through `next.config.ts`/Prisma. Neither failed this local MVP build,
-but both should be resolved before treating deployment size and framework
-upgrades as proven.
+The build still emits upstream/legacy warnings: Sentry's `disableLogger`
+option is deprecated, Next.js is deprecating the `middleware` filename in
+favour of `proxy`, and Turbopack reports broad NFT tracing through
+`next.config.ts`/Prisma. None failed this local MVP build, but they should be
+resolved before treating deployment size and framework upgrades as proven.
 
 ## First-customer model
 
@@ -73,6 +73,11 @@ AUTHORITY_MODEL: `TEMPORARY_FIRST_CUSTOMER_AUTHORITY_MODEL`
 - Stored iCal fetches require HTTPS and defend redirects, private addresses,
   DNS rebinding, timeouts and oversized responses.
 - Global user/settings enumeration is superadmin-only.
+- JWTs are bound to the current database `sessionVersion`. Password reset,
+  password change, suspension, self logout-all and admin revocation invalidate
+  stale sessions. Unsuspending an account cannot revive an old token.
+- Support impersonation validates both the target account and the originating
+  superadmin, including current role, suspension and session version.
 
 ### Calendar and feed continuity
 
@@ -86,6 +91,10 @@ AUTHORITY_MODEL: `TEMPORARY_FIRST_CUSTOMER_AUTHORITY_MODEL`
 - Legacy Properties with a null token are not silently rotated because that
   could break an already connected portal URL. A non-null token is an explicit
   admission check before a real customer is connected.
+- Durable reservation `externalKey` values are scoped by Property and canonical
+  platform. Known direct keys are immutable and date-bound; POST/CSV import use
+  the database unique index as the atomic authority and return only a fully
+  compatible existing row after a concurrent duplicate.
 
 ### Guest pre-check-in and manual eVisitor boundary
 
@@ -132,19 +141,20 @@ PENDING
 
 These are real next gates, not hidden parts of this local-ready claim:
 
-1. Commit/review the local change set and deploy it through the normal release
-   process.
+1. Independently review the branch and deploy it through the normal release
+   process only after the Draft PR is accepted.
 2. Run an authenticated browser acceptance test with synthetic Owner, Manager
    and Cleaner accounts on the deployed candidate.
 3. Migrate the real database on a backup copy first; verify every existing
    Property has a protected feed token before changing any connected URL.
 4. Verify backup and restore after the migrated schema, including encrypted
-   guest payloads.
-5. Implement and verify account-session revocation. Property assignment/role
-   changes take effect server-side now, but password changes still do not
-   revoke every already-issued JWT immediately. External Owner access is
-   blocked until this gate is closed.
-6. Resolve or explicitly accept the two build warnings before a framework or
+   guest payloads. A production restore must rotate `JWT_SECRET` before the app
+   is reachable again so older restored session-version values cannot revive a
+   previously revoked JWT.
+5. Include the intentional one-time login cutover in release acceptance:
+   pre-deployment cookies do not contain `sessionVersion` and fail closed, so
+   every existing user must authenticate again after deployment.
+6. Resolve or explicitly accept the build warnings before a framework or
    packaging upgrade.
 7. Reduce the existing repository-wide ESLint backlog. The current MVP changes
    add no new error family in scoped checks, but the repository as a whole is
