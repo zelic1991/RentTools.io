@@ -34,6 +34,7 @@ REPO="/home/app/rent-tool"
 SERVICE="rent-tool"
 HEALTH_URL="http://127.0.0.1:3000/api/health"
 TARGET_SHA="${GIT_COMMIT_SHA:-origin/master}"
+SCHEMA_FINGERPRINT_SCRIPT="${SCHEMA_FINGERPRINT_SCRIPT:-/tmp/schema-input-fingerprint.mjs}"
 
 ts() { date -Is; }
 log() { echo "[$(ts)] install-build: $*"; }
@@ -46,13 +47,12 @@ if [ ! -f "$ARTIFACT" ]; then
 fi
 
 # 1. Sync source code so prisma/, scripts/, sentry configs match the SHA we built.
+if [ ! -f "$SCHEMA_FINGERPRINT_SCRIPT" ]; then
+  log "ABORT — schema fingerprint helper not found: $SCHEMA_FINGERPRINT_SCRIPT" >&2
+  exit 1
+fi
 LOCK_BEFORE=$(sha256sum package-lock.json 2>/dev/null | awk '{print $1}' || echo "")
-SCHEMA_BEFORE=$(sha256sum prisma/schema.prisma 2>/dev/null | awk '{print $1}' || echo "")
-# push-schema.ts holds the hand-rolled DDL that actually gets executed
-# against the runtime DB (the .prisma model is for the client only). A
-# new ALTER TABLE there must trigger a push on the next deploy or the
-# seed below 500s on a missing column.
-PUSH_SCRIPT_BEFORE=$(sha256sum prisma/push-schema.ts 2>/dev/null | awk '{print $1}' || echo "")
+SCHEMA_INPUTS_BEFORE=$(node "$SCHEMA_FINGERPRINT_SCRIPT" "$REPO")
 SYSTEMD_BEFORE=$(sha256sum deploy/systemd/rent-tool.service 2>/dev/null | awk '{print $1}' || echo "")
 # nginx serves the maintenance page from /etc/nginx/html/ — outside the
 # repo, so `git reset` never touches it. Track the repo copy's hash so a
@@ -84,8 +84,7 @@ printf 'GIT_COMMIT_SHA=%s\n' "$(git rev-parse HEAD)" > .env.release
 log "recorded release $(git rev-parse --short HEAD) for the service env"
 
 LOCK_AFTER=$(sha256sum package-lock.json | awk '{print $1}')
-SCHEMA_AFTER=$(sha256sum prisma/schema.prisma | awk '{print $1}')
-PUSH_SCRIPT_AFTER=$(sha256sum prisma/push-schema.ts | awk '{print $1}')
+SCHEMA_INPUTS_AFTER=$(node "$SCHEMA_FINGERPRINT_SCRIPT" "$REPO")
 SYSTEMD_AFTER=$(sha256sum deploy/systemd/rent-tool.service | awk '{print $1}')
 MAINT_AFTER=$(sha256sum deploy/nginx/maintenance.html | awk '{print $1}')
 LOGROTATE_AFTER=$(sha256sum deploy/logrotate/rent-tool 2>/dev/null | awk '{print $1}' || echo "")
@@ -142,9 +141,10 @@ mv "$TMPDIR/src/generated/prisma" src/generated/prisma
 # Background cleanup — `rm -rf .next.old` is ~5s on this disk, no need to block.
 rm -rf ".next.old.$PID" "src/generated/prisma.old.$PID" "$TMPDIR" "$ARTIFACT" &
 
-# 4. Apply schema if it OR push-schema.ts changed.
-if [ "$SCHEMA_BEFORE" != "$SCHEMA_AFTER" ] || [ "$PUSH_SCRIPT_BEFORE" != "$PUSH_SCRIPT_AFTER" ]; then
-  log "schema or push-schema.ts changed — pushing"
+# 4. Apply schema if schema.prisma, push-schema.ts, or any recursively imported
+#    local migration dependency changed.
+if [ "$SCHEMA_INPUTS_BEFORE" != "$SCHEMA_INPUTS_AFTER" ]; then
+  log "schema migration inputs changed — pushing"
   set -a
   . .env.production
   set +a

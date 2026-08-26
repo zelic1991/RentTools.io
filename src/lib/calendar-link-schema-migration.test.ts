@@ -6,7 +6,10 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaClient } from "../generated/prisma/client";
-import { alignCalendarLinkBufferDefaults } from "./calendar-link-schema-migration";
+import {
+  alignCalendarLinkBufferDefaults,
+  isSqliteInternalObjectName,
+} from "./calendar-link-schema-migration";
 
 const tempDirs: string[] = [];
 
@@ -92,6 +95,16 @@ afterEach(async () => {
 });
 
 describe("alignCalendarLinkBufferDefaults", () => {
+  it.each([
+    ["sqlite_sequence", true],
+    ["sqlite_test", true],
+    ["sqliteXfoo", false],
+    ["sqlitexfoo", false],
+    ["sqliteConsumer", false],
+  ])("classifies the literal SQLite internal prefix for %s", (name, expected) => {
+    expect(isSqliteInternalObjectName(name)).toBe(expected);
+  });
+
   it("migrates legacy 1/1 defaults while preserving existing 0/0 row values", async () => {
     const { prisma } = createClient();
     try {
@@ -262,6 +275,38 @@ describe("alignCalendarLinkBufferDefaults", () => {
       expect(
         await prisma.$queryRawUnsafe(`SELECT "linkId" FROM "CalendarLinkCaseConsumer"`),
       ).toEqual([{ linkId: 41 }]);
+    } finally {
+      await prisma.$disconnect();
+    }
+  });
+
+  it("does not mistake a sqlite-prefixed user table for an internal SQLite table", async () => {
+    const { prisma } = createClient();
+    try {
+      await createFixture(prisma, 1, 1);
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO "CalendarLink"
+          ("id", "propertyId", "platform", "icalExportUrl")
+        VALUES (42, 1, 'airbnb', 'https://example.invalid/sqlite-prefix-fk.ics')
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE "sqliteConsumer" (
+          "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+          "linkId" INTEGER NOT NULL REFERENCES "CalendarLink"("id") ON DELETE CASCADE
+        )
+      `);
+      await prisma.$executeRawUnsafe(
+        `INSERT INTO "sqliteConsumer" ("linkId") VALUES (42)`,
+      );
+
+      await expect(alignCalendarLinkBufferDefaults(prisma)).rejects.toThrow(
+        "CalendarLink has referencing tables; refusing unsafe rebuild",
+      );
+
+      expect(await defaults(prisma)).toEqual({ bufferBefore: "1", bufferAfter: "1" });
+      expect(
+        await prisma.$queryRawUnsafe(`SELECT "linkId" FROM "sqliteConsumer"`),
+      ).toEqual([{ linkId: 42 }]);
     } finally {
       await prisma.$disconnect();
     }

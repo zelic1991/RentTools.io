@@ -44,6 +44,10 @@ const EXPECTED_COLUMNS = [
 const COLUMN_LIST = EXPECTED_COLUMNS.map((column) => `"${column}"`).join(", ");
 const REBUILD_TABLE = "CalendarLink__default0_rebuild";
 
+export function isSqliteInternalObjectName(name: string): boolean {
+  return name.toLowerCase().startsWith("sqlite_");
+}
+
 const EXPECTED_LEGACY_COLUMN_SHAPE = [
   { name: "id", type: "INTEGER", notnull: 1, dflt_value: null, pk: 1, hidden: 0 },
   { name: "propertyId", type: "INTEGER", notnull: 1, dflt_value: null, pk: 0, hidden: 0 },
@@ -176,11 +180,13 @@ export async function alignCalendarLinkBufferDefaults(
   const candidateTables = await prisma.$queryRawUnsafe<Array<{ name: string }>>(
     `SELECT name FROM sqlite_master
      WHERE type = 'table'
-       AND name <> 'CalendarLink' COLLATE NOCASE
-       AND name NOT LIKE 'sqlite_%'`,
+       AND name <> 'CalendarLink' COLLATE NOCASE`,
   );
   const referencingTables: string[] = [];
   for (const table of candidateTables) {
+    if (isSqliteInternalObjectName(table.name)) {
+      continue;
+    }
     const foreignKeys = await prisma.$queryRawUnsafe<Array<{ table: string }>>(
       `PRAGMA foreign_key_list(${quoteSqliteIdentifier(table.name)})`,
     );
