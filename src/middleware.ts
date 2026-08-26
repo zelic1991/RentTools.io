@@ -17,10 +17,15 @@ function isUnsafeHttpMethod(method: string): boolean {
   return !SAFE_HTTP_METHODS.has(method.toUpperCase());
 }
 
-function isImpersonationStateChange(pathname: string, method: string): boolean {
-  return isUnsafeHttpMethod(method) || (
-    method.toUpperCase() === "GET" && pathname === "/api/calendar/cron"
-  );
+function isImpersonationDeniedRequest(pathname: string, method: string): boolean {
+  if (isUnsafeHttpMethod(method)) return true;
+  const upperMethod = method.toUpperCase();
+  const invokesGetHandler = upperMethod === "GET" || upperMethod === "HEAD";
+  if (!invokesGetHandler) return false;
+  // Next auto-implements HEAD by invoking a route's GET handler. The cron GET
+  // mutates state, and the GDPR export creates a durable copy of owner secrets;
+  // neither is an allowed support-impersonation read.
+  return pathname === "/api/calendar/cron" || pathname === "/api/auth/export-data";
 }
 
 function isImpersonationMutationException(pathname: string, method: string): boolean {
@@ -188,7 +193,7 @@ export async function middleware(request: NextRequest) {
   const sessionToken = request.cookies.get("rent-tool-session")?.value;
   if (
     sessionToken &&
-    isImpersonationStateChange(pathname, request.method) &&
+    isImpersonationDeniedRequest(pathname, request.method) &&
     !isImpersonationMutationException(pathname, request.method)
   ) {
     try {

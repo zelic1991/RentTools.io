@@ -57,6 +57,9 @@ describe("impersonation server boundary", () => {
     ["PUT", "/api/calendar/schedule"],
     ["POST", "/api/calendar/cron"],
     ["GET", "/api/calendar/cron?secret=cron-secret"],
+    ["HEAD", "/api/calendar/cron?secret=cron-secret"],
+    ["GET", "/api/auth/export-data"],
+    ["HEAD", "/api/auth/export-data"],
     ["POST", "/de/onboard"],
   ])("rejects %s %s while impersonating", async (method, path) => {
     const response = await middleware(await request(path, method));

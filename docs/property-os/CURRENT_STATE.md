@@ -19,7 +19,7 @@ was created or changed.
 
 | Check | Result | Evidence |
 | --- | --- | --- |
-| Full test suite | PASS | 90 files, 640 tests |
+| Full test suite | PASS | 93 files, 646 tests |
 | Three-owner authority integration | PASS | three owners, six Properties, cross-owner Manager/Cleaner assignments and immediate revocation |
 | TypeScript | PASS | `npx tsc --noEmit` |
 | Production build | PASS | Next.js 16 build, 90 routes |
@@ -79,8 +79,11 @@ AUTHORITY_MODEL: `TEMPORARY_FIRST_CUSTOMER_AUTHORITY_MODEL`
 - Support impersonation validates both the target account and the originating
   superadmin, including current role, suspension and session version.
 - Support impersonation remains read-only on the legacy state-changing cron
-  GET and cannot retrieve reusable Property feed tokens or provider iCal URLs.
-  Manager write responses apply the same secret projection.
+  GET/HEAD and cannot retrieve reusable Property feed tokens, provider iCal
+  URLs or a GDPR owner-data export. Manager write responses apply the same
+  secret projection.
+- Cleaner endpoints expose only operational turnover DTOs; raw calendar sync
+  rows, activity messages and provider alerts are denied.
 
 ### Calendar and feed continuity
 
@@ -105,8 +108,8 @@ AUTHORITY_MODEL: `TEMPORARY_FIRST_CUSTOMER_AUTHORITY_MODEL`
   autosave cannot overwrite the final submission.
 - Existing guest data is never reset merely because a legacy share-token
   envelope is missing or unreadable; recovery fails closed.
-- Passport/document fields are masked before update metadata reaches the
-  plaintext audit log.
+- Guest updates record only sorted changed-field names in the audit log; names,
+  phone numbers, notes and passport/document values are never duplicated there.
 
 Canonical status flow:
 

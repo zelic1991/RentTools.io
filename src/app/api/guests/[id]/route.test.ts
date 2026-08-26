@@ -74,7 +74,7 @@ describe("PATCH /api/guests/:id parent authority", () => {
     });
   });
 
-  it("never copies travel-document or identity details into plaintext audit data", async () => {
+  it("audits only changed field names and never copies guest values", async () => {
     const response = await PATCH(
       patchRequest({
         fullName: "Ana Horvat",
@@ -83,6 +83,8 @@ describe("PATCH /api/guests/:id parent authority", () => {
         dateOfBirth: "1990-05-20",
         expiryDate: "2030-05-20",
         citizenshipCode: "HRV",
+        phone: "+43 699 123 456",
+        notes: "Allergy and private arrival details",
       }),
       params(),
     );
@@ -101,19 +103,26 @@ describe("PATCH /api/guests/:id parent authority", () => {
       "update",
       "guest",
       guestId,
-      expect.objectContaining({
-        fullName: "Ana Horvat",
-        passportNumber: "••••••",
-        visaNumber: "••••••",
-        dateOfBirth: "••••••",
-        expiryDate: "••••••",
-        citizenshipCode: "••••••",
-      }),
+      {
+        changedFields: [
+          "citizenshipCode",
+          "dateOfBirth",
+          "expiryDate",
+          "fullName",
+          "notes",
+          "passportNumber",
+          "phone",
+          "visaNumber",
+        ],
+      },
     );
     const auditPayload = JSON.stringify(mocks.logAudit.mock.calls[0][4]);
+    expect(auditPayload).not.toContain("Ana Horvat");
     expect(auditPayload).not.toContain("P123456");
     expect(auditPayload).not.toContain("VISA-999");
     expect(auditPayload).not.toContain("1990-05-20");
+    expect(auditPayload).not.toContain("699123456");
+    expect(auditPayload).not.toContain("Allergy");
   });
 
   it("allows a parent from the same reservation", async () => {

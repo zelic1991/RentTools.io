@@ -4,7 +4,6 @@ import { stripSpaces, sanitizeAlphanumeric, normalizePhone } from "@/lib/sanitiz
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { canManageProperty } from "@/lib/ownership";
-import { maskGuestDocs } from "@/lib/guest-privacy";
 
 const ALLOWED_STRING_FIELDS = [
   "fullName",
@@ -134,14 +133,15 @@ export async function PATCH(
       where: { id: numId },
       data,
     });
-    // Audit which fields changed without duplicating travel-document and
-    // identity details into a long-lived plaintext log.
+    // Audit the mutation shape, never the guest values. Names, phone numbers,
+    // free-text notes and travel-document details belong only in the guest
+    // record / encrypted pre-check-in payload, not a second plaintext store.
     await logAudit(
       session.userId,
       "update",
       "guest",
       numId,
-      maskGuestDocs(data, true),
+      { changedFields: Object.keys(data).sort() },
     );
     return NextResponse.json(guest);
   } catch (err) {
