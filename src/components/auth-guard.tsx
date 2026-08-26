@@ -24,10 +24,15 @@ export function AuthGuard({ children }: AuthGuardProps) {
         if (!res.ok) throw new Error("Not authenticated");
         return res.json();
       })
-      .then((data) => {
-        if (data.user?.role === "family" && window.location.pathname.startsWith("/dashboard")) {
-          router.replace("/mobile");
-          return;
+      .then(async (data) => {
+        if (window.location.pathname.startsWith("/dashboard")) {
+          const propertiesResponse = await fetch("/api/properties");
+          const properties = propertiesResponse.ok ? await propertiesResponse.json() : [];
+          const list = Array.isArray(properties) ? properties : properties.data ?? [];
+          if (list.length > 0 && list.every((property: { accessLevel?: string }) => property.accessLevel === "family")) {
+            router.replace("/mobile");
+            return;
+          }
         }
         setUser(data.user);
         setChecking(false);

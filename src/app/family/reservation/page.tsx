@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AuthGuard } from "@/components/auth-guard";
 
 export default function FamilyReservationPage() {
-  return <AuthGuard>{(user) => user.role === "family" ? <FamilyReservationForm /> : <p className="p-6">Nur für Familienzugänge.</p>}</AuthGuard>;
+  return <AuthGuard>{() => <FamilyReservationForm />}</AuthGuard>;
 }
 
 function FamilyReservationForm() {

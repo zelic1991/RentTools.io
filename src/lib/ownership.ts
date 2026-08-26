@@ -31,10 +31,19 @@ export async function getPropertyAccess(
   if (property.userId === userId) return "owner";
 
   // Manager check (full daily ops)
-  const manager = await prisma.propertyManager.findUnique({
-    where: { managerId_propertyId: { managerId: userId, propertyId } },
-    select: { id: true, accessLevel: true },
-  }).catch(() => null);
+  let manager: { id: number; accessLevel?: string } | null = null;
+  try {
+    manager = await prisma.propertyManager.findUnique({
+      where: { managerId_propertyId: { managerId: userId, propertyId } },
+      select: { id: true, accessLevel: true },
+    });
+  } catch {
+    // Backward-compatible read for pre-accessLevel databases during rollout.
+    manager = await prisma.propertyManager.findUnique({
+      where: { managerId_propertyId: { managerId: userId, propertyId } },
+      select: { id: true },
+    });
+  }
   if (manager) return manager.accessLevel === "family" ? "family" : "manager";
 
   // Cleaner check (read-only + cleaning record writes)

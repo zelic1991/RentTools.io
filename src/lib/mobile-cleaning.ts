@@ -39,16 +39,16 @@ export async function loadMobileCleaning(): Promise<MobileCleaningData> {
 
   const properties = await prisma.property.findMany({
     where: { id: { in: propertyIds } },
-    select: { id: true, name: true, userId: true },
+    select: { id: true, name: true, userId: true, managers: { where: { managerId: session.userId }, select: { accessLevel: true } } },
     orderBy: { name: "asc" },
   });
   if (properties.length === 0) redirect("/dashboard");
 
   const access: MobileAccessLevel = session.role === "cleaner"
     ? "cleaner"
-    : session.role === "family"
+    : properties.some((property) => property.managers.some((manager) => manager.accessLevel === "family"))
       ? "family"
-    : properties.some((property) => property.userId === session.userId)
+      : properties.some((property) => property.userId === session.userId)
       ? "owner"
       : "manager";
   const records = await cleaningRecords.findMany({
