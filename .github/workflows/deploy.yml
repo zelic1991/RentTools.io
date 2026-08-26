@@ -63,6 +63,12 @@ jobs:
       # .env.production on the droplet.
       NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
 
+      # Canonical public origin for metadata, public links and the production
+      # same-origin policy. Keep the value in a repository variable so forks
+      # and self-hosted deployments do not bake renttools.io into their build.
+      PUBLIC_APP_URL: ${{ vars.PUBLIC_APP_URL }}
+      NEXT_PUBLIC_SITE_URL: ${{ vars.PUBLIC_APP_URL }}
+
       # Surfaced in /api/health and on Sentry events as the release identifier.
       GIT_COMMIT_SHA: ${{ github.sha }}
       NEXT_PUBLIC_GIT_COMMIT_SHA: ${{ github.sha }}
