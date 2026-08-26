@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { PrismaClient } from "../generated/prisma/client";
+import { buildDirectReservationExternalKey } from "./reservation-external-key";
 
 let tempRoot = "";
 let dbPath = "";
@@ -163,6 +164,31 @@ describe("Reservation externalKey schema upgrade", () => {
         key,
       ),
     ).resolves.toBe(1);
+  });
+
+  it("makes a second dry-run identity lookup return no CREATE action", async () => {
+    const externalKey = buildDirectReservationExternalKey({
+      propertyId: 1,
+      checkIn: "2027-04-01",
+      checkOut: "2027-04-02",
+      ownerSource: { kind: "owner-chat", recordedOn: "2026-08-25", sequence: 9 },
+    });
+    const wouldCreate = async (): Promise<boolean> => {
+      const rows = await prisma.$queryRawUnsafe<Array<{ count: number }>>(
+        `SELECT COUNT(*) AS count FROM "Reservation" WHERE "propertyId" = ? AND "platform" = ? AND "externalKey" = ?`,
+        1,
+        "direct",
+        externalKey,
+      );
+      return Number(rows[0].count) === 0;
+    };
+
+    expect(await wouldCreate()).toBe(true);
+    await prisma.$executeRawUnsafe(
+      `INSERT INTO "Reservation" ("name", "checkIn", "checkOut", "platform", "propertyId", "externalKey") VALUES ('Direct dry run', '2027-04-01', '2027-04-02', 'direct', 1, ?)`,
+      externalKey,
+    );
+    expect(await wouldCreate()).toBe(false);
   });
 
   it("keeps the linked-event index and passes SQLite integrity_check", async () => {
