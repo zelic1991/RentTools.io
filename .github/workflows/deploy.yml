@@ -156,6 +156,7 @@ jobs:
           # Just the install script; no need for a deep clone.
           sparse-checkout: |
             scripts/install-build.sh
+            scripts/schema-input-fingerprint.mjs
           sparse-checkout-cone-mode: false
 
       - name: Download artifact
@@ -201,6 +202,7 @@ jobs:
               -o UserKnownHostsFile=~/.ssh/known_hosts \
               build.tar.gz \
               scripts/install-build.sh \
+              scripts/schema-input-fingerprint.mjs \
               "${DROPLET_USER}@${DROPLET_HOST}:/tmp/"
 
       - name: Install build + restart service
