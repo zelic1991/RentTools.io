@@ -3,7 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { canManageProperty, isPropertyOwner } from "@/lib/ownership";
-import { normalizeIcalUrl, normalizePlatformSlug } from "@/lib/calendar-link-input";
+import {
+  normalizeIcalUrl,
+  normalizePlatformSlug,
+  parseCalendarBufferField,
+} from "@/lib/calendar-link-input";
 
 function projectCalendarLink<T extends { icalExportUrl: string }>(
   link: T,
@@ -70,7 +74,7 @@ export async function POST(request: NextRequest) {
     if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await request.json();
-    const { propertyId, platform, icalExportUrl, bufferBefore, bufferAfter } = body;
+    const { propertyId, platform, icalExportUrl } = body;
 
     if (!propertyId) {
       return NextResponse.json({ error: "propertyId is required" }, { status: 400 });
@@ -93,6 +97,15 @@ export async function POST(request: NextRequest) {
     }
     const normalizedUrl = urlResult.url;
 
+    const bufferBeforeResult = parseCalendarBufferField(body, "bufferBefore");
+    if (!bufferBeforeResult.ok) {
+      return NextResponse.json({ error: bufferBeforeResult.error }, { status: 400 });
+    }
+    const bufferAfterResult = parseCalendarBufferField(body, "bufferAfter");
+    if (!bufferAfterResult.ok) {
+      return NextResponse.json({ error: bufferAfterResult.error }, { status: 400 });
+    }
+
     if (!(await canManageProperty(Number(propertyId), session.userId, session.role))) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
@@ -110,8 +123,12 @@ export async function POST(request: NextRequest) {
         where: { id: existing.id },
         data: {
           icalExportUrl: normalizedUrl,
-          bufferBefore: bufferBefore ?? existing.bufferBefore,
-          bufferAfter: bufferAfter ?? existing.bufferAfter,
+          bufferBefore: bufferBeforeResult.present
+            ? bufferBeforeResult.value
+            : existing.bufferBefore,
+          bufferAfter: bufferAfterResult.present
+            ? bufferAfterResult.value
+            : existing.bufferAfter,
           lastError: null,
           // The host just supplied a new URL, so the old streak no longer
           // describes this link. Leaving it would keep a repaired feed
@@ -134,8 +151,8 @@ export async function POST(request: NextRequest) {
         // Same-day turnover is the safe default. A host can still opt into a
         // deliberate buffer, but adding a feed must not silently close extra
         // nights around every reservation.
-        bufferBefore: bufferBefore ?? 0,
-        bufferAfter: bufferAfter ?? 0,
+        bufferBefore: bufferBeforeResult.present ? bufferBeforeResult.value : 0,
+        bufferAfter: bufferAfterResult.present ? bufferAfterResult.value : 0,
       },
     });
     await logAudit(session.userId, "create", "calendarLink", link.id, {

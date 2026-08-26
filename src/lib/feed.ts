@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { generateICal, generateBufferedEvents, generateBufferOnlyEvents, addDays, type ICalEvent } from "@/lib/ical";
+import { normalizeStoredCalendarBuffer } from "@/lib/calendar-link-input";
 import { createHash } from "node:crypto";
 
 export { parseFeedFilename } from "@/lib/feed-utils";
@@ -126,8 +127,8 @@ export async function generateFeed(propertyId: number, forPlatform: string): Pro
   // A missing target link must not invent cleaning days. Explicit stored
   // buffers remain authoritative; otherwise checkout stays exclusive and a
   // same-day arrival remains possible.
-  const bufferBefore = targetLink?.bufferBefore ?? 0;
-  const bufferAfter = targetLink?.bufferAfter ?? 0;
+  const bufferBefore = normalizeStoredCalendarBuffer(targetLink?.bufferBefore);
+  const bufferAfter = normalizeStoredCalendarBuffer(targetLink?.bufferAfter);
 
   // Other-platform events (block dates + buffer)
   const otherEvents: ICalEvent[] = allEvents

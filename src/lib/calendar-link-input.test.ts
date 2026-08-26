@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { normalizeIcalUrl, normalizePlatformSlug } from "./calendar-link-input";
+import {
+  normalizeIcalUrl,
+  normalizePlatformSlug,
+  normalizeStoredCalendarBuffer,
+  parseCalendarBufferField,
+  validateCalendarBuffer,
+} from "./calendar-link-input";
 
 const ok = (r: ReturnType<typeof normalizeIcalUrl>) => {
   if (!r.ok) throw new Error(`expected ok, got error: ${r.error}`);
@@ -100,5 +106,50 @@ describe("normalizePlatformSlug", () => {
     const r = normalizePlatformSlug("a".repeat(50));
     expect(r).toMatchObject({ ok: true });
     if (r.ok) expect(r.platform).toHaveLength(32);
+  });
+});
+
+describe("calendar buffer validation", () => {
+  it.each([0, 1, 2, 3])("accepts integer buffer %s", (value) => {
+    expect(validateCalendarBuffer(value, "bufferBefore")).toEqual({
+      ok: true,
+      value,
+    });
+  });
+
+  it.each([
+    -1,
+    -100,
+    1.5,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    "1",
+    "0",
+    true,
+    false,
+    null,
+    {},
+    [],
+    4,
+    999,
+  ])("rejects invalid buffer %#", (value) => {
+    expect(validateCalendarBuffer(value, "bufferAfter")).toMatchObject({ ok: false });
+  });
+
+  it("distinguishes an omitted field from explicit null", () => {
+    expect(parseCalendarBufferField({}, "bufferBefore")).toEqual({
+      ok: true,
+      present: false,
+    });
+    expect(parseCalendarBufferField({ bufferBefore: null }, "bufferBefore"))
+      .toMatchObject({ ok: false });
+  });
+
+  it("fails damaged stored values safe to zero without changing valid values", () => {
+    expect(normalizeStoredCalendarBuffer(-1)).toBe(0);
+    expect(normalizeStoredCalendarBuffer(1.5)).toBe(0);
+    expect(normalizeStoredCalendarBuffer(4)).toBe(0);
+    expect(normalizeStoredCalendarBuffer(undefined)).toBe(0);
+    expect(normalizeStoredCalendarBuffer(3)).toBe(3);
   });
 });

@@ -3,6 +3,8 @@
  * No external dependencies — iCal for blocked dates is a simple text format.
  */
 
+import { normalizeStoredCalendarBuffer } from "@/lib/calendar-link-input";
+
 export interface ICalEvent {
   uid: string;
   summary: string;
@@ -148,14 +150,17 @@ export function generateBufferedEvents(
 ): ICalEvent[] {
   if (events.length === 0) return [];
 
+  const safeBufferBefore = normalizeStoredCalendarBuffer(bufferBefore);
+  const safeBufferAfter = normalizeStoredCalendarBuffer(bufferAfter);
+
   // Only export cleaning buffer days to platforms, NOT unbookable gap days.
   // Platforms handle their own min-night rules.
   // endDate is iCal exclusive (checkout day). bufferAfter counts calendar
   // days starting with that checkout date. Therefore 0 keeps checkout open,
   // while 1 closes exactly checkout day (exclusive end = checkout + 1).
   const buffered = events.map((event) => ({
-    start: addDays(event.startDate, -bufferBefore),
-    end: addDays(event.endDate, bufferAfter),
+    start: addDays(event.startDate, -safeBufferBefore),
+    end: addDays(event.endDate, safeBufferAfter),
     count: 1,
   }));
 
@@ -174,7 +179,7 @@ export function generateBufferedEvents(
     }
   }
 
-  const label = `Blocked (${sourcePlatform}${bufferBefore || bufferAfter ? " +buffer" : ""})`;
+  const label = `Blocked (${sourcePlatform}${safeBufferBefore || safeBufferAfter ? " +buffer" : ""})`;
   return merged.map((m, i) => ({
     uid: `renttool-${sourcePlatform}-${m.start}-${m.end}-${i}`,
     summary: label,
@@ -195,12 +200,15 @@ export function generateBufferOnlyEvents(
 ): ICalEvent[] {
   if (events.length === 0) return [];
 
+  const safeBufferBefore = normalizeStoredCalendarBuffer(bufferBefore);
+  const safeBufferAfter = normalizeStoredCalendarBuffer(bufferAfter);
+
   const result: ICalEvent[] = [];
 
   for (const event of events) {
     // Buffer before: days before the booking starts
-    if (bufferBefore > 0) {
-      const start = addDays(event.startDate, -bufferBefore);
+    if (safeBufferBefore > 0) {
+      const start = addDays(event.startDate, -safeBufferBefore);
       result.push({
         uid: `renttool-buffer-before-${event.startDate}-${event.uid}`,
         summary: label,
@@ -211,9 +219,9 @@ export function generateBufferOnlyEvents(
 
     // Buffer after starts on checkout day. With a value of 1, that exact
     // calendar day is closed; with 0, same-day turnover stays possible.
-    if (bufferAfter > 0) {
+    if (safeBufferAfter > 0) {
       const start = event.endDate;
-      const end = addDays(event.endDate, bufferAfter);
+      const end = addDays(event.endDate, safeBufferAfter);
       result.push({
         uid: `renttool-buffer-after-${event.endDate}-${event.uid}`,
         summary: label,

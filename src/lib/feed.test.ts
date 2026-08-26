@@ -298,4 +298,26 @@ describe("generateFeed — Direct linked extensions", () => {
       expect.objectContaining({ startDate: "2027-06-30", endDate: "2027-07-04" }),
     ]);
   });
+
+  it("fails damaged stored buffers safe without shortening exported occupancy", async () => {
+    mocks.calendarLinkFindMany.mockResolvedValue([
+      { platform: "booking", bufferBefore: -100, bufferAfter: -1 },
+    ]);
+    mocks.calendarEventFindMany.mockResolvedValue([{
+      ...source,
+      uid: "damaged-buffer-regression",
+      startDate: "2027-07-10",
+      endDate: "2027-07-15",
+      platform: "airbnb",
+    }]);
+    mocks.reservationFindMany.mockResolvedValue([]);
+
+    const result = await generateFeed(12, "booking");
+    if ("error" in result) throw new Error(result.error);
+    const events = parseICal(result.ical).filter((event) => event.uid !== "renttools-placeholder");
+
+    expect(events).toEqual([
+      expect.objectContaining({ startDate: "2027-07-10", endDate: "2027-07-15" }),
+    ]);
+  });
 });
