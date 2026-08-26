@@ -20,7 +20,11 @@ vi.mock("@/lib/prisma", () => ({
 
 import { getSession } from "@/lib/auth";
 
-const secret = new TextEncoder().encode("fallback-secret-change-me");
+// Match the configured runtime secret in CI while retaining the local
+// fallback used by auth.ts. The test must not assume that JWT_SECRET is empty.
+const secret = new TextEncoder().encode(
+  process.env.JWT_SECRET || "fallback-secret-change-me",
+);
 
 async function staleToken(): Promise<string> {
   return new SignJWT({

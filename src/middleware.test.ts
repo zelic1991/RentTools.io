@@ -1,6 +1,6 @@
 import { SignJWT } from "jose";
 import { NextRequest } from "next/server";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/logger", () => ({ log: vi.fn() }));
 vi.mock("@/lib/request-path", () => ({
@@ -9,7 +9,8 @@ vi.mock("@/lib/request-path", () => ({
 
 let middleware: typeof import("./middleware").middleware;
 
-const secret = new TextEncoder().encode("fallback-secret-change-me");
+const TEST_JWT_SECRET = "middleware-test-secret";
+const secret = new TextEncoder().encode(TEST_JWT_SECRET);
 
 async function sessionToken(impersonated = true): Promise<string> {
   const claims = impersonated
@@ -37,7 +38,16 @@ async function request(path: string, method: string, impersonated = true) {
 }
 
 beforeAll(async () => {
+  // The middleware captures JWT_SECRET at module evaluation time. Pin the
+  // matching test secret before importing it so CI-provided environment
+  // values cannot make otherwise valid test sessions look unauthenticated.
+  vi.stubEnv("JWT_SECRET", TEST_JWT_SECRET);
+  vi.resetModules();
   ({ middleware } = await import("./middleware"));
+});
+
+afterAll(() => {
+  vi.unstubAllEnvs();
 });
 
 describe("impersonation server boundary", () => {
