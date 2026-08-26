@@ -12,7 +12,7 @@
 
 import { prisma } from "@/lib/prisma";
 
-export type AccessLevel = "owner" | "manager" | "cleaner" | "none";
+export type AccessLevel = "owner" | "manager" | "family" | "cleaner" | "none";
 
 /**
  * Determine a user's access level to a property.
@@ -35,7 +35,7 @@ export async function getPropertyAccess(
     where: { managerId_propertyId: { managerId: userId, propertyId } },
     select: { id: true },
   }).catch(() => null);
-  if (manager) return "manager";
+  if (manager) return role === "family" ? "family" : "manager";
 
   // Cleaner check (read-only + cleaning record writes)
   if (role === "cleaner") {
@@ -60,7 +60,7 @@ export async function canManageProperty(
   role: string
 ): Promise<boolean> {
   const access = await getPropertyAccess(propertyId, userId, role);
-  return access === "owner" || access === "manager";
+  return access === "owner" || access === "manager" || access === "family";
 }
 
 /**

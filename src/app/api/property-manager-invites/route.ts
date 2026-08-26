@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/property-manager-invites — generate a new invite token (owner only)
-// Body: { propertyId }
+// Body: { propertyId, accessLevel?: "manager" | "family" }
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const propertyId = parseInt(String(body.propertyId));
+    const accessLevel = body.accessLevel === "family" ? "family" : "manager";
     if (isNaN(propertyId)) {
       return NextResponse.json({ error: "Invalid propertyId" }, { status: 400 });
     }
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
         token,
         createdById: session.userId,
         expiresAt,
+        accessLevel,
       },
     });
 
@@ -86,6 +88,7 @@ export async function POST(request: NextRequest) {
       token: invite.token,
       expiresAt: invite.expiresAt,
       createdAt: invite.createdAt,
+      accessLevel: invite.accessLevel,
     });
   } catch (err) {
     console.error("Route error:", err);

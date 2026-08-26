@@ -369,6 +369,32 @@ function CleaningScreen({ data }: { data: MobileCleaningData }) {
   );
 }
 
+function FamilyStartScreen({ data }: { data: MobileOperationsData }) {
+  return (
+    <div className="space-y-5">
+      <section className="rounded-2xl bg-[#7B2E62] p-5 text-[#F9F4EF]">
+        <p className="text-sm opacity-85">Danas · {formatDate(data.today)}</p>
+        <h2 className="mt-1 text-2xl font-semibold">Što se događa?</h2>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="rounded-xl bg-white/15 p-3"><div className="text-2xl font-semibold">{data.start.arrivals.length}</div><div className="text-sm">Dolazaka</div></div>
+          <div className="rounded-xl bg-white/15 p-3"><div className="text-2xl font-semibold">{data.start.departures.length}</div><div className="text-sm">Odlazaka</div></div>
+        </div>
+      </section>
+      <section className="space-y-2">
+        {data.start.arrivals.map((r) => <div key={`a-${r.id}`} className="rounded-xl border border-[#D6C8AE] bg-white p-4"><b>Dolazak</b><div className="mt-1">{r.label}</div><div className="text-sm text-[#685C4B]">{formatDate(r.checkIn)}</div></div>)}
+        {data.start.departures.map((r) => <div key={`d-${r.id}`} className="rounded-xl border border-[#D6C8AE] bg-white p-4"><b>Odlazak</b><div className="mt-1">{r.label}</div><div className="text-sm text-[#685C4B]">{formatDate(r.checkOut)}</div></div>)}
+        {data.start.arrivals.length === 0 && data.start.departures.length === 0 && <EmptyState>Danas nema dolazaka ni odlazaka.</EmptyState>}
+      </section>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Link href={`/family/reservation?property=${data.selectedProperty.id}`} className="flex min-h-14 items-center justify-center rounded-xl bg-[#7B2E62] px-4 text-center font-semibold text-[#F9F4EF]">+ Dodaj rezervaciju</Link>
+        <Link href="/mobile/calendar" className="flex min-h-14 items-center justify-center rounded-xl border border-[#D6C8AE] bg-white px-4 text-center font-semibold">Kalendar</Link>
+        <Link href="/mobile/guests" className="flex min-h-14 items-center justify-center rounded-xl border border-[#D6C8AE] bg-white px-4 text-center font-semibold">Gosti</Link>
+        <Link href="/mobile/cleaning" className="flex min-h-14 items-center justify-center rounded-xl border border-[#D6C8AE] bg-white px-4 text-center font-semibold">Čišćenje</Link>
+      </div>
+    </div>
+  );
+}
+
 export default async function MobileOperationsPage({
   params,
 }: {
@@ -394,7 +420,7 @@ export default async function MobileOperationsPage({
   return (
     <MobileShell data={data}>
       <MobilePwaRegister />
-      {data.section === "start" && <StartScreen data={data} />}
+      {data.section === "start" && (data.access === "family" ? <FamilyStartScreen data={data} /> : <StartScreen data={data} />)}
       {data.section === "calendar" && <MobileCalendar data={data} />}
       {data.section === "guests" && <GuestsScreen data={data} />}
       {data.section === "portals" && <PortalsScreen data={data} />}

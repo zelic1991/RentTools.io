@@ -25,6 +25,10 @@ export function AuthGuard({ children }: AuthGuardProps) {
         return res.json();
       })
       .then((data) => {
+        if (data.user?.role === "family" && window.location.pathname.startsWith("/dashboard")) {
+          router.replace("/mobile");
+          return;
+        }
         setUser(data.user);
         setChecking(false);
       })

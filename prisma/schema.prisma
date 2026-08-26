@@ -173,6 +173,7 @@ model PropertyManagerInvite {
   acceptedAt   DateTime?
   expiresAt    DateTime
   revokedAt    DateTime?
+  accessLevel  String   @default("manager") // "manager" | "family"
   createdAt    DateTime  @default(now())
 
   @@index([propertyId])

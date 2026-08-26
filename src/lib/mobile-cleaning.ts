@@ -46,6 +46,8 @@ export async function loadMobileCleaning(): Promise<MobileCleaningData> {
 
   const access: MobileAccessLevel = session.role === "cleaner"
     ? "cleaner"
+    : session.role === "family"
+      ? "family"
     : properties.some((property) => property.userId === session.userId)
       ? "owner"
       : "manager";

@@ -31,6 +31,7 @@ export function MobileShell({
   data: MobileOperationsData | MobileCleaningData;
   children: React.ReactNode;
 }) {
+  const navigation = data.access === "family" ? NAVIGATION.filter((item) => item.section !== "portals") : NAVIGATION;
   return (
     <div className="zf-brand min-h-dvh overflow-x-hidden bg-[var(--zf-bg)] text-[var(--zf-text)]">
       <header className="sticky top-0 z-30 border-b border-[var(--zf-border)] bg-[var(--zf-bg)]/95 backdrop-blur">
@@ -41,7 +42,7 @@ export function MobileShell({
               <h1 className="truncate text-lg font-semibold tracking-tight">Betrieb</h1>
             </div>
             <span className="shrink-0 rounded-full border border-[var(--zf-brand-line)] bg-[var(--zf-brand-soft)] px-2.5 py-1 text-[11px] font-medium text-[var(--zf-brand-dark)]">
-              {data.access === "owner" ? "Owner" : data.access === "manager" ? "Manager" : "Cleaner"}
+              {data.access === "owner" ? "Owner" : data.access === "manager" ? "Manager" : data.access === "family" ? "Obitelj" : "Cleaner"}
             </span>
           </div>
           <p className="truncate text-sm text-[var(--zf-text-muted)]">{data.selectedProperty.name}</p>
@@ -57,7 +58,7 @@ export function MobileShell({
         className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--zf-border)] bg-[var(--zf-bg)]/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_30px_-24px_rgba(63,23,53,.35)] backdrop-blur"
       >
         <div className="mx-auto grid max-w-xl grid-cols-5 px-2 py-1.5">
-          {NAVIGATION.map((item) => {
+          {navigation.map((item) => {
             const Icon = item.icon;
             const active = data.section === item.section;
             const locked = !canAccessMobileSection(data.access, item.section);

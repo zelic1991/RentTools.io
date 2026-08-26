@@ -4,7 +4,7 @@ import {
 } from "@/lib/precheckin";
 
 export type MobileSection = "start" | "calendar" | "guests" | "portals" | "cleaning";
-export type MobileAccessLevel = "owner" | "manager" | "cleaner";
+export type MobileAccessLevel = "owner" | "manager" | "family" | "cleaner";
 
 export const MOBILE_SECTIONS: readonly MobileSection[] = [
   "start",
@@ -154,6 +154,7 @@ export function canAccessMobileSection(
 ): boolean {
   if (access === "owner") return true;
   if (access === "manager") return MOBILE_SECTIONS.includes(section);
+  if (access === "family") return ["start", "calendar", "guests", "cleaning"].includes(section);
   return section === "cleaning";
 }
 

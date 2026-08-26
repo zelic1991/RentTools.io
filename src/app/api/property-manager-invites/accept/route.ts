@@ -120,6 +120,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    if (invite.accessLevel === "family" && session.role !== "family") {
+      await prisma.user.update({ where: { id: session.userId }, data: { role: "family" } });
+    }
+
     if (claimedNow || !existing) {
       await logAudit(session.userId, "create", "manager", invite.id, {
         action: claimedNow ? "invite_accepted" : "invite_acceptance_recovered",
