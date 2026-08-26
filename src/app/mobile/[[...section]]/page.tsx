@@ -190,7 +190,6 @@ const STATUS_LABELS: Record<string, string> = {
   OWNER_REVIEW: "Owner-Review läuft",
   NOT_INVITED: "Nicht eingeladen",
   INVITED: "Link erstellt",
-  IN_PROGRESS: "In Bearbeitung",
   COMPLETE: "Vollständig",
   OWNER_REVIEW_REQUIRED: "Owner-Review nötig",
   OWNER_APPROVED: "Freigegeben",
@@ -239,6 +238,9 @@ function GuestsScreen({ data }: { data: MobileOperationsData }) {
                 <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
                   {reservation.guestState.missingFields.join(" · ")}
                 </div>
+              )}
+              {reservation.guestState.missingFields.includes("Gästedaten noch unvollständig") && (
+                <p className="mt-2 text-[11px] text-[var(--zf-text-muted)] dark:text-slate-400">Einzelne fehlende Felder werden im aktuellen sicheren Draft nicht als Klartext-Status gespeichert.</p>
               )}
               {data.canWrite ? (
                 <Link href={reservationHref(data, reservation.id)} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--zf-brand-dark)] px-4 text-sm font-semibold text-[var(--zf-on-brand)] outline-none hover:bg-[var(--zf-brand)] focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] dark:bg-white dark:text-slate-950">
