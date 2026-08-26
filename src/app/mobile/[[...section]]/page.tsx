@@ -190,7 +190,6 @@ const STATUS_LABELS: Record<string, string> = {
   OWNER_REVIEW: "Owner-Review läuft",
   NOT_INVITED: "Nicht eingeladen",
   INVITED: "Link erstellt",
-  IN_PROGRESS: "In Bearbeitung",
   COMPLETE: "Vollständig",
   OWNER_REVIEW_REQUIRED: "Owner-Review nötig",
   OWNER_APPROVED: "Freigegeben",
@@ -240,7 +239,7 @@ function GuestsScreen({ data }: { data: MobileOperationsData }) {
                   {reservation.guestState.missingFields.join(" · ")}
                 </div>
               )}
-              {reservation.guestState.status === "IN_PROGRESS" && (
+              {reservation.guestState.missingFields.includes("Gästedaten noch unvollständig") && (
                 <p className="mt-2 text-[11px] text-[var(--zf-text-muted)] dark:text-slate-400">Einzelne fehlende Felder werden im aktuellen sicheren Draft nicht als Klartext-Status gespeichert.</p>
               )}
               {data.canWrite ? (

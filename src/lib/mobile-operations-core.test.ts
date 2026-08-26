@@ -73,7 +73,12 @@ describe("mobile guest state", () => {
 
   it("marks no data, partial data, complete and owner review", () => {
     expect(deriveMobileGuestState(reservation()).missingFields).toContain("Gästeformular noch nicht erstellt");
-    expect(deriveMobileGuestState(reservation({ submissions: [{ status: "IN_PROGRESS", createdAt: "2027-01-01T00:00:00Z" }] })).complete).toBe(false);
+    const legacyInProgress = deriveMobileGuestState(reservation({
+      submissions: [{ status: "IN_PROGRESS", createdAt: "2027-01-01T00:00:00Z" }],
+    }));
+    expect(legacyInProgress.status).toBe("PENDING");
+    expect(legacyInProgress.complete).toBe(false);
+    expect(legacyInProgress.missingFields).toContain("Gästedaten noch unvollständig");
     expect(deriveMobileGuestState(reservation({ submissions: [{ status: "GUEST_COMPLETE", createdAt: "2027-01-01T00:00:00Z" }] })).ownerReviewRequired).toBe(true);
     expect(deriveMobileGuestState(reservation({ submissions: [{ status: "OWNER_REVIEW_REQUIRED", createdAt: "2027-01-01T00:00:00Z" }] })).status).toBe("OWNER_REVIEW");
     expect(deriveMobileGuestState(reservation({ submissions: [{ status: "OWNER_APPROVED", createdAt: "2027-01-01T00:00:00Z" }] })).complete).toBe(true);
