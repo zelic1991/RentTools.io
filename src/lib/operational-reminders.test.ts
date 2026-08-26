@@ -29,7 +29,11 @@ describe("operational reminders", () => {
 
   it("validates the date and review timestamp boundary", () => {
     expect(isIsoDate("2027-08-06")).toBe(true);
+    expect(isIsoDate("2028-02-29")).toBe(true);
     expect(isIsoDate("06.08.2027")).toBe(false);
+    expect(isIsoDate("2027-99-99")).toBe(false);
+    expect(isIsoDate("2027-02-30")).toBe(false);
+    expect(isIsoDate("2027-02-29")).toBe(false);
     expect(parseDueAt("2026-09-05T12:00:00.000Z")?.toISOString())
       .toBe("2026-09-05T12:00:00.000Z");
     expect(parseDueAt("not-a-date")).toBeNull();

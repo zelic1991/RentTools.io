@@ -115,4 +115,23 @@ describe("POST /api/operational-reminders", () => {
     expect((await POST(request())).status).toBe(403);
     expect(mocks.upsert).not.toHaveBeenCalled();
   });
+
+  it("rejects impossible calendar dates before persistence", async () => {
+    const response = await POST(new NextRequest("http://localhost/api/operational-reminders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        propertyId: 1,
+        type: "PORTAL_FOLLOW_UP",
+        portal: "Booking",
+        startDate: "2027-02-30",
+        endDate: "2027-03-02",
+        dueAt: "2026-09-05T12:00:00.000Z",
+        note: "Synthetic invalid date",
+      }),
+    }));
+
+    expect(response.status).toBe(400);
+    expect(mocks.upsert).not.toHaveBeenCalled();
+  });
 });
