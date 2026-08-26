@@ -34,10 +34,14 @@ concurrency:
 jobs:
   build:
     name: Build on runner
+    # DigitalOcean's Basic Ubuntu image is x64. Build native outputs on the
+    # matching standard hosted runner; the deploy job below also stays x64.
     runs-on: ubuntu-latest
 
-    # Inert until the user wires DROPLET_HOST. Until then every push is a no-op.
-    if: ${{ vars.DROPLET_HOST != '' }}
+    # Normal pushes stay inert until a host is wired. A manual dispatch may run
+    # this build as a pre-deployment compatibility gate; the deploy job
+    # remains separately blocked while DROPLET_HOST is empty.
+    if: ${{ vars.DROPLET_HOST != '' || github.event_name == 'workflow_dispatch' }}
 
     env:
       # The build doesn't query the DB but src/lib/prisma.ts initialises the
@@ -78,6 +82,41 @@ jobs:
 
       - name: Generate Prisma client
         run: npx prisma generate
+
+      - name: x64 runtime dependency smoke
+        run: |
+          node --input-type=module <<'NODE'
+          const [major, minor] = process.versions.node.split(".").map(Number);
+          if (process.arch !== "x64") throw new Error(`Expected x64, got ${process.arch}`);
+          if (major < 22 || (major === 22 && minor < 12)) {
+            throw new Error(`Node >=22.12 required, got ${process.versions.node}`);
+          }
+
+          const sharp = (await import("sharp")).default;
+          const image = await sharp({
+            create: { width: 1, height: 1, channels: 4, background: "#ffffff" },
+          }).png().toBuffer();
+          if (image.length === 0) throw new Error("sharp produced an empty image");
+
+          const bcrypt = (await import("bcryptjs")).default;
+          const hash = await bcrypt.hash("synthetic-runtime-pilot", 10);
+          if (!(await bcrypt.compare("synthetic-runtime-pilot", hash))) {
+            throw new Error("bcrypt verification failed");
+          }
+
+          const { SignJWT, jwtVerify } = await import("jose");
+          const key = new TextEncoder().encode("synthetic-jose-key-exactly-32-bytes");
+          const token = await new SignJWT({ scope: "pilot" })
+            .setProtectedHeader({ alg: "HS256" })
+            .sign(key);
+          await jwtVerify(token, key);
+
+          await import("@prisma/adapter-libsql");
+          console.log(`x64 smoke OK: node=${process.versions.node} arch=${process.arch}`);
+          NODE
+
+      - name: SQLite and Prisma schema smoke
+        run: npx tsx prisma/push-schema.ts
 
       - name: Build (next build)
         run: npm run build

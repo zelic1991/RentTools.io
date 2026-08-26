@@ -186,7 +186,7 @@ export async function loadMobileOperations(options: {
     select: { id: true, name: true },
     orderBy: { createdAt: "desc" },
   });
-  if (!selectedOption) redirect("/mobile");
+  if (!selectedOption) redirect("/dashboard");
 
   const resolvedAccess = await getPropertyAccess(selectedOption.id, session.userId, session.role);
   if (resolvedAccess === "none") redirect("/mobile");

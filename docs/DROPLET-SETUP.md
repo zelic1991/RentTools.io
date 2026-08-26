@@ -10,7 +10,7 @@ A single $4–6/month droplet running:
 - **nginx** reverse proxy on 80/443 with **Let's Encrypt** TLS
 - **SQLite** database file on the same droplet (no separate DB host)
 - Native **cron** for calendar sync every 10 minutes
-- **Daily SQLite backups** with rotation (14 daily / 8 weekly / 6 monthly)
+- **Daily SQLite backups** with compact rotation (7 daily / 4 weekly / 3 monthly)
 - **ufw** firewall + **fail2ban** + automatic security updates
 
 Whole setup is ~30 minutes once you have the droplet.
@@ -186,14 +186,14 @@ run while the app is serving requests) and writes into a tiered layout:
 
 ```
 /home/app/backups/
-  daily/    — newest 14 snapshots
-  weekly/   — newest 8 Sunday snapshots
-  monthly/  — newest 6 first-of-month snapshots
+  daily/    — newest 7 snapshots
+  weekly/   — newest 4 Sunday snapshots
+  monthly/  — newest 3 first-of-month snapshots
   latest    — symlink → most recent daily
 ```
 
 Sunday and 1st-of-month backups are **hardlinked** into the higher tiers,
-so the same data isn't stored twice. Worst case you keep ~28 distinct
+so the same data isn't stored twice. Worst case you keep ~14 distinct
 on-disk snapshots.
 
 Initial setup:
