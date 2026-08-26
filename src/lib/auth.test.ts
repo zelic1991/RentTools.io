@@ -22,7 +22,9 @@ vi.mock("@/lib/prisma", () => ({
 
 import { clearSessionCookies, createSession, getSession } from "@/lib/auth";
 
-const secret = new TextEncoder().encode("fallback-secret-change-me");
+const secret = new TextEncoder().encode(
+  process.env.JWT_SECRET ?? "fallback-secret-change-me",
+);
 
 async function staleToken(): Promise<string> {
   return new SignJWT({
