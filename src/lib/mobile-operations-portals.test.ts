@@ -94,4 +94,36 @@ describe("mobile portal projection", () => {
       upcomingEvents: 1,
     });
   });
+
+  it("counts unique master date ranges for the RentTools output card", () => {
+    const cards = buildMobilePortalCards({
+      ...base,
+      links: [],
+      events: [
+        { platform: "airbnb", startDate: "2027-06-01", endDate: "2027-06-05" },
+        { platform: "booking", startDate: "2027-07-01", endDate: "2027-07-04" },
+        { platform: "airbnb", startDate: "2027-08-07", endDate: "2027-08-17" },
+        { platform: "airbnb", startDate: "2027-10-16", endDate: "2028-05-01" },
+      ],
+      reservations: [
+        {
+          platform: "booking",
+          checkIn: new Date("2027-07-01T00:00:00Z"),
+          checkOut: new Date("2027-07-04T00:00:00Z"),
+        },
+        {
+          platform: "direct",
+          checkIn: new Date("2027-05-16T00:00:00Z"),
+          checkOut: new Date("2027-05-28T00:00:00Z"),
+        },
+        {
+          platform: "direct",
+          checkIn: new Date("2027-08-07T00:00:00Z"),
+          checkOut: new Date("2027-08-17T00:00:00Z"),
+        },
+      ],
+    });
+
+    expect(cards.find((card) => card.id === "renttools")?.upcomingEvents).toBe(5);
+  });
 });
