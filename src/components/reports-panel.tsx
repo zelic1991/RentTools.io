@@ -15,7 +15,7 @@ import {
 } from "recharts";
 import { PropertySwitcher } from "@/components/property-switcher";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import type { Property } from "@/lib/types";
 import {
   summarizeRevenueBreakdown,
@@ -70,7 +70,7 @@ interface CopyShape {
   dataSourcesHelp: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     reports: "Reports",
     portfolioSubtitle: (count) =>
@@ -844,7 +844,7 @@ function KpiCard({ label, value, subtitle, accent }: KpiCardProps) {
 
 export function ReportsPanel({ property, properties }: ReportsPanelProps) {
   const { locale } = useI18n();
-  const c = COPY[locale];
+  const c = resolveCopy(COPY, locale);
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
   const [events, setEvents] = useState<CalendarEventRow[]>([]);

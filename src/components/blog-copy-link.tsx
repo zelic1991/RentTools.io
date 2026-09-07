@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 interface Props {
   url: string;
@@ -13,7 +13,7 @@ interface CopyShape {
   copied: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: { copyLink: "Copy link", copied: "Copied!" },
   ru: { copyLink: "Скопировать ссылку", copied: "Скопировано!" },
   de: { copyLink: "Link kopieren", copied: "Kopiert!" },
@@ -28,7 +28,7 @@ const COPY: Record<Locale, CopyShape> = {
  */
 export function BlogCopyLink({ url }: Props) {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = resolveCopy(COPY, locale);
   const [copied, setCopied] = useState(false);
 
   const onClick = async () => {

@@ -2,13 +2,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   dateLocale: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: { dateLocale: "en-GB" },
   ru: { dateLocale: "ru-RU" },
   de: { dateLocale: "de-DE" },
@@ -63,7 +63,7 @@ function daysUntil(dateStr: string): number {
 
 export function PropertyManagersPanel({ propertyId, ownerUserId }: PropertyManagersPanelProps) {
   const { t, locale } = useI18n();
-  const c = COPY[locale];
+  const c = resolveCopy(COPY, locale);
   const [owner, setOwner] = useState<Owner | null>(null);
   const [managers, setManagers] = useState<Manager[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);

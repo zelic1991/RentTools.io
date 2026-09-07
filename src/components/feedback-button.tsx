@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 const BODY_MAX = 2000;
 const EMAIL_MAX = 200;
@@ -36,7 +36,7 @@ interface CopyShape {
   sending: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     trigger: "Feedback",
     triggerAria: "Send feedback",
@@ -152,7 +152,7 @@ type SubmitState =
 export function FeedbackButton() {
   const pathname = usePathname();
   const { locale } = useI18n();
-  const c = COPY[locale];
+  const c = resolveCopy(COPY, locale);
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState("");
   const [email, setEmail] = useState("");

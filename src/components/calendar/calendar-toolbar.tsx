@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import type { Property, CalendarLink } from "@/lib/types";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 import { computeSyncHealth } from "./sync-health";
 
 interface CopyShape {
@@ -13,7 +13,7 @@ interface CopyShape {
   syncErrorShort: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     syncNow: "Sync now",
     reservations: (n) => `${n} ${n === 1 ? "reservation" : "reservations"}`,
@@ -70,7 +70,7 @@ export function CalendarToolbar({
   onExport,
 }: CalendarToolbarProps) {
   const { t, locale } = useI18n();
-  const c = COPY[locale];
+  const c = resolveCopy(COPY, locale);
   const syncHealth = useMemo(() => computeSyncHealth(links, locale as Locale), [links, locale]);
 
   return (

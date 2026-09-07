@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { TocEntry } from "@/lib/markdown";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 interface Props {
   entries: TocEntry[];
@@ -14,7 +14,7 @@ interface CopyShape {
   onThisPage: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: { ariaLabel: "Table of contents", onThisPage: "On this page" },
   ru: { ariaLabel: "Содержание", onThisPage: "На этой странице" },
   de: { ariaLabel: "Inhaltsverzeichnis", onThisPage: "Auf dieser Seite" },
@@ -37,7 +37,7 @@ const COPY: Record<Locale, CopyShape> = {
  */
 export function BlogToc({ entries }: Props) {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = resolveCopy(COPY, locale);
   const [activeId, setActiveId] = useState<string>(entries[0]?.id ?? "");
 
   useEffect(() => {

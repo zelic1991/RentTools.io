@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 26 — Guest form templates sub-route at
 // /dashboard/admin/content/guest-forms. Cross-property overview of
@@ -28,7 +28,7 @@ interface CopyShape {
   submissions: (n: number) => string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     title: "Guest form templates",
     description:
@@ -136,7 +136,7 @@ interface ApiResponse {
 
 export default function AdminGuestFormsPage() {
   const { locale } = useI18n();
-  const c = COPY[locale];
+  const c = resolveCopy(COPY, locale);
   const [rows, setRows] = useState<TemplateRow[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);

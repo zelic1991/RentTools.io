@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 6 — admin home upgrade. Replaces the tick-1 placeholder
 // with (a) a tile grid of the migrated sub-routes so the admin shell
@@ -31,8 +31,8 @@ interface MeResponse {
 
 interface Tile {
   href: string;
-  label: Record<Locale, string>;
-  desc: Record<Locale, string>;
+  label: CopyMap<string>;
+  desc: CopyMap<string>;
   // RT-25.9 tick 15 — match the sidebar gating in layout.tsx so the
   // admin home only surfaces tiles whose underlying API the user can
   // actually call.
@@ -40,7 +40,7 @@ interface Tile {
 }
 
 const TILES: ReadonlyArray<{
-  group: Record<Locale, string>;
+  group: CopyMap<string>;
   items: ReadonlyArray<Tile>;
 }> = [
   {
@@ -284,7 +284,7 @@ interface CopyShape {
   noActivity: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     justNow: "just now",
     minutesAgo: (n) => `${n}m ago`,
@@ -349,7 +349,7 @@ const COPY: Record<Locale, CopyShape> = {
 
 export default function AdminHomePage() {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = resolveCopy(COPY, locale);
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [auditLoaded, setAuditLoaded] = useState(false);
   const [role, setRole] = useState<string | null>(null);

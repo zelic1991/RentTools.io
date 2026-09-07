@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 25 — Message templates sub-route at
 // /dashboard/admin/workspace/message-templates. Cross-property overview
@@ -41,7 +41,7 @@ interface CopyShape {
   openSync: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     failedToLoad: "Failed to load",
     title: "Message templates",
@@ -95,7 +95,7 @@ const COPY: Record<Locale, CopyShape> = {
 
 export default function AdminMessageTemplatesPage() {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = resolveCopy(COPY, locale);
   const [rows, setRows] = useState<MessageTemplateRow[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
