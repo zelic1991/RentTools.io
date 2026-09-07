@@ -644,3 +644,74 @@ describe("POST /api/reservations — stored gross amount", () => {
     expect(mocks.reservationCreate).not.toHaveBeenCalled();
   });
 });
+
+describe("POST /api/reservations — same-day turnover", () => {
+  // A guest checking out on the same day the next one checks in is
+  // routine in a rental. Both overlap guards must therefore use
+  // half-open ranges (checkIn < otherCheckOut && checkOut >
+  // otherCheckIn), so a stay ENDING on the new check-in date does not
+  // count as a conflict. Written after a real 17 Aug 2027 turnover was
+  // refused with a 409 — the queries below turned out to be correct, so
+  // these tests exist to keep them that way.
+  it("queries local reservations with a half-open range", async () => {
+    const response = await POST(postRequest({
+      checkIn: "2026-08-19",
+      checkOut: "2026-08-23",
+      platform: "direct",
+    }));
+
+    expect(response.status).toBe(200);
+
+    const overlapCall = mocks.reservationFindFirst.mock.calls
+      .map((call) => call[0])
+      .find((arg) => arg?.where?.checkIn?.lt !== undefined);
+    expect(overlapCall).toBeDefined();
+    // Strictly less-than / greater-than: an abutting stay must not match.
+    expect(overlapCall.where.checkIn).toHaveProperty("lt");
+    expect(overlapCall.where.checkOut).toHaveProperty("gt");
+    expect(overlapCall.where.checkIn).not.toHaveProperty("lte");
+    expect(overlapCall.where.checkOut).not.toHaveProperty("gte");
+  });
+
+  it("queries synced events with a half-open range", async () => {
+    const response = await POST(postRequest({
+      checkIn: "2026-08-19",
+      checkOut: "2026-08-23",
+      platform: "direct",
+    }));
+
+    expect(response.status).toBe(200);
+
+    const syncedCall = mocks.calendarEventFindFirst.mock.calls
+      .map((call) => call[0])
+      .find((arg) => arg?.where?.startDate?.lt !== undefined);
+    expect(syncedCall).toBeDefined();
+    expect(syncedCall.where.startDate.lt).toBe("2026-08-23");
+    expect(syncedCall.where.endDate.gt).toBe("2026-08-19");
+    // An iCal stay ending exactly on 2026-08-19 has endDate "2026-08-19",
+    // which is NOT > "2026-08-19" — so the turnover stays bookable.
+  });
+
+  it("accepts a check-in on the day the previous stay checks out", async () => {
+    // Mirrors the production shape: Zagreb 07–17 Aug, Krajci from 17 Aug.
+    // Prisma is mocked, so the half-open filters above are what actually
+    // protect this case; here we assert the route creates the booking
+    // when the DB reports no conflict.
+    mocks.reservationFindFirst.mockResolvedValue(null);
+    mocks.calendarEventFindFirst.mockResolvedValue(null);
+
+    const response = await POST(postRequest({
+      name: "Krajci",
+      checkIn: "2026-08-19",
+      checkOut: "2026-08-20",
+      platform: "direct",
+    }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.reservationCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ name: "Krajci" }),
+      }),
+    );
+  });
+});

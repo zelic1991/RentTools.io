@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Property } from "@/lib/types";
 import type {
   ExtendableBooking,
@@ -17,6 +18,7 @@ import {
 import { ConflictBanner } from "@/components/calendar/conflict-banner";
 import { useCalendarFetch, SYNC_COOLDOWN_MS } from "@/components/calendar/use-calendar-fetch";
 import { useCalendarData } from "@/components/calendar/use-calendar-data";
+import { expandDateRange } from "@/components/calendar/utils";
 import {
   buildManualExtensionPatch,
   buildSyncedExtensionReservation,
@@ -142,8 +144,26 @@ export function PropertyCalendar({
   const [extensionActionBar, setExtensionActionBar] = useState<ExtensionActionBar | null>(null);
   const [extensionActionAnchor, setExtensionActionAnchor] = useState<DOMRect | null>(null);
 
-  const { syncedEvents, links, overrides, loadingEvents, syncing, lastSyncAt, syncJustDone, refetchOverrides, handleSyncNow } =
+  const { syncedEvents, links, overrides, loadingEvents, syncing, lastSyncAt, syncJustDone, refetchCalendarData, refetchOverrides, handleSyncNow } =
     useCalendarFetch(property.id);
+
+  const router = useRouter();
+
+  // Refresh every surface after a mutation WITHOUT a full page reload.
+  //
+  // The calendar owns its data client-side (useCalendarFetch), while
+  // dashboard rows, the cleaning schedule and sidebar counts render on
+  // the server. A `window.location.reload()` used to cover both, but it
+  // also remounts this component — which resets didInitialScrollRef and
+  // drops the host back on today's month. Editing an August 2027 stay
+  // meant scrolling ten months forward again after every single click.
+  //
+  // refetchCalendarData() updates the grid in place (scroll survives),
+  // router.refresh() re-renders the server surfaces against fresh data.
+  const refreshAfterMutation = useCallback(async () => {
+    await refetchCalendarData();
+    router.refresh();
+  }, [refetchCalendarData, router]);
 
   // Live cooldown countdown for the "Sync now" button. `nowTick` is
   // bumped once a second only while a cooldown is active, so the
@@ -327,16 +347,35 @@ export function PropertyCalendar({
   }, [property.id]);
 
   // Selection helpers ----------------------------------------------
-  const toggleDate = (dateStr: string) => {
+  //
+  // Plain click toggles one day. Shift-click selects every day from the
+  // previous click to this one, so a multi-night stay costs two clicks
+  // instead of one per night — the popover's "Create reservation
+  // (N nights)" path already handles any contiguous span, it was just
+  // tedious to produce one.
+  const lastToggledRef = useRef<string | null>(null);
+  const toggleDate = (dateStr: string, extend?: boolean) => {
     if (extensionRequestPendingRef.current) return;
+    const anchor = lastToggledRef.current;
     setSelectedDates((prev) => {
       const next = new Set(prev);
+      if (extend && anchor) {
+        // Range select is additive and never deselects: the host is
+        // building a span, so a stray overlap with an existing
+        // selection shouldn't punch holes in it.
+        for (const d of expandDateRange(anchor, dateStr)) next.add(d);
+        return next;
+      }
       if (next.has(dateStr)) next.delete(dateStr);
       else next.add(dateStr);
       return next;
     });
+    lastToggledRef.current = dateStr;
   };
-  const clearSelection = () => setSelectedDates(new Set());
+  const clearSelection = () => {
+    lastToggledRef.current = null;
+    setSelectedDates(new Set());
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -389,7 +428,7 @@ export function PropertyCalendar({
     // turnover ends ON the last selected day rather than the morning
     // after it, so we must not re-derive it from the selection here.
     const checkOut = data.checkOut;
-    await fetch(`/api/reservations`, {
+    const res = await fetch(`/api/reservations`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -400,8 +439,19 @@ export function PropertyCalendar({
         propertyId: property.id,
       }),
     });
+    // Surface the API's reason instead of silently doing nothing. A
+    // rejected POST used to fall straight through to the reload, so the
+    // host saw the panel close, the calendar reappear unchanged, and no
+    // explanation — indistinguishable from a UI glitch. Every other
+    // mutation here (trimReservation, extendBooking, cancelDirect-
+    // Extension) already reports its error.
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({} as { error?: string }));
+      window.alert(errorData?.error || "Couldn't create reservation");
+      return;
+    }
     clearSelection();
-    window.location.reload();
+    await refreshAfterMutation();
   };
 
   const setSingleOverride = async (dateStr: string, type: "open" | "closed" | "cleaning") => {
@@ -483,7 +533,7 @@ export function PropertyCalendar({
       } else return { ok: false };
 
       clearSelection();
-      window.location.reload();
+      await refreshAfterMutation();
       return { ok: true };
     } catch {
       return { ok: false };
@@ -516,7 +566,7 @@ export function PropertyCalendar({
 
       closeExtensionActions();
       clearSelection();
-      window.location.reload();
+      await refreshAfterMutation();
       return { ok: true };
     } catch {
       return { ok: false };
@@ -531,10 +581,10 @@ export function PropertyCalendar({
   // excludes the same reservation from its overlap guard, and a
   // custom (no linkedEventUid) reservation doesn't trip the
   // synced-event check either, so shrinking just works. After the
-  // request resolves we full-reload so every dependent surface
-  // (dashboard rows, cleaning schedule, sidebar counts) re-renders
-  // against the fresh range — same pattern claimSyncedBooking and
-  // extendBooking already use.
+  // request resolves we refreshAfterMutation() so every dependent
+  // surface (dashboard rows, cleaning schedule, sidebar counts)
+  // re-renders against the fresh range — same pattern
+  // claimSyncedBooking and extendBooking already use.
   const trimReservation = async (reservationId: number, newCheckOut: string) => {
     const res = await fetch(`/api/reservations/${reservationId}`, {
       method: "PATCH",
@@ -547,7 +597,7 @@ export function PropertyCalendar({
       return;
     }
     clearSelection();
-    window.location.reload();
+    await refreshAfterMutation();
   };
 
   const claimSyncedBooking = async (name: string) => {
@@ -567,7 +617,7 @@ export function PropertyCalendar({
       }),
     });
     closeClaim();
-    window.location.reload();
+    await refreshAfterMutation();
   };
 
   const panelOpen = selectedDates.size > 0;
@@ -805,7 +855,7 @@ export function PropertyCalendar({
                     setExtensionActionBar({ ...seg, reservationId: seg.reservationId });
                     setExtensionActionAnchor(rect);
                   }}
-                  onCellClick={(dateStr) => toggleDate(dateStr)}
+                  onCellClick={(dateStr, _rect, extend) => toggleDate(dateStr, extend)}
                 />
               </div>
             </section>

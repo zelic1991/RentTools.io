@@ -16,6 +16,21 @@ export function timeToPercent(timeStr: string): number {
   return ((h * 60 + (m || 0)) / 1440) * 100;
 }
 
+/**
+ * Every date string from `a` to `b` inclusive, ascending. Order of the
+ * arguments doesn't matter — shift-clicking backwards through the
+ * calendar is as valid as forwards.
+ *
+ * Used for shift-click range selection: picking a 10-night stay should
+ * cost two clicks, not ten.
+ */
+export function expandDateRange(a: string, b: string): string[] {
+  const [from, to] = a <= b ? [a, b] : [b, a];
+  const out: string[] = [];
+  for (let d = from; d <= to; d = addDaysStr(d, 1)) out.push(d);
+  return out;
+}
+
 export function dayCount(start: string, end: string): number {
   const d1 = new Date(start);
   const d2 = new Date(end);

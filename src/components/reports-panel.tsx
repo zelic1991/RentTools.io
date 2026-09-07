@@ -17,7 +17,10 @@ import { PropertySwitcher } from "@/components/property-switcher";
 import { useI18n } from "@/lib/i18n/context";
 import type { Locale } from "@/lib/i18n/translations";
 import type { Property } from "@/lib/types";
-import { summarizeStoredGrossAmounts } from "@/lib/reservation-revenue";
+import {
+  summarizeRevenueBreakdown,
+  summarizeStoredGrossAmounts,
+} from "@/lib/reservation-revenue";
 
 interface CopyShape {
   reports: string;
@@ -899,6 +902,18 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
     };
   }, [allStays.length, targetProperties]);
 
+  // Same stored-amount rule as above, split by check-in month and by
+  // channel, plus an average nightly rate. Everything here is derived
+  // from figures the host actually entered; a booking without a stored
+  // amount contributes nothing rather than being estimated.
+  const revenueBreakdown = useMemo(
+    () =>
+      summarizeRevenueBreakdown(
+        targetProperties.flatMap((targetProperty) => targetProperty.reservations),
+      ),
+    [targetProperties],
+  );
+
   const buckets = useMemo(() => {
     const b = buildMonthRange(allStays, periodMonths);
     fillBuckets(b, allStays);
@@ -1131,7 +1146,84 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
                 <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-[var(--ink-3)]">
                   <span>Known amounts: {storedGrossSummary.knownCount} bookings</span>
                   <span>Amount unknown: {storedGrossSummary.unknownCount} bookings</span>
+                  {revenueBreakdown.averageNightlyCents.map(({ currency, amountCents }) => (
+                    <span key={currency} className="tabular-nums">
+                      Avg / night:{" "}
+                      <span className="font-medium text-[var(--ink)]">
+                        {new Intl.NumberFormat(locale, { style: "currency", currency }).format(
+                          amountCents / 100,
+                        )}
+                      </span>
+                    </span>
+                  ))}
                 </div>
+
+                {/* Month and channel split. Both lists are driven by the
+                    same stored amounts as the total above, so they always
+                    add up to it — no separate source, nothing inferred. */}
+                {revenueBreakdown.byMonth.length > 0 && (
+                  <div className="mt-4 grid gap-4 border-t border-[var(--line)] pt-4 sm:grid-cols-2">
+                    <div>
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-3)]">
+                        By check-in month
+                      </h3>
+                      <ul className="mt-2 space-y-1">
+                        {revenueBreakdown.byMonth.map((row) => (
+                          <li
+                            key={`${row.month}-${row.currency}`}
+                            className="flex items-baseline justify-between gap-3 text-xs"
+                          >
+                            <span className="text-[var(--ink-3)]">
+                              {new Intl.DateTimeFormat(locale, {
+                                month: "short",
+                                year: "numeric",
+                                timeZone: "UTC",
+                              }).format(new Date(`${row.month}-01T12:00:00Z`))}
+                              <span className="ml-1.5 text-[var(--ink-3)] opacity-70">
+                                {row.nights}n
+                              </span>
+                            </span>
+                            <span className="font-medium tabular-nums text-[var(--ink)]">
+                              {new Intl.NumberFormat(locale, {
+                                style: "currency",
+                                currency: row.currency,
+                              }).format(row.amountCents / 100)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-3)]">
+                        By channel
+                      </h3>
+                      <ul className="mt-2 space-y-1">
+                        {revenueBreakdown.byChannel.map((row) => (
+                          <li
+                            key={`${row.platform}-${row.currency}`}
+                            className="flex items-baseline justify-between gap-3 text-xs"
+                          >
+                            <span className="flex items-center gap-1.5 text-[var(--ink-3)]">
+                              <span
+                                className="inline-block h-2 w-2 shrink-0 rounded-full"
+                                style={{ background: platformMeta(row.platform).color }}
+                              />
+                              {platformMeta(row.platform).label}
+                              <span className="opacity-70">{row.nights}n</span>
+                            </span>
+                            <span className="font-medium tabular-nums text-[var(--ink)]">
+                              {new Intl.NumberFormat(locale, {
+                                style: "currency",
+                                currency: row.currency,
+                              }).format(row.amountCents / 100)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Top-platform readout — colored pill matches calendar bars. */}
