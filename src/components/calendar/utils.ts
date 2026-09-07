@@ -31,6 +31,21 @@ export function expandDateRange(a: string, b: string): string[] {
   return out;
 }
 
+/**
+ * Stable palette slot for a key (a reservation id or a guest name).
+ * djb2 over UTF-16 code units, folded into [0, size). Deterministic, so
+ * the same guest keeps the same colour across renders, months and
+ * reloads — and two neighbouring Direct stays almost always differ.
+ */
+export function directPaletteIndex(key: string, size: number): number {
+  if (size <= 0) return 0;
+  let h = 5381;
+  for (let i = 0; i < key.length; i++) {
+    h = ((h << 5) + h + key.charCodeAt(i)) >>> 0;
+  }
+  return h % size;
+}
+
 export function dayCount(start: string, end: string): number {
   const d1 = new Date(start);
   const d2 = new Date(end);

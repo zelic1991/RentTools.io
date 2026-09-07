@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
-import { timeToPercent } from "./utils";
+import { directPaletteIndex, timeToPercent } from "./utils";
 import type { BarSegment, CalendarBar } from "./types";
 
 const DIRECT_COPY: CopyMap<{ label: string; connected: (platform: string) => string; open: string }> = {
@@ -20,6 +20,20 @@ function platformName(platform: string): string {
   if (platform === "vrbo") return "Vrbo";
   return platform || "iCal";
 }
+
+/** Colours for Direct / manual bookings, one per booking. Cool tones only:
+ *  no coral (that is Airbnb) and no navy (that is Booking.com), so a Direct
+ *  bar still reads as "mine, not from a feed" while two Direct guests next
+ *  to each other no longer merge into one grey stripe. Full class names so
+ *  Tailwind's JIT keeps them. */
+const DIRECT_PALETTE = [
+  "bg-teal-600",
+  "bg-indigo-500",
+  "bg-violet-600",
+  "bg-emerald-600",
+  "bg-cyan-700",
+  "bg-fuchsia-700",
+] as const;
 
 function platformColor(platform: string): string {
   if (platform === "booking") return "#003580";
@@ -486,11 +500,11 @@ export function CalendarGrid({
                           seg.platform === "booking" ? "bg-[#003580]" :
                           seg.platform === "airbnb" ? "bg-[var(--channel-airbnb,var(--m-accent))]" :
                           seg.platform === "vrbo" ? "bg-[#2c5da9]" :
-                          // direct / manual / custom / unknown — slate
-                          // neutral with a dashed ring so the user can
-                          // see at a glance "this is mine, not from a
-                          // platform feed".
-                          "bg-slate-500 ring-1 ring-slate-300/30"
+                          // direct / manual / custom / unknown — one slot
+                          // of DIRECT_PALETTE, picked per booking (stable
+                          // on the reservation id, else the name), so
+                          // adjacent Direct guests are told apart.
+                          `${DIRECT_PALETTE[directPaletteIndex(seg.reservationId != null ? `r${seg.reservationId}` : seg.name, DIRECT_PALETTE.length)]} ring-1 ring-white/30`
                         } ${actionable ? "hover:brightness-110" : ""} ${seg.isExtension ? "ring-1 ring-white/30 ring-dashed" : ""}`}
                         style={{
                           left: leftStyle,
