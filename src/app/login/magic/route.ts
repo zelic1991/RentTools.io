@@ -10,7 +10,9 @@ export async function GET(request: NextRequest) {
     if (!token || token.length > 512) throw new Error("INVALID_MAGIC_LINK");
     const user = await consumeMagicToken(token);
     await createSession(user.id, user.username, user.role);
-    const res = NextResponse.redirect(new URL("/dashboard", request.url));
+    // Relative Location on purpose: the browser resolves it against the
+    // public URL it opened, so no proxy hop can turn it into localhost.
+    const res = new NextResponse(null, { status: 307, headers: { Location: "/dashboard" } });
     // The link was minted for its holder, not for the admin who made it:
     // land them in their own language straight away.
     if (isLocale(locale)) {
@@ -23,6 +25,6 @@ export async function GET(request: NextRequest) {
     }
     return res;
   } catch {
-    return NextResponse.redirect(new URL("/login?error=magic_link_invalid", request.url));
+    return new NextResponse(null, { status: 307, headers: { Location: "/login?error=magic_link_invalid" } });
   }
 }

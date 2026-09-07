@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSuperadmin } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { isLocale } from "@/lib/i18n/cookie";
+import { getPublicOrigin } from "@/lib/public-origin";
 import { createMagicToken, magicLinkUrl, ttlForKind, type MagicLinkKind } from "@/lib/magic-login";
 
 async function eligibleUser(id: number, sessionUserId: number) {
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const created = createMagicToken(new Date(), ttlForKind(kind));
     await prisma.magicLoginToken.create({ data: { tokenHash: created.tokenHash, userId: user.id, expiresAt: created.expiresAt, kind } });
     await logAudit(session.userId, "create", "user", user.id, { action: "magic_login_link", kind, locale, role: user.role });
-    const base = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
+    const base = getPublicOrigin(request);
     return NextResponse.json({ url: magicLinkUrl(base, created.token, locale), expiresAt: created.expiresAt.toISOString(), kind });
   } catch (error) {
     console.error("Magic link creation failed", error);
