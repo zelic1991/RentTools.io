@@ -37,6 +37,10 @@ export default function GlobalError({
           >
             Try again
           </button>
+          {/* Deliberately a plain anchor: after a render crash a full
+              reload is the point, a client-side <Link/> would navigate
+              inside the broken tree. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/"
             className="inline-flex items-center gap-2 rounded-lg border border-[var(--line)] px-5 py-2.5 text-sm font-medium text-[var(--ink-2)] transition-colors hover:bg-[var(--bg-3)]"

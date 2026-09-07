@@ -601,6 +601,7 @@ export function DateActionsPopover({
   // Reset the create-reservation form whenever the selection changes
   // (e.g. user added another date). Otherwise typed name would carry
   // over into a different selection state.
+  const selectionKey = selectedDates.join(",");
   useEffect(() => {
     setCreating(false);
     setResName("");
@@ -608,7 +609,7 @@ export function DateActionsPopover({
     setSubmitting(false);
     if (!extendingRef.current) setExtendingKey(null);
     setExtendError(null);
-  }, [selectedDates.join(",")]);
+  }, [selectionKey]);
 
   const localizeExtendError = (error?: string) => {
     if (error === "Overlapping reservation exists") {
