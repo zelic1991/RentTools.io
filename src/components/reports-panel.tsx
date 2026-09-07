@@ -377,7 +377,12 @@ interface MonthBucket {
 
 type PeriodChoice = 3 | 6 | 12 | 24 | "all";
 const DEFAULT_PERIOD: PeriodChoice = 6;
-const FUTURE_MONTHS = 6; // forward window for upcoming nights
+// Forward window for the "Upcoming nights" tile and the minimum chart
+// horizon. Was 6, which quietly hid a whole season: a host who books a
+// year out (the calendar itself allows 365 days) saw "Upcoming nights 0"
+// above a report listing six confirmed 2027 stays. 12 matches the
+// calendar's booking window and the chart's existing hard cap.
+const FUTURE_MONTHS = 12;
 
 function ymKey(year: number, monthIndex: number): string {
   return `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
