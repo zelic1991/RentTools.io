@@ -389,7 +389,7 @@ export function PropertyCalendar({
     // turnover ends ON the last selected day rather than the morning
     // after it, so we must not re-derive it from the selection here.
     const checkOut = data.checkOut;
-    await fetch(`/api/reservations`, {
+    const res = await fetch(`/api/reservations`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -400,6 +400,17 @@ export function PropertyCalendar({
         propertyId: property.id,
       }),
     });
+    // Surface the API's reason instead of silently doing nothing. A
+    // rejected POST used to fall straight through to the reload, so the
+    // host saw the panel close, the calendar reappear unchanged, and no
+    // explanation — indistinguishable from a UI glitch. Every other
+    // mutation here (trimReservation, extendBooking, cancelDirect-
+    // Extension) already reports its error.
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({} as { error?: string }));
+      window.alert(errorData?.error || "Couldn't create reservation");
+      return;
+    }
     clearSelection();
     window.location.reload();
   };
