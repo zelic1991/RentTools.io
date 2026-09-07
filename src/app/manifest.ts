@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getLocale } from "@/lib/i18n/server";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 
 /**
  * PWA manifest. Per-locale because the `name` / `short_name` /
@@ -16,7 +16,7 @@ import type { Locale } from "@/lib/i18n/translations";
  * locale the install was initiated under.
  */
 
-const LOCALIZED: Record<Locale, { name: string; description: string; lang: string }> = {
+const LOCALIZED: CopyMap<{ name: string; description: string; lang: string }> = {
   en: {
     name: "RentTools",
     description:
@@ -51,7 +51,7 @@ const LOCALIZED: Record<Locale, { name: string; description: string; lang: strin
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const locale = await getLocale();
-  const copy = LOCALIZED[locale];
+  const copy = LOCALIZED[locale] ?? LOCALIZED.en;
   return {
     name: copy.name,
     short_name: copy.name,

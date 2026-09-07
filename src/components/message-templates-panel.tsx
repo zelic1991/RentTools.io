@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   nameAndBodyRequired: string;
@@ -21,7 +21,7 @@ interface CopyShape {
   remove: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     nameAndBodyRequired: "Name and body are required",
     confirmDelete: "Delete this template?",
@@ -135,7 +135,7 @@ function renderTemplate(input: string, vars: Record<string, string>): string {
 
 export function MessageTemplatesPanel({ propertyId }: MessageTemplatesPanelProps) {
   const { locale } = useI18n();
-  const c = COPY[locale];
+  const c = (COPY[locale] ?? COPY.en);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [editingId, setEditingId] = useState<number | "new" | null>(null);
   const [name, setName] = useState("");

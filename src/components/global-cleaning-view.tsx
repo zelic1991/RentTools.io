@@ -6,7 +6,7 @@ import { CleaningSchedule, type CleanerAssignmentInfo } from "@/components/clean
 import { PropertySwitcher } from "@/components/property-switcher";
 import { useIncludePotential } from "@/lib/use-include-potential";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 import type { Property, CalendarLink, DateOverride } from "@/lib/types";
 
 interface CopyShape {
@@ -20,7 +20,7 @@ interface CopyShape {
   dataSourcesHelper: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     emptyState: "Add a property to see the cleaning schedule.",
     cleaning: "Cleaning",
@@ -112,7 +112,7 @@ interface GlobalCleaningViewProps {
  */
 export function GlobalCleaningView({ properties }: GlobalCleaningViewProps) {
   const { t, locale } = useI18n();
-  const c = COPY[locale];
+  const c = (COPY[locale] ?? COPY.en);
   const [syncedEvents, setSyncedEvents] = useState<Record<number, CalendarEvent[]>>({});
   const [links, setLinks] = useState<Record<number, CalendarLink[]>>({});
   const [overrides, setOverrides] = useState<Record<number, DateOverride[]>>({});

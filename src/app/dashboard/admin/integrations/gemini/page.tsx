@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 4 — Gemini AI key sub-route. The first slice off the
 // long-scroll SettingsPanel: the Gemini API key card now lives at
@@ -22,7 +22,7 @@ interface CopyShape {
   apiKeyLabel: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     description:
       "Used for guest passport data extraction. Stored in site_settings and applied instance-wide.",
@@ -67,7 +67,7 @@ const COPY: Record<Locale, CopyShape> = {
 
 export default function AdminGeminiPage() {
   const { t, locale } = useI18n();
-  const c = COPY[locale];
+  const c = (COPY[locale] ?? COPY.en);
   const [role, setRole] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [key, setKey] = useState("");

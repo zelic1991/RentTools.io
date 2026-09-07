@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 27 — Scheduled jobs sub-route at
 // /dashboard/admin/operations/scheduled-jobs. Read-only reference of
@@ -18,11 +18,11 @@ import type { Locale } from "@/lib/i18n/translations";
 
 interface ScheduledJob {
   id: string;
-  name: Record<Locale, string>;
+  name: CopyMap<string>;
   schedule: string;
-  schedulePretty: Record<Locale, string>;
-  description: Record<Locale, string>;
-  link?: { href: string; label: Record<Locale, string> };
+  schedulePretty: CopyMap<string>;
+  description: CopyMap<string>;
+  link?: { href: string; label: CopyMap<string> };
 }
 
 const JOBS: ReadonlyArray<ScheduledJob> = [
@@ -89,7 +89,7 @@ interface CopyShape {
   subtitle: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     title: "Scheduled jobs",
     subtitle: "Cron jobs configured on the host (deploy/cron/rent-tool.cron). Controlled from crontab on the droplet — this page is reference only. Calendar sync history is available on its own page.",
@@ -114,7 +114,7 @@ const COPY: Record<Locale, CopyShape> = {
 
 export default function AdminScheduledJobsPage() {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = (COPY[locale] ?? COPY.en);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">

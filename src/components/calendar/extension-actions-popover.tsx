@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 import type { CalendarBar } from "./types";
 
 export type CancelExtensionResult =
@@ -31,7 +31,7 @@ interface CopyShape {
   dateLocale: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     direct: "Direct",
     heading: "Direct extension",
@@ -154,7 +154,7 @@ export function ExtensionActionsPopover({
   onCancelExtension,
 }: ExtensionActionsPopoverProps) {
   const { locale } = useI18n();
-  const c = COPY[locale];
+  const c = (COPY[locale] ?? COPY.en);
   const panelRef = useRef<HTMLDivElement>(null);
   const firstActionRef = useRef<HTMLButtonElement>(null);
   const confirmActionRef = useRef<HTMLButtonElement>(null);

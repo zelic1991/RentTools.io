@@ -2,11 +2,11 @@
 
 import { useMemo } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 import { timeToPercent } from "./utils";
 import type { BarSegment, CalendarBar } from "./types";
 
-const DIRECT_COPY: Record<Locale, { label: string; connected: (platform: string) => string; open: string }> = {
+const DIRECT_COPY: CopyMap<{ label: string; connected: (platform: string) => string; open: string }> = {
   en: { label: "Direct", connected: (p) => `Connected to ${p}`, open: "Open extension actions" },
   ru: { label: "Напрямую", connected: (p) => `Связано с ${p}`, open: "Открыть действия продления" },
   de: { label: "Direkt", connected: (p) => `Mit ${p} verbunden`, open: "Verlängerungsaktionen öffnen" },
@@ -125,7 +125,7 @@ export function CalendarGrid({
   onCellClick,
 }: CalendarGridProps) {
   const { t, locale } = useI18n();
-  const directCopy = DIRECT_COPY[locale];
+  const directCopy = (DIRECT_COPY[locale] ?? DIRECT_COPY.en);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   let firstDayOffset = new Date(year, month, 1).getDay() - 1;
   if (firstDayOffset < 0) firstDayOffset = 6;

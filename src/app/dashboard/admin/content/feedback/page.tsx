@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   title: string;
@@ -24,7 +24,7 @@ interface CopyShape {
   confirmDelete: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     title: "Feedback",
     description:
@@ -174,7 +174,7 @@ function formatDate(iso: string | null): string {
 
 export default function AdminFeedbackPage() {
   const { locale } = useI18n();
-  const c = COPY[locale];
+  const c = (COPY[locale] ?? COPY.en);
   const [role, setRole] = useState<string | null>(null);
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [items, setItems] = useState<FeedbackRow[]>([]);

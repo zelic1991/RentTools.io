@@ -1,5 +1,6 @@
 "use client";
 
+import type { Locale } from "@/lib/i18n/translations";
 import Link from "next/link";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -44,7 +45,7 @@ const NAV_LABELS = {
 export function MarketingHeader({ sticky = false, softLocaleSwitch = false }: MarketingHeaderProps) {
   const { locale } = useI18n();
   const session = useSession();
-  const t = NAV_LABELS[locale];
+  const t = (NAV_LABELS as Partial<Record<Locale, typeof NAV_LABELS.en>>)[locale] ?? NAV_LABELS.en;
   const isAuthenticated = session !== null;
   // Locale-aware href helper — internal links must point at the
   // locale-prefixed URL when the user is in a non-default locale,

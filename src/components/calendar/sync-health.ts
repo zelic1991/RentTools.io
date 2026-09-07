@@ -1,5 +1,5 @@
 import type { CalendarLink } from "@/lib/types";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 
 export interface SyncHealth {
   ok: boolean;
@@ -15,7 +15,7 @@ interface SyncHealthCopyShape {
   syncedPrefix: (label: string) => string;
 }
 
-const COPY: Record<Locale, SyncHealthCopyShape> = {
+const COPY: CopyMap<SyncHealthCopyShape> = {
   en: {
     neverSynced: "Never synced",
     justNow: "just now",
@@ -60,7 +60,7 @@ const COPY: Record<Locale, SyncHealthCopyShape> = {
 
 export function computeSyncHealth(links: CalendarLink[], locale: Locale): SyncHealth | null {
   if (!links || links.length === 0) return null;
-  const c = COPY[locale];
+  const c = (COPY[locale] ?? COPY.en);
   const errored = links.find(l => l.lastError);
   const lastFetchedTimes = links
     .map(l => l.lastFetchedAt ? new Date(l.lastFetchedAt).getTime() : 0)

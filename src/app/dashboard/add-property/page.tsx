@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth-guard";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 
 interface PlatformRow {
   platform: "airbnb" | "booking";
@@ -30,7 +30,7 @@ interface CopyShape {
   add: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     nameRequired: "Property name is required",
     backToDashboard: "Back to dashboard",
@@ -105,7 +105,7 @@ const COPY: Record<Locale, CopyShape> = {
 
 function AddPropertyContent() {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = (COPY[locale] ?? COPY.en);
   const router = useRouter();
   const [name, setName] = useState("");
   const [rows, setRows] = useState<PlatformRow[]>([

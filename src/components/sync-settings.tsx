@@ -9,7 +9,7 @@ import { PropertyManagersPanel } from "@/components/property-managers-panel";
 import { PropertySwitcher } from "@/components/property-switcher";
 import { PlatformInstructions } from "@/components/platform-instructions";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 import type { CalendarLink, Property, SyncLogEntry } from "@/lib/types";
 
 interface CopyShape {
@@ -41,7 +41,7 @@ interface CopyShape {
   secAccess: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     save: "Save",
     cancel: "Cancel",
@@ -241,7 +241,7 @@ interface SyncSettingsProps {
 
 export function SyncSettings({ propertyId, propertyName, properties, minNights, checkInTime, checkOutTime, bookingWindow, ownerUserId, onUpdateProperty, onDeleteProperty }: SyncSettingsProps) {
   const { t, locale } = useI18n();
-  const c = COPY[locale];
+  const c = (COPY[locale] ?? COPY.en);
   const [links, setLinks] = useState<CalendarLink[]>([]);
   const [logs, setLogs] = useState<SyncLogEntry[]>([]);
   // First-load gate. Without this the page renders the empty-state for

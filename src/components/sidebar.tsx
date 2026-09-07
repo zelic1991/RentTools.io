@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DateSlider } from "@/components/date-slider";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 import { SUPPORTED_LOCALES } from "@/lib/i18n/alternates";
 import type { Property, Reservation } from "@/lib/types";
 
@@ -13,7 +13,7 @@ interface CopyShape {
   dateLocale: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: { dateLocale: "en-GB" },
   ru: { dateLocale: "ru-RU" },
   de: { dateLocale: "de-DE" },
@@ -74,7 +74,7 @@ export function Sidebar({
   showTasks,
 }: SidebarProps) {
   const { t: tr, locale, setLocale } = useI18n();
-  const c = COPY[locale];
+  const c = (COPY[locale] ?? COPY.en);
   const [newPropertyName, setNewPropertyName] = useState("");
   const [showPropertyInput, setShowPropertyInput] = useState(false);
   const [showReservationForm, setShowReservationForm] = useState<number | null>(null);

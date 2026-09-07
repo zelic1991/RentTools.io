@@ -7,7 +7,7 @@ import { CleanersPanel } from "@/components/cleaners-panel";
 import { PropertySwitcher } from "@/components/property-switcher";
 import { useIncludePotential } from "@/lib/use-include-potential";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 import type { Property, CalendarLink, DateOverride } from "@/lib/types";
 
 interface CopyShape {
@@ -16,7 +16,7 @@ interface CopyShape {
   includePotentialHint: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     cleaning: "Cleaning",
     view: "View",
@@ -71,7 +71,7 @@ interface PropertyCleaningViewProps {
 
 export function PropertyCleaningView({ property, properties, onCleaningEnabledChanged }: PropertyCleaningViewProps) {
   const { t: tr, locale } = useI18n();
-  const t = COPY[locale];
+  const t = (COPY[locale] ?? COPY.en);
   const [syncedEvents, setSyncedEvents] = useState<CalendarEvent[]>([]);
   const [links, setLinks] = useState<CalendarLink[]>([]);
   const [overrides, setOverrides] = useState<DateOverride[]>([]);

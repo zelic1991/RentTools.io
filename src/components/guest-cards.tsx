@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 import type { Guest } from "@/lib/types";
 
 interface CopyShape {
@@ -10,7 +10,7 @@ interface CopyShape {
   saved: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: { saving: "Saving…", saved: "Saved" },
   ru: { saving: "Сохранение…", saved: "Сохранено" },
   de: { saving: "Wird gespeichert…", saved: "Gespeichert" },
@@ -195,7 +195,7 @@ function GuestCard({
   onUpdateGuest: (id: number, fields: Partial<Guest>) => Promise<void>;
 }) {
   const { t: tr, locale } = useI18n();
-  const t = COPY[locale];
+  const t = (COPY[locale] ?? COPY.en);
   const [dragOver, setDragOver] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   title: string;
@@ -39,7 +39,7 @@ interface CopyShape {
   addOverrideButton: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     title: "SEO overrides",
     description:
@@ -277,7 +277,7 @@ const URL_MAX = 512;
 
 export default function AdminSeoOverridesPage() {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = (COPY[locale] ?? COPY.en);
   const [role, setRole] = useState<string | null>(null);
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [rows, setRows] = useState<SeoRow[]>([]);

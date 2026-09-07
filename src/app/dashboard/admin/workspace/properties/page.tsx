@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 19 — Properties overview at
 // /dashboard/admin/workspace/properties. Read-only summary table of
@@ -59,7 +59,7 @@ interface CopyShape {
   off: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     failedToLoad: "Failed to load",
     title: "Properties",
@@ -154,7 +154,7 @@ const COPY: Record<Locale, CopyShape> = {
 
 export default function AdminPropertiesPage() {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = (COPY[locale] ?? COPY.en);
   const [props, setProps] = useState<Property[]>([]);
   const [meId, setMeId] = useState<number | null>(null);
   const [loaded, setLoaded] = useState(false);

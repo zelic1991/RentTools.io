@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 import { AuditPanel } from "@/components/audit-panel";
 
 interface CopyShape {
@@ -12,7 +12,7 @@ interface CopyShape {
   setPasswordHint: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     dateLocale: "en",
     subtitle: "Personal info, password, and activity.",
@@ -63,7 +63,7 @@ interface ProfileUser {
 // dashboard shell.
 export function ProfilePanel() {
   const { t: tr, locale } = useI18n();
-  const c = COPY[locale];
+  const c = (COPY[locale] ?? COPY.en);
   const [user, setUser] = useState<ProfileUser | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");

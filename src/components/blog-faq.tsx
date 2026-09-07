@@ -1,14 +1,14 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 import { renderInlineSafe } from "@/lib/markdown";
 
 interface CopyShape {
   heading: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: { heading: "Frequently asked questions" },
   ru: { heading: "Частые вопросы" },
   de: { heading: "Häufige Fragen" },
@@ -37,7 +37,7 @@ const FAQ_HEADING_ID = "faq";
 
 export function BlogFaq({ items }: Props) {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = (COPY[locale] ?? COPY.en);
   if (items.length === 0) return null;
 
   return (

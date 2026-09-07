@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 12 — Site settings sub-route at
 // /dashboard/admin/workspace/site-settings. Lifts the "Admin · Site
@@ -21,8 +21,8 @@ interface MeResponse {
 
 interface FieldDef {
   key: string;
-  label: Record<Locale, string>;
-  hint: Record<Locale, string>;
+  label: CopyMap<string>;
+  hint: CopyMap<string>;
   type: "toggle" | "number" | "text" | "email";
   defaultValue: string;
 }
@@ -95,7 +95,7 @@ interface CopyShape {
   save: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     saved: "Saved. Cached settings refresh within 60s.",
     failedToSave: "Failed to save",
@@ -160,7 +160,7 @@ const COPY: Record<Locale, CopyShape> = {
 
 export default function AdminSiteSettingsPage() {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = (COPY[locale] ?? COPY.en);
   const [role, setRole] = useState<string | null>(null);
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [settings, setSettings] = useState<SiteSettingsMap>({});

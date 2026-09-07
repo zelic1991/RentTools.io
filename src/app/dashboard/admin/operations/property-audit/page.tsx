@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 
 // Property audit dashboard. Lists every property the host can manage,
 // runs the /api/properties/[id]/audit endpoint per property on demand,
@@ -90,7 +90,7 @@ interface CopyShape {
   feedSample: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     title: "Property audit",
     subtitle: "End-to-end correctness check per property — settings, calendar links, reservation/synced-event overlap, override conflicts, and a spot-check of the iCal feed Airbnb / Booking are reading right now.",
@@ -230,7 +230,7 @@ interface PropertyRow {
 
 export default function PropertyAuditPage() {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = (COPY[locale] ?? COPY.en);
 
   const [properties, setProperties] = useState<PropertyRow[]>([]);
   const [loadingProps, setLoadingProps] = useState(true);

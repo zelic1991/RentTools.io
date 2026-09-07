@@ -4,7 +4,7 @@ import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthSubmit } from "@/components/auth-form";
@@ -35,7 +35,7 @@ interface CopyShape {
   used: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     loading: "Loading invite…",
     inviteHeading: "Property invitation",
@@ -117,7 +117,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
   const { token } = use(params);
   const router = useRouter();
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = (COPY[locale] ?? COPY.en);
   const [state, setState] = useState<InviteStatus>({ status: "loading" });
   const [accepting, setAccepting] = useState(false);
 

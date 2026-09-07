@@ -1,9 +1,9 @@
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 
 /**
  * Mapping from our internal locale code (`Locale` union, e.g. "en", "ru")
  * to the format third-party APIs expect. These are exhaustive lookup
- * tables typed as `Record<Locale, string>`, so adding a new value to the
+ * tables typed as `CopyMap<string>`, so adding a new value to the
  * Locale union forces a compile error here until the new mapping is
  * filled in. No more `locale === "ru" ? "ru_RU" : "en_US"` ternaries
  * scattered across the codebase silently falling back to English.
@@ -21,6 +21,7 @@ export const OG_LOCALE: Record<Locale, string> = {
   de: "de_DE",
   fr: "fr_FR",
   es: "es_ES",
+  hr: "hr_HR",
 };
 
 export function toOgLocale(locale: Locale): string {
@@ -38,6 +39,7 @@ export const BCP47_TAG: Record<Locale, string> = {
   de: "de-DE",
   fr: "fr-FR",
   es: "es-ES",
+  hr: "hr-HR",
 };
 
 export function toBcp47(locale: Locale): string {

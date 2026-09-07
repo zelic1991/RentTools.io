@@ -5,7 +5,7 @@ import { CleaningSchedule } from "@/components/cleaning-schedule";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { SupportFooter } from "@/components/support-footer";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import type { Locale, CopyMap } from "@/lib/i18n/translations";
 import { SUPPORTED_LOCALES } from "@/lib/i18n/alternates";
 import type { Property, CalendarLink, DateOverride } from "@/lib/types";
 
@@ -15,7 +15,7 @@ interface CopyShape {
   noProperties: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     cleaningSchedule: "Cleaning schedule",
     cleanerBadge: "cleaner",
@@ -58,7 +58,7 @@ interface CleanerAppProps {
 
 export function CleanerApp({ user, onLogout }: CleanerAppProps) {
   const { t: tr, locale, setLocale } = useI18n();
-  const t = COPY[locale];
+  const t = (COPY[locale] ?? COPY.en);
   const [properties, setProperties] = useState<Property[]>([]);
   const [syncedEvents, setSyncedEvents] = useState<Record<number, CalendarEvent[]>>({});
   const [links, setLinks] = useState<Record<number, CalendarLink[]>>({});

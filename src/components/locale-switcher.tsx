@@ -63,11 +63,24 @@ function FlagES({ className = "" }: { className?: string }) {
   );
 }
 
+function FlagHR({ className }: { className?: string }) {
+  // Croatia — red / white / blue horizontal tricolour (coat of arms
+  // omitted at this size, same simplification as the other flags).
+  return (
+    <svg viewBox="0 0 24 16" className={className} aria-hidden="true">
+      <rect width="24" height="16" fill="#FFFFFF" />
+      <rect width="24" height="5.33" y="0" fill="#FF0000" />
+      <rect width="24" height="5.34" y="10.66" fill="#171796" />
+    </svg>
+  );
+}
+
 function FlagFor({ code, className }: { code: Locale; className?: string }) {
   if (code === "ru") return <FlagRU className={className} />;
   if (code === "de") return <FlagDE className={className} />;
   if (code === "fr") return <FlagFR className={className} />;
   if (code === "es") return <FlagES className={className} />;
+  if (code === "hr") return <FlagHR className={className} />;
   return <FlagGB className={className} />;
 }
 
@@ -83,6 +96,7 @@ const OPTIONS: LocaleOption[] = [
   { code: "de", short: "DE", label: "Deutsch" },
   { code: "fr", short: "FR", label: "Français" },
   { code: "es", short: "ES", label: "Español" },
+  { code: "hr", short: "HR", label: "Hrvatski" },
 ];
 
 interface LocaleSwitcherProps {
