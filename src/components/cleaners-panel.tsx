@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   default: string;
@@ -183,7 +183,7 @@ interface CleanersPanelProps {
 
 export function CleanersPanel({ propertyId }: CleanersPanelProps) {
   const { locale } = useI18n();
-  const c = (COPY[locale] ?? COPY.en);
+  const c = resolveCopy(COPY, locale);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [pool, setPool] = useState<Pool[]>([]);
   const [loaded, setLoaded] = useState(false);

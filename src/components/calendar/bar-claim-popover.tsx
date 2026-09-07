@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/lib/i18n/context";
 import { toBcp47 } from "@/lib/i18n/locale-tags";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   heading: string;
@@ -94,7 +94,7 @@ interface BarClaimPopoverProps {
 // area and use "Add reservation".
 export function BarClaimPopover({ bar, anchorRect, onClose, onSave }: BarClaimPopoverProps) {
   const { t, locale } = useI18n();
-  const c = (COPY[locale] ?? COPY.en);
+  const c = resolveCopy(COPY, locale);
   const popRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   title: string;
@@ -105,7 +105,7 @@ interface PropertyRow {
 
 export default function AdminFeedTokensPage() {
   const { locale } = useI18n();
-  const c = (COPY[locale] ?? COPY.en);
+  const c = resolveCopy(COPY, locale);
   const [props, setProps] = useState<PropertyRow[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);

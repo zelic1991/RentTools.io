@@ -3,7 +3,7 @@
 import { ThemeToggle } from "@/components/theme-toggle";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 3 — Language & theme sub-route. Wraps the existing
 // ThemeToggle + LocaleSwitcher components in a labelled card layout
@@ -63,7 +63,7 @@ const COPY: CopyMap<CopyShape> = {
 
 export default function AdminPreferencesPage() {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   title: string;
@@ -270,7 +270,7 @@ const EMPTY_NEW: NewDraft = {
 
 export default function AdminPlatformsPage() {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const [role, setRole] = useState<string | null>(null);
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [rows, setRows] = useState<PlatformRow[]>([]);

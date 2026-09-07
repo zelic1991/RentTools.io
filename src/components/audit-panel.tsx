@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   dateLocale: string;
@@ -32,7 +32,7 @@ interface AuditPanelProps {
 
 export function AuditPanel({ open, onClose }: AuditPanelProps) {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(false);
 

@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import Link from "next/link";
 import { EmptyState } from "@/components/empty-state";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 import type { Property, CalendarLink, DateOverride } from "@/lib/types";
 import { bookingWindowCutoff } from "@/lib/types";
 
@@ -588,7 +588,7 @@ export const CleaningSchedule = forwardRef<CleaningScheduleHandle, CleaningSched
   loading = false,
 }, ref) {
   const { t, locale } = useI18n();
-  const c = (COPY[locale] ?? COPY.en);
+  const c = resolveCopy(COPY, locale);
   // Which copy button last fired — "all" for the full Copy button, or a
   // cleaner's identityKey for a per-cleaner button. Drives the transient
   // "Copied!" label so only the pressed button flips.

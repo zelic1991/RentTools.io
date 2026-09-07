@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   cleaners: string;
@@ -74,7 +74,7 @@ interface CleanerAssignmentSectionProps {
 
 export function CleanerAssignmentSection({ propertyId }: CleanerAssignmentSectionProps) {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [cleaners, setCleaners] = useState<CleanerOption[]>([]);
   const [selected, setSelected] = useState<string>("");

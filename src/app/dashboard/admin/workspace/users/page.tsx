@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 5 — Users & roles sub-route at
 // /dashboard/admin/workspace/users. Migrates the User Management
@@ -75,7 +75,7 @@ const COPY: CopyMap<CopyShape> = {
 
 export default function AdminUsersPage() {
   const { t: tr, locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const [role, setRole] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [users, setUsers] = useState<User[]>([]);

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 19 — Properties overview at
 // /dashboard/admin/workspace/properties. Read-only summary table of
@@ -154,7 +154,7 @@ const COPY: CopyMap<CopyShape> = {
 
 export default function AdminPropertiesPage() {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const [props, setProps] = useState<Property[]>([]);
   const [meId, setMeId] = useState<number | null>(null);
   const [loaded, setLoaded] = useState(false);

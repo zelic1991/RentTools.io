@@ -5,7 +5,7 @@ import Link from "next/link";
 import { PlatformInstructions } from "@/components/platform-instructions";
 import { useI18n } from "@/lib/i18n/context";
 import { buildProtectedFeedUrl } from "@/lib/feed-utils";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 import type { CalendarLink } from "@/lib/types";
 
 // In-dashboard onboarding for users who land logged-in (e.g. Google
@@ -260,7 +260,7 @@ function clientSlug(raw: string): string {
 
 export function DashboardOnboarding({ onComplete }: DashboardOnboardingProps) {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
 
   // Step 1 — property name
   const [step, setStep] = useState<1 | 2>(1);

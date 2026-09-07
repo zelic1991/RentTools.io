@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import type { Property, CalendarLink } from "@/lib/types";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 import { computeSyncHealth } from "./sync-health";
 
 interface CopyShape {
@@ -70,7 +70,7 @@ export function CalendarToolbar({
   onExport,
 }: CalendarToolbarProps) {
   const { t, locale } = useI18n();
-  const c = (COPY[locale] ?? COPY.en);
+  const c = resolveCopy(COPY, locale);
   const syncHealth = useMemo(() => computeSyncHealth(links, locale as Locale), [links, locale]);
 
   return (

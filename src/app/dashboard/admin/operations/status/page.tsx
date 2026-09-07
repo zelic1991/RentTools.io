@@ -1,7 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 9 — Status page sub-route at
 // /dashboard/admin/operations/status. Pulls the "Admin · System status"
@@ -70,7 +70,7 @@ const COPY: CopyMap<CopyShape> = {
 
 export default function AdminStatusPage() {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 6 — admin home upgrade. Replaces the tick-1 placeholder
 // with (a) a tile grid of the migrated sub-routes so the admin shell
@@ -349,7 +349,7 @@ const COPY: CopyMap<CopyShape> = {
 
 export default function AdminHomePage() {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [auditLoaded, setAuditLoaded] = useState(false);
   const [role, setRole] = useState<string | null>(null);

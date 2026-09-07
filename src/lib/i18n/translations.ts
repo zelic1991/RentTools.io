@@ -3,10 +3,32 @@ export type Locale = "en" | "ru" | "de" | "fr" | "es" | "hr";
 /**
  * Per-component copy table. English is mandatory; every other locale is
  * optional and falls back to English at the call site
- * (`(COPY[locale] ?? COPY.en) ?? COPY.en`). This is what lets a new language ship
+ * (`resolveCopy(COPY, locale)`, which walks LOCALE_FALLBACK and ends at English). This is what lets a new language ship
  * before every one of its ~70 component tables is translated.
  */
 export type CopyMap<T> = Record<"en", T> & Partial<Record<Locale, T>>;
+
+/**
+ * Where to look when a text is missing in the requested locale. Croatian
+ * reads German first: the family that runs the apartment is more at home
+ * in German than in English, and German is fully translated. Every chain
+ * ends at English, which every table must carry.
+ */
+export const LOCALE_FALLBACK: Partial<Record<Locale, Locale>> = { hr: "de" };
+
+/**
+ * Pick the entry for `locale` from a copy table, walking LOCALE_FALLBACK
+ * until something is there. An empty string counts as missing.
+ */
+export function resolveCopy<T>(map: CopyMap<T>, locale: Locale): T {
+  let l: Locale | undefined = locale;
+  for (let hops = 0; l && hops < 8; hops++) {
+    const v = map[l];
+    if (v !== undefined && v !== "") return v;
+    l = LOCALE_FALLBACK[l];
+  }
+  return map.en;
+}
 
 export const translations = {
   // Common

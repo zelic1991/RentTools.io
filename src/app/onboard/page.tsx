@@ -8,7 +8,7 @@ import { MarketingHeader } from "@/components/marketing-header";
 import { useI18n } from "@/lib/i18n/context";
 import { localePath } from "@/lib/i18n/alternates";
 import { buildProtectedFeedUrl } from "@/lib/feed-utils";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 /* ────────────────────────────────────────────────────────────────────
    Types
@@ -446,7 +446,7 @@ function presetRow(preset: Preset): DraftRow {
 export default function OnboardPage() {
   const router = useRouter();
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const [propertyName, setPropertyName] = useState("");
   const [feedSlug, setFeedSlug] = useState<string | null>(null);
   const [feedToken, setFeedToken] = useState<string | null>(null);
@@ -831,7 +831,7 @@ function PlatformRow({
   onCopy,
 }: PlatformRowProps) {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const isCustom = !preset;
   const display = preset?.displayName ?? (row.customName?.trim() || t.customFallback);
   const ourFeedUrl = feedSlug && feedToken
@@ -976,7 +976,7 @@ function PlatformRow({
 
 function TestButton({ status, onClick, disabled }: { status: DraftRow["testStatus"]; onClick: () => void; disabled?: boolean }) {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const label =
     status === "testing"
       ? t.testTesting
@@ -1016,7 +1016,7 @@ function TestButton({ status, onClick, disabled }: { status: DraftRow["testStatu
 
 function ColorSwatchButton({ color, onChange }: { color: string; onChange: (v: string) => void }) {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const [open, setOpen] = useState(false);
   return (
     <div className="relative">

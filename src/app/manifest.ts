@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getLocale } from "@/lib/i18n/server";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 /**
  * PWA manifest. Per-locale because the `name` / `short_name` /
@@ -51,7 +51,7 @@ const LOCALIZED: CopyMap<{ name: string; description: string; lang: string }> = 
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const locale = await getLocale();
-  const copy = LOCALIZED[locale] ?? LOCALIZED.en;
+  const copy = resolveCopy(LOCALIZED, locale);
   return {
     name: copy.name,
     short_name: copy.name,

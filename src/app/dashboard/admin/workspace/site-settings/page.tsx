@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 12 — Site settings sub-route at
 // /dashboard/admin/workspace/site-settings. Lifts the "Admin · Site
@@ -160,7 +160,7 @@ const COPY: CopyMap<CopyShape> = {
 
 export default function AdminSiteSettingsPage() {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const [role, setRole] = useState<string | null>(null);
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [settings, setSettings] = useState<SiteSettingsMap>({});

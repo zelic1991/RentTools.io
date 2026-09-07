@@ -3,7 +3,7 @@ import { applySeoOverrides } from "@/lib/seo";
 import { getLocale } from "@/lib/i18n/server";
 import { localizedAlternates } from "@/lib/i18n/alternates";
 import { toOgLocale } from "@/lib/i18n/locale-tags";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 // Per-locale title/description so the SERP entry actually reads as
 // native copy in each market. Title length stays under ~60 chars
@@ -38,7 +38,7 @@ const ONBOARD_COPY: CopyMap<{ title: string; description: string }> = {
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  const copy = (ONBOARD_COPY[locale] ?? ONBOARD_COPY.en);
+  const copy = resolveCopy(ONBOARD_COPY, locale);
   const alts = localizedAlternates("/onboard", locale);
   const ogLocale = toOgLocale(locale);
   const base: Metadata = {

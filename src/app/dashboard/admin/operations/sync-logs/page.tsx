@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 17 — Sync logs sub-route at
 // /dashboard/admin/operations/sync-logs. Aggregates across all the
@@ -115,7 +115,7 @@ const COPY: CopyMap<CopyShape> = {
 
 export default function AdminSyncLogsPage() {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const [logs, setLogs] = useState<SyncLogRow[]>([]);
   const [props, setProps] = useState<PropertyRow[]>([]);
   const [loaded, setLoaded] = useState(false);

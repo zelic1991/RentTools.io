@@ -5,7 +5,7 @@ import type { StayPlan } from "@/components/calendar/stay-plan";
 import { getExtendedStayRange } from "@/components/calendar/extendable-bookings";
 import { referencesSyncedEvent } from "@/components/calendar/linked-bookings";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   dateLocale: string;
@@ -588,7 +588,7 @@ export function DateActionsPopover({
   onTrimReservation,
 }: DateActionsPanelProps) {
   const { t, locale } = useI18n();
-  const c = (COPY[locale] ?? COPY.en);
+  const c = resolveCopy(COPY, locale);
   const popRef = useRef<HTMLDivElement>(null);
   const extendingRef = useRef(false);
   const [creating, setCreating] = useState(false);

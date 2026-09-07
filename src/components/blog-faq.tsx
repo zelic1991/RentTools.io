@@ -1,7 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 import { renderInlineSafe } from "@/lib/markdown";
 
 interface CopyShape {
@@ -37,7 +37,7 @@ const FAQ_HEADING_ID = "faq";
 
 export function BlogFaq({ items }: Props) {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   if (items.length === 0) return null;
 
   return (

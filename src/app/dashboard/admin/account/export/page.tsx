@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 10 — Data export sub-route at
 // /dashboard/admin/account/export. Lifts the "Admin · Data export"
@@ -59,7 +59,7 @@ const COPY: CopyMap<CopyShape> = {
 
 export default function AdminExportPage() {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
 

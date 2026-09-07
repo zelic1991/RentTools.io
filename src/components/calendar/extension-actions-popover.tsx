@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 import type { CalendarBar } from "./types";
 
 export type CancelExtensionResult =
@@ -154,7 +154,7 @@ export function ExtensionActionsPopover({
   onCancelExtension,
 }: ExtensionActionsPopoverProps) {
   const { locale } = useI18n();
-  const c = (COPY[locale] ?? COPY.en);
+  const c = resolveCopy(COPY, locale);
   const panelRef = useRef<HTMLDivElement>(null);
   const firstActionRef = useRef<HTMLButtonElement>(null);
   const confirmActionRef = useRef<HTMLButtonElement>(null);

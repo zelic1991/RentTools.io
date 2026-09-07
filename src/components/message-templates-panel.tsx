@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   nameAndBodyRequired: string;
@@ -135,7 +135,7 @@ function renderTemplate(input: string, vars: Record<string, string>): string {
 
 export function MessageTemplatesPanel({ propertyId }: MessageTemplatesPanelProps) {
   const { locale } = useI18n();
-  const c = (COPY[locale] ?? COPY.en);
+  const c = resolveCopy(COPY, locale);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [editingId, setEditingId] = useState<number | "new" | null>(null);
   const [name, setName] = useState("");

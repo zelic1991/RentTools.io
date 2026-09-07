@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 27 — Scheduled jobs sub-route at
 // /dashboard/admin/operations/scheduled-jobs. Read-only reference of
@@ -114,7 +114,7 @@ const COPY: CopyMap<CopyShape> = {
 
 export default function AdminScheduledJobsPage() {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 interface Shortcut {
   keys: string[];
@@ -86,7 +86,7 @@ function isTypingTarget(t: EventTarget | null): boolean {
 
 export function KeyboardShortcuts() {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {

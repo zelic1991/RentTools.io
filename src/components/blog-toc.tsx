@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { TocEntry } from "@/lib/markdown";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 interface Props {
   entries: TocEntry[];
@@ -37,7 +37,7 @@ const COPY: CopyMap<CopyShape> = {
  */
 export function BlogToc({ entries }: Props) {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const [activeId, setActiveId] = useState<string>(entries[0]?.id ?? "");
 
   useEffect(() => {

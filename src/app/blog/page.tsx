@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { applySeoOverrides } from "@/lib/seo";
 import { getLocale } from "@/lib/i18n/server";
 import { localizedAlternates, localePath } from "@/lib/i18n/alternates";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://renttools.io";
 
@@ -178,7 +178,7 @@ const COPY: CopyMap<CopyShape> = {
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  const copy = (BLOG_INDEX_COPY[locale] ?? BLOG_INDEX_COPY.en);
+  const copy = resolveCopy(BLOG_INDEX_COPY, locale);
   const alts = localizedAlternates("/blog", locale);
   const base: Metadata = {
     title: copy.title,
@@ -190,7 +190,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description: copy.description,
       url: alts.canonical,
       siteName: "RentTools",
-      locale: (COPY[locale] ?? COPY.en).ogLocale,
+      locale: resolveCopy(COPY, locale).ogLocale,
     },
     twitter: {
       card: "summary_large_image",
@@ -232,7 +232,7 @@ export default async function BlogIndexPage({
 }) {
   const sp = await searchParams;
   const locale = await getLocale();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
   const page = parsePage(sp.page);
   const tagFilter = (sp.tag ?? "").trim().toLowerCase().slice(0, 60) || undefined;
 

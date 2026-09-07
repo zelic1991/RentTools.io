@@ -3,7 +3,7 @@ import { applySeoOverrides } from "@/lib/seo";
 import { getLocale } from "@/lib/i18n/server";
 import { localizedAlternates } from "@/lib/i18n/alternates";
 import { toOgLocale } from "@/lib/i18n/locale-tags";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 // See signup/layout.tsx — title template appends "· RentTools" automatically.
 const LOGIN_COPY: CopyMap<{ title: string; description: string }> = {
@@ -38,7 +38,7 @@ const LOGIN_COPY: CopyMap<{ title: string; description: string }> = {
 // "inherited canonical = deindex" rationale.
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  const copy = (LOGIN_COPY[locale] ?? LOGIN_COPY.en);
+  const copy = resolveCopy(LOGIN_COPY, locale);
   const alts = localizedAlternates("/login", locale);
   const base: Metadata = {
     title: copy.title,

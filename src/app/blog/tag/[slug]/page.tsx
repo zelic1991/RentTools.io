@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { applySeoOverrides } from "@/lib/seo";
 import { getLocale } from "@/lib/i18n/server";
 import { DEFAULT_LOCALE, localePath } from "@/lib/i18n/alternates";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 const PAGE_SIZE = 12;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://renttools.io";
@@ -221,14 +221,14 @@ export default async function BlogTagPage({
       <main className="mx-auto max-w-[1180px] px-4 sm:px-6">
         <Breadcrumbs
           className="pt-6 sm:pt-8"
-          navLabel={(TAG_CHROME[localeForLinks] ?? TAG_CHROME.en).breadcrumbNav}
+          navLabel={resolveCopy(TAG_CHROME, localeForLinks).breadcrumbNav}
           items={[
             {
-              label: (TAG_CHROME[localeForLinks] ?? TAG_CHROME.en).homeLabel,
+              label: resolveCopy(TAG_CHROME, localeForLinks).homeLabel,
               href: localePath("/", localeForLinks),
             },
             {
-              label: (TAG_CHROME[localeForLinks] ?? TAG_CHROME.en).blogLabel,
+              label: resolveCopy(TAG_CHROME, localeForLinks).blogLabel,
               href: localePath("/blog", localeForLinks),
             },
             { label: tag.displayName },
@@ -252,10 +252,10 @@ export default async function BlogTagPage({
             </svg>
             <div>
               <p className="font-medium text-[var(--ink)]">
-                {(TAG_UNTRANSLATED_BANNER[localeForLinks] ?? TAG_UNTRANSLATED_BANNER.en).line1}
+                {resolveCopy(TAG_UNTRANSLATED_BANNER, localeForLinks).line1}
               </p>
               <p className="mt-0.5 text-[var(--ink-3)]">
-                {(TAG_UNTRANSLATED_BANNER[localeForLinks] ?? TAG_UNTRANSLATED_BANNER.en).line2}
+                {resolveCopy(TAG_UNTRANSLATED_BANNER, localeForLinks).line2}
               </p>
             </div>
           </div>

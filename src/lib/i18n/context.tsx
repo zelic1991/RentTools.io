@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { translations, type CopyMap, type Locale, type TranslationKey } from "./translations";
+import { resolveCopy, translations, type Locale, type TranslationKey } from "./translations";
 import {
   isLocale,
   readLocaleCookieFromDocument,
@@ -86,8 +86,8 @@ export function I18nProvider({
       const entry = translations[key];
       if (!entry) return key;
       // Not every key carries every locale (hr is being filled in
-      // gradually); anything missing falls back to English.
-      let text: string = (entry as Partial<CopyMap<string>>)[locale] || entry.en;
+      // gradually); anything missing walks LOCALE_FALLBACK (hr -> de -> en).
+      let text: string = resolveCopy<string>(entry, locale);
       if (params) {
         for (const [k, v] of Object.entries(params)) {
           text = text.replace(`{${k}}`, String(v));

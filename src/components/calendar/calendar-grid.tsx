@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 import { timeToPercent } from "./utils";
 import type { BarSegment, CalendarBar } from "./types";
 
@@ -125,7 +125,7 @@ export function CalendarGrid({
   onCellClick,
 }: CalendarGridProps) {
   const { t, locale } = useI18n();
-  const directCopy = (DIRECT_COPY[locale] ?? DIRECT_COPY.en);
+  const directCopy = resolveCopy(DIRECT_COPY, locale);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   let firstDayOffset = new Date(year, month, 1).getDay() - 1;
   if (firstDayOffset < 0) firstDayOffset = 6;

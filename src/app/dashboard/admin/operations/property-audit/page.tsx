@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale, CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 // Property audit dashboard. Lists every property the host can manage,
 // runs the /api/properties/[id]/audit endpoint per property on demand,
@@ -230,7 +230,7 @@ interface PropertyRow {
 
 export default function PropertyAuditPage() {
   const { locale } = useI18n();
-  const t = (COPY[locale] ?? COPY.en);
+  const t = resolveCopy(COPY, locale);
 
   const [properties, setProperties] = useState<PropertyRow[]>([]);
   const [loadingProps, setLoadingProps] = useState(true);
