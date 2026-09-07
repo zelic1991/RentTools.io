@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   title: string;
@@ -19,7 +19,7 @@ interface CopyShape {
   usedBy: (n: number) => string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     title: "Blog media",
     description:
@@ -132,7 +132,7 @@ interface MeResponse {
 
 export default function AdminBlogMediaPage() {
   const { locale } = useI18n();
-  const c = COPY[locale];
+  const c = resolveCopy(COPY, locale);
   const [role, setRole] = useState<string | null>(null);
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [posts, setPosts] = useState<BlogPostRow[]>([]);

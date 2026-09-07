@@ -7,7 +7,7 @@ import { CleaningSchedule, type CleanerAssignmentInfo } from "@/components/clean
 import { DashboardOnboarding } from "@/components/dashboard-onboarding";
 import { OperationalRemindersPanel } from "@/components/operational-reminders-panel";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 import type { Property, CalendarLink, DateOverride } from "@/lib/types";
 
 interface CopyShape {
@@ -38,7 +38,7 @@ interface CopyShape {
   inDays: (date: string, days: number) => string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     dateLocale: "en-GB",
     reservationsCount: (count) => `${count} ${count === 1 ? "reservation" : "reservations"}`,
@@ -528,7 +528,7 @@ export function Dashboard({
   onRefresh,
 }: DashboardProps) {
   const { t, locale } = useI18n();
-  const c = COPY[locale];
+  const c = resolveCopy(COPY, locale);
   const [showForm, setShowForm] = useState(false);
   const [formName, setFormName] = useState("");
   const [formPropertyId, setFormPropertyId] = useState<number | "">(
@@ -1729,7 +1729,7 @@ interface ReservationRowProps {
 }
 
 function ReservationRow({ res, isLast, hideProperty, formatDate, dayCount, locale, onClick, muted }: ReservationRowProps) {
-  const c = COPY[locale as Locale];
+  const c = resolveCopy(COPY, locale as Locale);
   return (
     <div
       onClick={onClick}

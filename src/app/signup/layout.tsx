@@ -3,12 +3,12 @@ import { applySeoOverrides } from "@/lib/seo";
 import { getLocale } from "@/lib/i18n/server";
 import { localizedAlternates } from "@/lib/i18n/alternates";
 import { toOgLocale } from "@/lib/i18n/locale-tags";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 // "RentTools" is appended automatically by the root layout's title template
 // (`%s · RentTools`) — keeping the brand off the per-page title avoids the
 // duplicated "Sign up — RentTools · RentTools" we shipped briefly.
-const SIGNUP_COPY: Record<Locale, { title: string; description: string }> = {
+const SIGNUP_COPY: CopyMap<{ title: string; description: string }> = {
   en: {
     title: "Sign up",
     description:
@@ -42,7 +42,7 @@ const SIGNUP_COPY: Record<Locale, { title: string; description: string }> = {
 // from a non-home URL and drops the page from the index.
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  const copy = SIGNUP_COPY[locale];
+  const copy = resolveCopy(SIGNUP_COPY, locale);
   const alts = localizedAlternates("/signup", locale);
   const base: Metadata = {
     title: copy.title,

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   title: string;
@@ -22,7 +22,7 @@ interface CopyShape {
   daysAgo: (n: number) => string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     title: "iCal links",
     description:
@@ -163,7 +163,7 @@ interface CalendarLinkRow {
 
 export default function AdminIcalLinksPage() {
   const { locale } = useI18n();
-  const c = COPY[locale];
+  const c = resolveCopy(COPY, locale);
   const [rows, setRows] = useState<CalendarLinkRow[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);

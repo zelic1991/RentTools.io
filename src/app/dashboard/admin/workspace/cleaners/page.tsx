@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.10 tick 2 — Account-level Cleaners pool admin sub-route at
 // /dashboard/admin/workspace/cleaners. CRUD for the host's named cleaner
@@ -47,7 +47,7 @@ interface CopyShape {
   delete: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     failed: "Failed",
     deleteConfirm: "Delete this cleaner? All property assignments will be removed too.",
@@ -152,7 +152,7 @@ const COPY: Record<Locale, CopyShape> = {
 
 export default function AdminCleanersPage() {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = resolveCopy(COPY, locale);
   const [rows, setRows] = useState<CleanerRow[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);

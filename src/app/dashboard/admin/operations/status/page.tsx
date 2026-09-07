@@ -1,7 +1,7 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 9 — Status page sub-route at
 // /dashboard/admin/operations/status. Pulls the "Admin · System status"
@@ -25,7 +25,7 @@ interface CopyShape {
   externalDesc: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     title: "System status",
     subtitle: "Internal health endpoints for this instance. Use these to spot-check when sync is misbehaving or a 5xx slipped through.",
@@ -70,7 +70,7 @@ const COPY: Record<Locale, CopyShape> = {
 
 export default function AdminStatusPage() {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = resolveCopy(COPY, locale);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">

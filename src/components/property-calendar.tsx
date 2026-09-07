@@ -27,7 +27,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PropertySwitcher } from "@/components/property-switcher";
 import { OperationalRemindersPanel } from "@/components/operational-reminders-panel";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import {
   DEFAULT_PROPERTY_TIME_ZONE,
   getOwnerCalendarWindow,
@@ -47,7 +47,7 @@ interface CopyShape {
   today: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     weekdays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
     connectCalendar: "Connect a calendar",
@@ -136,7 +136,7 @@ export function PropertyCalendar({
   onAddReservation: _onAddReservation,
 }: PropertyCalendarProps) {
   const { locale, t } = useI18n();
-  const c = COPY[locale];
+  const c = resolveCopy(COPY, locale);
   const [selectedDates, setSelectedDates] = useState<Set<string>>(new Set());
   const extensionRequestPendingRef = useRef(false);
   const [claimBar, setClaimBar] = useState<ClaimableBar | null>(null);

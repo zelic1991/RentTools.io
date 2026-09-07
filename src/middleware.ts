@@ -52,7 +52,7 @@ function isImpersonationMutationException(pathname: string, method: string): boo
 //   1. Append its code to SUPPORTED_LOCALES below.
 //   2. Add the COPY block in each marketing page.
 //   3. Done — no new route files, no middleware changes.
-const SUPPORTED_LOCALES = ["en", "ru", "de", "fr", "es"] as const;
+const SUPPORTED_LOCALES = ["en", "ru", "de", "fr", "es", "hr"] as const;
 const DEFAULT_LOCALE = "en";
 const LOCALE_PREFIXES = SUPPORTED_LOCALES.filter((l) => l !== DEFAULT_LOCALE); // ['ru'] today
 

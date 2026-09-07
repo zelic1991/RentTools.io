@@ -16,7 +16,7 @@ import { applySeoOverrides } from "@/lib/seo";
 import { getLocale } from "@/lib/i18n/server";
 import { SUPPORTED_LOCALES, DEFAULT_LOCALE, localePath } from "@/lib/i18n/alternates";
 import { toOgLocale } from "@/lib/i18n/locale-tags";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://renttools.io";
 
@@ -129,7 +129,7 @@ async function findPublishedPostOrFallback(
 // under a non-EN URL. Per-locale because the banner itself must be in
 // the visitor's language. Add a new locale here when adding a language;
 // fallback to EN if a copy block is missing.
-const UNTRANSLATED_BANNER: Record<Locale, { line1: string; line2: string }> = {
+const UNTRANSLATED_BANNER: CopyMap<{ line1: string; line2: string }> = {
   en: { line1: "Translation in progress.", line2: "This post is shown in English." },
   ru: {
     line1: "Перевод в процессе.",
@@ -170,7 +170,7 @@ interface PostCopyShape {
   emailLabel: string;
 }
 
-const POST_COPY: Record<Locale, PostCopyShape> = {
+const POST_COPY: CopyMap<PostCopyShape> = {
   en: {
     breadcrumbNav: "Breadcrumb",
     homeLabel: "Home",
@@ -372,7 +372,7 @@ export default async function BlogPostPage({
 
   const session = await getSession();
   const locale = resolvedLocale;
-  const t = POST_COPY[locale];
+  const t = resolveCopy(POST_COPY, locale);
   const isSuperadmin = session?.role === "superadmin";
 
   // Related posts: same primary tag (first tag), newest first, exclude current.
@@ -490,14 +490,14 @@ export default async function BlogPostPage({
   // searching from a Russian device sees Главная › Блог › <title>
   // instead of Home › Blog › <title>. URLs stay stable; only the
   // visible labels change per locale.
-  const BREADCRUMB_LABELS: Record<Locale, { home: string; blog: string }> = {
+  const BREADCRUMB_LABELS: CopyMap<{ home: string; blog: string }> = {
     en: { home: "Home", blog: "Blog" },
     ru: { home: "Главная", blog: "Блог" },
     de: { home: "Start", blog: "Blog" },
     fr: { home: "Accueil", blog: "Blog" },
     es: { home: "Inicio", blog: "Blog" },
   };
-  const crumbLabels = BREADCRUMB_LABELS[requestedLocale];
+  const crumbLabels = resolveCopy(BREADCRUMB_LABELS, requestedLocale);
   const homeUrl = requestedLocale === DEFAULT_LOCALE ? SITE_URL : `${SITE_URL}/${requestedLocale}`;
   const blogUrl = requestedLocale === DEFAULT_LOCALE
     ? `${SITE_URL}/blog`
@@ -559,10 +559,10 @@ export default async function BlogPostPage({
                 </svg>
                 <div>
                   <p className="font-medium text-[var(--ink)]">
-                    {UNTRANSLATED_BANNER[requestedLocale].line1}
+                    {resolveCopy(UNTRANSLATED_BANNER, requestedLocale).line1}
                   </p>
                   <p className="mt-0.5 text-[var(--ink-3)]">
-                    {UNTRANSLATED_BANNER[requestedLocale].line2}
+                    {resolveCopy(UNTRANSLATED_BANNER, requestedLocale).line2}
                   </p>
                 </div>
               </div>
@@ -767,7 +767,7 @@ function BlogShareRow({
   // Brand names (X, LinkedIn, etc.) stay un-translated — they're proper
   // nouns and the share buttons send to the same domains regardless of
   // visitor locale. Only "Share" + "Email" need a Russian variant.
-  const t = POST_COPY[locale];
+  const t = resolveCopy(POST_COPY, locale);
   return (
     <div className="mt-10 flex flex-wrap items-center gap-3 border-t border-[var(--line)] pt-6">
       <span className="text-xs uppercase tracking-wider text-[var(--ink-4)]">

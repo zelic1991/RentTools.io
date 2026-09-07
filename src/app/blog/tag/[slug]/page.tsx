@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { applySeoOverrides } from "@/lib/seo";
 import { getLocale } from "@/lib/i18n/server";
 import { DEFAULT_LOCALE, localePath } from "@/lib/i18n/alternates";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 const PAGE_SIZE = 12;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://renttools.io";
@@ -112,7 +112,7 @@ export async function generateMetadata({
 // Per-locale banner shown above the tag-page hero on non-default-locale
 // URLs. Tells the visitor the post library + tag taxonomy is English-
 // only today. Same pattern as the untranslated-blog-post fallback.
-const TAG_UNTRANSLATED_BANNER: Record<Locale, { line1: string; line2: string }> = {
+const TAG_UNTRANSLATED_BANNER: CopyMap<{ line1: string; line2: string }> = {
   en: {
     line1: "Tag pages are English-only.",
     line2: "Post titles and bodies on the RentTools blog ship in English.",
@@ -138,7 +138,7 @@ const TAG_UNTRANSLATED_BANNER: Record<Locale, { line1: string; line2: string }> 
 // Localised chrome (breadcrumb labels + nav-aria) for the tag page.
 // Adding a third Locale to the union forces every key here to be filled
 // in — TypeScript refuses to compile otherwise.
-const TAG_CHROME: Record<Locale, { breadcrumbNav: string; homeLabel: string; blogLabel: string }> = {
+const TAG_CHROME: CopyMap<{ breadcrumbNav: string; homeLabel: string; blogLabel: string }> = {
   en: { breadcrumbNav: "Breadcrumb", homeLabel: "Home", blogLabel: "Blog" },
   ru: { breadcrumbNav: "Хлебные крошки", homeLabel: "Главная", blogLabel: "Блог" },
   de: { breadcrumbNav: "Brotkrumen", homeLabel: "Start", blogLabel: "Blog" },
@@ -221,14 +221,14 @@ export default async function BlogTagPage({
       <main className="mx-auto max-w-[1180px] px-4 sm:px-6">
         <Breadcrumbs
           className="pt-6 sm:pt-8"
-          navLabel={TAG_CHROME[localeForLinks].breadcrumbNav}
+          navLabel={resolveCopy(TAG_CHROME, localeForLinks).breadcrumbNav}
           items={[
             {
-              label: TAG_CHROME[localeForLinks].homeLabel,
+              label: resolveCopy(TAG_CHROME, localeForLinks).homeLabel,
               href: localePath("/", localeForLinks),
             },
             {
-              label: TAG_CHROME[localeForLinks].blogLabel,
+              label: resolveCopy(TAG_CHROME, localeForLinks).blogLabel,
               href: localePath("/blog", localeForLinks),
             },
             { label: tag.displayName },
@@ -252,10 +252,10 @@ export default async function BlogTagPage({
             </svg>
             <div>
               <p className="font-medium text-[var(--ink)]">
-                {TAG_UNTRANSLATED_BANNER[localeForLinks].line1}
+                {resolveCopy(TAG_UNTRANSLATED_BANNER, localeForLinks).line1}
               </p>
               <p className="mt-0.5 text-[var(--ink-3)]">
-                {TAG_UNTRANSLATED_BANNER[localeForLinks].line2}
+                {resolveCopy(TAG_UNTRANSLATED_BANNER, localeForLinks).line2}
               </p>
             </div>
           </div>

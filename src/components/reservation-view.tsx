@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GuestCards } from "@/components/guest-cards";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import type { Guest, Reservation } from "@/lib/types";
 import {
   reservationNights,
@@ -33,7 +33,7 @@ interface HintCopy {
   after: string;
 }
 
-const HINT_COPY: Record<Locale, HintCopy> = {
+const HINT_COPY: CopyMap<HintCopy> = {
   en: {
     title: "Tip — pre-arrival form.",
     before:
@@ -293,7 +293,7 @@ export function ReservationView({
   // remains disabled until its retention/deletion lifecycle is proven. The
   // unified encrypted pre-check-in form does not depend on this feature.
   const legacyPassportOcrEnabled = process.env.NEXT_PUBLIC_LEGACY_PASSPORT_OCR_ENABLED === "true";
-  const hint = HINT_COPY[locale];
+  const hint = resolveCopy(HINT_COPY, locale);
   const ownerCalendarWindow = useMemo(
     () => getOwnerCalendarWindow({
       bookingWindowDays: bookingWindow || 365,

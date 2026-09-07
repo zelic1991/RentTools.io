@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import { SUPPORTED_LOCALES } from "@/lib/i18n/alternates";
 import type { Property } from "@/lib/types";
 
@@ -35,7 +35,7 @@ interface CopyShape {
   refreshAllDone: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     tabDashboard: "Dashboard",
     tabCalendar: "Calendar",
@@ -218,7 +218,7 @@ export function TopBar({
 }: TopBarProps) {
   const isSuperAdmin = userRole === "superadmin";
   const { t, locale, setLocale } = useI18n();
-  const c = COPY[locale];
+  const c = resolveCopy(COPY, locale);
   const [propDropdown, setPropDropdown] = useState(false);
   const [userDropdown, setUserDropdown] = useState(false);
   // "Refresh all calendars" — syncs every property the current user can

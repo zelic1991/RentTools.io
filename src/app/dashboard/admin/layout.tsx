@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth-guard";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 1 — CMS admin shell skeleton. Sidebar + content pane.
 // Sub-routes are added in subsequent ticks; for now only the admin
@@ -14,7 +14,7 @@ import type { Locale } from "@/lib/i18n/translations";
 // complete without 404ing out of the shell.
 
 interface NavItem {
-  label: Record<Locale, string>;
+  label: CopyMap<string>;
   href?: string;
   available?: boolean;
   // RT-25.9 tick 15 — hide entries non-superadmins can't use. The
@@ -26,7 +26,7 @@ interface NavItem {
 }
 
 interface NavGroup {
-  label: Record<Locale, string>;
+  label: CopyMap<string>;
   items: NavItem[];
 }
 
@@ -36,7 +36,7 @@ interface CopyShape {
   soon: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     backToDashboard: "Back to dashboard",
     admin: "Admin",
@@ -120,7 +120,7 @@ const NAV: NavGroup[] = [
 
 function AdminShell({ role, children }: { role: string; children: React.ReactNode }) {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = resolveCopy(COPY, locale);
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 

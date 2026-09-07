@@ -5,7 +5,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { applySeoOverrides } from "@/lib/seo";
 import { getLocale } from "@/lib/i18n/server";
 import { localePath } from "@/lib/i18n/alternates";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import {
   CHANGELOG,
   type ChangelogChange,
@@ -37,7 +37,7 @@ interface CopyShape {
   footerTerms: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: {
     ogLocale: "en_US",
     breadcrumbNav: "Breadcrumb",
@@ -130,7 +130,7 @@ const KIND_STYLES: Record<ChangelogKind, string> = {
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
-  const copy = COPY[locale];
+  const copy = resolveCopy(COPY, locale);
   const base: Metadata = {
     title: copy.heroTitle,
     description: copy.heroIntro,
@@ -154,7 +154,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function ChangelogPage() {
   const locale = await getLocale();
-  const t = COPY[locale];
+  const t = resolveCopy(COPY, locale);
 
   return (
     <div className="editorial min-h-screen bg-[var(--bg)] text-[var(--ink)]">

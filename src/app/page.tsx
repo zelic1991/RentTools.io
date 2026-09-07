@@ -9,7 +9,7 @@ import { GoogleOneTap } from "@/components/google-one-tap";
 import { JsonLd } from "@/components/json-ld";
 import { MarketingHeader } from "@/components/marketing-header";
 import { getLocale } from "@/lib/i18n/server";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 // Per-path SEO override hook (RT-18.3). The root layout already supplies
 // title / description / OG / canonical defaults; this lets a super-admin
@@ -26,7 +26,7 @@ import type { Locale } from "@/lib/i18n/translations";
 // /ru/, giving Google a `<title>` and `og:description` that say one
 // thing and a `<html lang="ru">` body that says another — exactly the
 // signal mismatch that drops a page out of the Russian SERP.
-const HOME_META: Record<Locale, { title: string; description: string }> = {
+const HOME_META: CopyMap<{ title: string; description: string }> = {
   en: {
     title:
       "RentTools — open-source property manager for short-term rentals",
@@ -64,7 +64,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const { toOgLocale } = await import("@/lib/i18n/locale-tags");
   const locale = await getLocale();
   const alts = localizedAlternates("/", locale);
-  const meta = HOME_META[locale];
+  const meta = resolveCopy(HOME_META, locale);
   // OG `alternateLocale` declares the hreflang siblings inside the
   // OpenGraph block too — Facebook / LinkedIn use it the same way
   // Google uses `<link rel="alternate" hreflang>`.
@@ -117,7 +117,7 @@ interface CopyBlock {
 // SoftwareApplication JSON-LD so the structured data Google sees stays
 // in English (international SEO signal). The RU block drives only the
 // visible page render when the rt-locale cookie is "ru".
-const COPY: Record<Locale, CopyBlock> = {
+const COPY: CopyMap<CopyBlock> = {
   en: {
     hero: {
       eyebrow: "Open source · Forever free",
@@ -813,7 +813,7 @@ export default async function HomePage() {
   if (session) redirect("/dashboard");
   const supportEmail = (await getSetting("support_email", "")).trim();
   const locale = await getLocale();
-  const t = COPY[locale];
+  const t = resolveCopy(COPY, locale);
 
   return (
     <div className="editorial min-h-screen flex flex-col">

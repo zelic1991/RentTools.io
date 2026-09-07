@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import type { Property } from "@/lib/types";
 
 interface CopyShape {
@@ -10,7 +10,7 @@ interface CopyShape {
   all: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: { property: "Property", all: "All" },
   ru: { property: "Объект", all: "Все" },
   de: { property: "Unterkunft", all: "Alle" },
@@ -50,7 +50,7 @@ export function PropertySwitcher({
   label,
 }: PropertySwitcherProps) {
   const { locale } = useI18n();
-  const t = COPY[locale];
+  const t = resolveCopy(COPY, locale);
   const eyebrow = label === null ? null : (label ?? t.property);
 
   if (properties.length === 0) return null;

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import type { Locale } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import type { Guest } from "@/lib/types";
 
 interface CopyShape {
@@ -10,7 +10,7 @@ interface CopyShape {
   saved: string;
 }
 
-const COPY: Record<Locale, CopyShape> = {
+const COPY: CopyMap<CopyShape> = {
   en: { saving: "Saving…", saved: "Saved" },
   ru: { saving: "Сохранение…", saved: "Сохранено" },
   de: { saving: "Wird gespeichert…", saved: "Gespeichert" },
@@ -175,7 +175,7 @@ function EditSelect({
 
 function GuestCard({
   guest,
-  children,
+  childGuests,
   stayDays,
   checkIn,
   propertyName,
@@ -185,7 +185,7 @@ function GuestCard({
   onUpdateGuest,
 }: {
   guest: Guest;
-  children: Guest[];
+  childGuests: Guest[];
   stayDays: number;
   checkIn: string;
   propertyName: string;
@@ -195,7 +195,7 @@ function GuestCard({
   onUpdateGuest: (id: number, fields: Partial<Guest>) => Promise<void>;
 }) {
   const { t: tr, locale } = useI18n();
-  const t = COPY[locale];
+  const t = resolveCopy(COPY, locale);
   const [dragOver, setDragOver] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -586,12 +586,12 @@ function GuestCard({
             </div>
 
             {/* Block 4: Children (only if any attached) */}
-            {children.length > 0 && (
+            {childGuests.length > 0 && (
               <div className="p-1.5">
                 <div className="mb-0.5 px-2 pt-1 text-[11px] font-semibold uppercase tracking-widest text-amber-400/70">
-                  Children ({children.length})
+                  Children ({childGuests.length})
                 </div>
-                {children.map((child) => (
+                {childGuests.map((child) => (
                   <div
                     key={child.id}
                     draggable
@@ -711,7 +711,7 @@ export function GuestCards({
           <GuestCard
             key={guest.id}
             guest={guest}
-            children={getChildrenFor(guest.id)}
+            childGuests={getChildrenFor(guest.id)}
             stayDays={stayDays}
             checkIn={checkIn}
             propertyName={propertyName ?? ""}
