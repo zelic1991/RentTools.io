@@ -239,6 +239,11 @@ export function useCalendarData(
           ...ev,
           name: res.name,
           reservationId: res.id,
+          // Colour follows what the host said the booking is. A Direct
+          // guest entered by claiming the platform's "Not available"
+          // echo of that very booking used to stay coral, as if Airbnb
+          // had sold the stay.
+          platform: res.platform || ev.platform,
           startDate: unionStart,
           endDate: unionEnd,
           // The host named this bar, so it is a guest stay now — even if
@@ -566,6 +571,7 @@ export function useCalendarData(
 
       let label = ev.name;
       let resId = ev.reservationId;
+      let barPlatform = ev.platform;
       const matchingResForExt = (
         resId ? property.reservations.find(r => r.id === resId) : undefined
       ) as LinkedReservation | undefined;
@@ -640,6 +646,7 @@ export function useCalendarData(
         if (matchingRes) {
           label = matchingRes.name;
           resId = matchingRes.id;
+          if (matchingRes.platform) barPlatform = matchingRes.platform;
         } else {
           // Fall back to the platform brand — "Airbnb", "Booking",
           // "Trip.com", "Agoda", etc. Hardcoded brand names where
@@ -670,7 +677,7 @@ export function useCalendarData(
         startDate: ev.startDate,
         endDate: ev.endDate,
         name: label,
-        platform: ev.platform,
+        platform: barPlatform,
         reservationId: resId,
         eventUid: ev.eventUid,
         // A bar that resolved to a reservation is a stay, never a block.
