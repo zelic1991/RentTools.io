@@ -241,6 +241,11 @@ export function useCalendarData(
           reservationId: res.id,
           startDate: unionStart,
           endDate: unionEnd,
+          // The host named this bar, so it is a guest stay now — even if
+          // the platform still exports it as "Not available". Without
+          // this the claimed stay kept the block flag and was drawn as a
+          // striped "Blocked" bar carrying the guest's name.
+          isBlock: false,
         });
         let d = unionStart;
         while (d <= unionEnd) {
@@ -668,7 +673,8 @@ export function useCalendarData(
         platform: ev.platform,
         reservationId: resId,
         eventUid: ev.eventUid,
-        isBlock: ev.isBlock,
+        // A bar that resolved to a reservation is a stay, never a block.
+        isBlock: !!ev.isBlock && resId == null,
         linkedEventUid: ev.linkedEventUid,
         linkedEventPlatform: ev.linkedEventPlatform,
         linkedEventRole: ev.linkedEventRole,
