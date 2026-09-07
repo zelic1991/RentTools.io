@@ -27,12 +27,12 @@ function platformName(platform: string): string {
  *  to each other no longer merge into one grey stripe. Full class names so
  *  Tailwind's JIT keeps them. */
 const DIRECT_PALETTE = [
-  "bg-teal-600",
-  "bg-indigo-500",
-  "bg-violet-600",
-  "bg-emerald-600",
-  "bg-cyan-700",
-  "bg-fuchsia-700",
+  "bg-[var(--cal-direct-1)]",
+  "bg-[var(--cal-direct-2)]",
+  "bg-[var(--cal-direct-3)]",
+  "bg-[var(--cal-direct-4)]",
+  "bg-[var(--cal-direct-5)]",
+  "bg-[var(--cal-direct-6)]",
 ] as const;
 
 function platformColor(platform: string): string {
@@ -265,10 +265,10 @@ export function CalendarGrid({
             {/* Skeleton row offsets follow the responsive cell heights:
                 mobile cells are 56px tall (band y = 28px), desktop 72px
                 (band y = 36px). */}
-            <div className="absolute h-5 sm:h-6 rounded-md bg-[var(--ink-4)]/12 top-[28px] sm:top-[36px] left-[30%] w-[32%]" />
-            <div className="absolute h-5 sm:h-6 rounded-md bg-[var(--ink-4)]/10 top-[84px] sm:top-[108px] left-[62%] w-[22%]" />
-            <div className="absolute h-5 sm:h-6 rounded-md bg-[var(--ink-4)]/12 top-[140px] sm:top-[180px] left-[8%] w-[38%]" />
-            <div className="absolute h-5 sm:h-6 rounded-md bg-[var(--ink-4)]/10 top-[196px] sm:top-[252px] left-[48%] w-[28%]" />
+            <div className="absolute h-5 sm:h-6 rounded-full bg-[var(--ink-4)]/12 top-[28px] sm:top-[36px] left-[30%] w-[32%]" />
+            <div className="absolute h-5 sm:h-6 rounded-full bg-[var(--ink-4)]/10 top-[84px] sm:top-[108px] left-[62%] w-[22%]" />
+            <div className="absolute h-5 sm:h-6 rounded-full bg-[var(--ink-4)]/12 top-[140px] sm:top-[180px] left-[8%] w-[38%]" />
+            <div className="absolute h-5 sm:h-6 rounded-full bg-[var(--ink-4)]/10 top-[196px] sm:top-[252px] left-[48%] w-[28%]" />
           </div>
         )}
         {weeks.map((week, wi) => {
@@ -303,13 +303,13 @@ export function CalendarGrid({
           const cellHeightClass = weekStacks
             ? "h-[80px] sm:h-[100px]"
             : "h-[56px] sm:h-[72px]";
-          const barHeightClass = weekStacks ? "h-4 sm:h-5" : "h-5 sm:h-6";
+          const barHeightClass = weekStacks ? "h-4 sm:h-5" : "h-[22px] sm:h-[26px]";
 
           return (
-          <div key={`${monthKey}-w${wi}`} className="grid grid-cols-7 border-b border-[var(--line)] last:border-b-0">
+          <div key={`${monthKey}-w${wi}`} className="grid grid-cols-7 border-b border-[var(--cal-line)] last:border-b-0">
             {week.map((dayNum, di) => {
               if (dayNum === null) {
-                return <div key={`blank-${wi}-${di}`} className={`${cellHeightClass} border-r border-[var(--line)] last:border-r-0`} />;
+                return <div key={`blank-${wi}-${di}`} className={`${cellHeightClass} border-r border-[var(--cal-line)] last:border-r-0`} />;
               }
               const ds = `${year}-${String(month + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
               const isOutsideWindow = ds < visibleFrom || ds > visibleUntil;
@@ -362,16 +362,16 @@ export function CalendarGrid({
                     onCellClick(ds, (e.currentTarget as HTMLElement).getBoundingClientRect(), e.shiftKey);
                   }}
                   aria-disabled={isOutsideWindow || undefined}
-                  className={`relative ${cellHeightClass} border-r border-[var(--line)] last:border-r-0 transition-colors ${bg || (di >= 5 ? "bg-[var(--ink)]/[0.035]" : "")} ${isOutsideWindow ? "cursor-not-allowed opacity-35" : readOnly ? "cursor-default" : "cursor-pointer"} ${isSelected ? "bg-[var(--m-accent)]/10 ring-2 ring-inset ring-[var(--m-accent)]" : isOutsideWindow || readOnly ? "" : "hover:bg-[var(--bg-3)]/60"} ${isOpen && !isSelected ? "ring-1 ring-inset ring-emerald-500/40" : ""} ${isClosed && !isSelected ? "ring-1 ring-inset ring-rose-500/40" : ""}`}
+                  className={`relative ${cellHeightClass} border-r border-[var(--cal-line)] last:border-r-0 transition-colors ${bg || (di >= 5 ? "bg-[var(--cal-weekend)]" : "")} ${isOutsideWindow ? "cursor-not-allowed opacity-35" : readOnly ? "cursor-default" : "cursor-pointer"} ${isSelected ? "bg-[var(--m-accent)]/10 ring-2 ring-inset ring-[var(--m-accent)]" : isOutsideWindow || readOnly ? "" : "hover:bg-[var(--bg-3)]/60"} ${isOpen && !isSelected ? "ring-1 ring-inset ring-emerald-500/40" : ""} ${isClosed && !isSelected ? "ring-1 ring-inset ring-rose-500/40" : ""}`}
                 >
                   <div className="absolute top-1 left-1.5 sm:top-1.5 sm:left-2 z-20 pointer-events-none">
-                    <span className={`text-[12px] sm:text-sm font-medium leading-none ${
+                    <span className={`text-[11.5px] sm:text-[13px] font-medium leading-none tabular-nums ${
                       isConflict ? "inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-rose-500 text-white font-semibold"
-                      : isToday ? "inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full ring-[1.5px] ring-[var(--m-accent)] text-[var(--m-accent)] font-bold"
+                      : isToday ? "inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full bg-[var(--m-accent)] text-white font-semibold shadow-sm"
                       : isOpen ? "text-emerald-500 font-semibold"
                       : isClosed ? "text-rose-500 font-semibold"
-                      : isPast ? "text-[var(--ink-4)]"
-                      : "text-[var(--ink-2)]"
+                      : isPast ? "text-[var(--ink-4)] opacity-55"
+                      : "text-[var(--ink-3)]"
                     }`}>{dayNum}</span>
                   </div>
 
@@ -422,7 +422,7 @@ export function CalendarGrid({
                     // two bars fit in the enlarged cell.
                     const rowIdx = seg.rowIdx ?? 0;
                     const topClass = rowIdx === 0
-                      ? "top-7 sm:top-9"
+                      ? "top-[24px] sm:top-[30px]"
                       : "top-[44px] sm:top-[58px]";
                     const heightClass = barHeightClass;
                     // A segment's edge is treated as "shared" when the
@@ -434,14 +434,12 @@ export function CalendarGrid({
                     const abutsRightPartner = !!seg.linkedAfter && !seg.continuesRight;
                     const sharedLeft = seg.continuesLeft || abutsLeftPartner;
                     const sharedRight = seg.continuesRight || abutsRightPartner;
-                    const radiusClass =
-                      sharedLeft && sharedRight
-                        ? "rounded-none"
-                        : sharedLeft
-                          ? "rounded-r-md rounded-l-none"
-                          : sharedRight
-                            ? "rounded-l-md rounded-r-none"
-                            : "rounded-md";
+                    // Real check-in / check-out edges are cut on the
+                    // diagonal (.cal-ribbon-* in globals.css). A wrap to
+                    // the next week row or a linked partner stays square
+                    // so the stay reads as one piece across that edge.
+                    const radiusClass = `${sharedLeft ? "" : "cal-ribbon-in"} ${sharedRight ? "" : "cal-ribbon-out"}`.trim();
+                    const padClass = `${sharedLeft ? "pl-2 sm:pl-3" : "pl-3.5 sm:pl-4"} ${sharedRight ? "pr-2 sm:pr-3" : "pr-3.5 sm:pr-4"}`;
                     // Wrap-around bleed: when this segment continues
                     // into the next/previous week, push it ~8 px past
                     // the cell wall so the bar visibly bleeds out of
@@ -501,18 +499,21 @@ export function CalendarGrid({
                         role={actionable ? "button" : undefined}
                         tabIndex={actionable ? 0 : undefined}
                         aria-label={seg.isExtension ? directTitle : regularTitle}
-                        className={`absolute ${topClass} ${heightClass} flex items-center px-1.5 sm:px-2.5 text-[10.5px] sm:text-[12.5px] font-semibold text-white/95 truncate shadow-[0_1px_2px_rgba(0,0,0,0.06)] ${actionable ? "cursor-pointer" : "cursor-default"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 ${radiusClass} ${
+                        className={`absolute ${topClass} ${heightClass} flex items-center ${padClass} text-[10.5px] sm:text-[12px] font-medium tracking-[0.01em] text-white truncate ${actionable ? "cursor-pointer" : "cursor-default"} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 ${radiusClass} ${
                           // Per-platform colour. Manual / direct / custom
                           // bookings get a neutral slate so they're visually
                           // distinct from Airbnb's coral — previously every
                           // non-Booking bar fell through to the m-accent
                           // colour which made manual reservations look
                           // like Airbnb ones.
-                          isConflict ? "bg-rose-500 ring-1 ring-rose-500/40" :
+                          isConflict ? "bg-rose-500" :
                           // Platform host-block: muted + striped so a
                           // closure reads as "not bookable", not as a guest.
-                          seg.isBlock ? "bg-slate-400/75 ring-1 ring-slate-300/40 text-white/90" :
-                          seg.isExtension ? "bg-slate-600 ring-1 ring-slate-300/40" :
+                          // Host-block: light hatched paper with ink text, like days
+                          // struck through on a wall calendar - present, not a guest,
+                          // and never louder than the stays around it.
+                          seg.isBlock ? "bg-stone-400/25 text-[var(--ink-3)]" :
+                          seg.isExtension ? "bg-stone-600" :
                           seg.platform === "booking" ? "bg-[#003580]" :
                           seg.platform === "airbnb" ? "bg-[var(--channel-airbnb,var(--m-accent))]" :
                           seg.platform === "vrbo" ? "bg-[#2c5da9]" :
@@ -520,15 +521,17 @@ export function CalendarGrid({
                           // of DIRECT_PALETTE, picked per booking (stable
                           // on the reservation id, else the name), so
                           // adjacent Direct guests are told apart.
-                          `${DIRECT_PALETTE[directPaletteIndex(seg.reservationId != null ? `r${seg.reservationId}` : seg.name, DIRECT_PALETTE.length)]} ring-1 ring-white/30`
-                        } ${actionable ? "hover:brightness-110" : ""} ${seg.isExtension ? "ring-1 ring-white/30 ring-dashed" : ""}`}
+                          `${DIRECT_PALETTE[directPaletteIndex(seg.reservationId != null ? `r${seg.reservationId}` : seg.name, DIRECT_PALETTE.length)]}`
+                        } ${actionable ? "hover:brightness-110" : ""} `}
                         style={{
                           left: leftStyle,
                           width: widthStyle,
                           zIndex: 10,
-                          backgroundImage: seg.isExtension || seg.isBlock
-                            ? "repeating-linear-gradient(-45deg, transparent 0 6px, rgba(255,255,255,0.22) 6px 8px)"
-                            : undefined,
+                          backgroundImage: seg.isBlock
+                            ? "repeating-linear-gradient(-45deg, transparent 0 6px, rgba(43,36,29,0.10) 6px 8px)"
+                            : seg.isExtension
+                              ? "repeating-linear-gradient(-45deg, transparent 0 6px, rgba(255,255,255,0.22) 6px 8px)"
+                              : "linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0) 55%)",
                         }}
                         title={seg.isExtension ? directTitle : regularTitle}
                       >
