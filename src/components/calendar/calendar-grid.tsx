@@ -509,7 +509,10 @@ export function CalendarGrid({
                           isConflict ? "bg-rose-500" :
                           // Platform host-block: muted + striped so a
                           // closure reads as "not bookable", not as a guest.
-                          seg.isBlock ? "bg-stone-400/70 text-white" :
+                          // Host-block: light hatched paper with ink text, like days
+                          // struck through on a wall calendar - present, not a guest,
+                          // and never louder than the stays around it.
+                          seg.isBlock ? "bg-stone-400/25 text-[var(--ink-3)]" :
                           seg.isExtension ? "bg-stone-600" :
                           seg.platform === "booking" ? "bg-[#003580]" :
                           seg.platform === "airbnb" ? "bg-[var(--channel-airbnb,var(--m-accent))]" :
@@ -524,9 +527,11 @@ export function CalendarGrid({
                           left: leftStyle,
                           width: widthStyle,
                           zIndex: 10,
-                          backgroundImage: seg.isExtension || seg.isBlock
-                            ? "repeating-linear-gradient(-45deg, transparent 0 6px, rgba(255,255,255,0.22) 6px 8px)"
-                            : "linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0) 55%)",
+                          backgroundImage: seg.isBlock
+                            ? "repeating-linear-gradient(-45deg, transparent 0 6px, rgba(43,36,29,0.10) 6px 8px)"
+                            : seg.isExtension
+                              ? "repeating-linear-gradient(-45deg, transparent 0 6px, rgba(255,255,255,0.22) 6px 8px)"
+                              : "linear-gradient(180deg, rgba(255,255,255,0.16), rgba(255,255,255,0) 55%)",
                         }}
                         title={seg.isExtension ? directTitle : regularTitle}
                       >

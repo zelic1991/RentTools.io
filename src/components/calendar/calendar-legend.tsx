@@ -29,8 +29,8 @@ export function CalendarLegend({ minNights, hasOverrides }: CalendarLegendProps)
       </div>
       <div className="flex items-center gap-1.5">
         <span
-          className="h-2.5 w-6 rounded-sm bg-stone-400/70"
-          style={{ backgroundImage: "repeating-linear-gradient(-45deg, transparent 0 3px, rgba(255,255,255,0.35) 3px 4px)" }}
+          className="h-2.5 w-6 rounded-sm bg-stone-400/25"
+          style={{ backgroundImage: "repeating-linear-gradient(-45deg, transparent 0 3px, rgba(43,36,29,0.14) 3px 4px)" }}
         />
         <span className="text-xs text-[var(--ink-3)]">{t("calendar.blocked")}</span>
       </div>
