@@ -17,6 +17,7 @@ import {
 import { ConflictBanner } from "@/components/calendar/conflict-banner";
 import { useCalendarFetch, SYNC_COOLDOWN_MS } from "@/components/calendar/use-calendar-fetch";
 import { useCalendarData } from "@/components/calendar/use-calendar-data";
+import { expandDateRange } from "@/components/calendar/utils";
 import {
   buildManualExtensionPatch,
   buildSyncedExtensionReservation,
@@ -327,16 +328,35 @@ export function PropertyCalendar({
   }, [property.id]);
 
   // Selection helpers ----------------------------------------------
-  const toggleDate = (dateStr: string) => {
+  //
+  // Plain click toggles one day. Shift-click selects every day from the
+  // previous click to this one, so a multi-night stay costs two clicks
+  // instead of one per night — the popover's "Create reservation
+  // (N nights)" path already handles any contiguous span, it was just
+  // tedious to produce one.
+  const lastToggledRef = useRef<string | null>(null);
+  const toggleDate = (dateStr: string, extend?: boolean) => {
     if (extensionRequestPendingRef.current) return;
+    const anchor = lastToggledRef.current;
     setSelectedDates((prev) => {
       const next = new Set(prev);
+      if (extend && anchor) {
+        // Range select is additive and never deselects: the host is
+        // building a span, so a stray overlap with an existing
+        // selection shouldn't punch holes in it.
+        for (const d of expandDateRange(anchor, dateStr)) next.add(d);
+        return next;
+      }
       if (next.has(dateStr)) next.delete(dateStr);
       else next.add(dateStr);
       return next;
     });
+    lastToggledRef.current = dateStr;
   };
-  const clearSelection = () => setSelectedDates(new Set());
+  const clearSelection = () => {
+    lastToggledRef.current = null;
+    setSelectedDates(new Set());
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -816,7 +836,7 @@ export function PropertyCalendar({
                     setExtensionActionBar({ ...seg, reservationId: seg.reservationId });
                     setExtensionActionAnchor(rect);
                   }}
-                  onCellClick={(dateStr) => toggleDate(dateStr)}
+                  onCellClick={(dateStr, _rect, extend) => toggleDate(dateStr, extend)}
                 />
               </div>
             </section>

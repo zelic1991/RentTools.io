@@ -90,7 +90,10 @@ interface CalendarGridProps {
   onSelectReservation: (id: number) => void;
   onClaimBar?: (bar: BarSegment, rect: DOMRect) => void;
   onOpenExtension?: (bar: BarSegment, rect: DOMRect) => void;
-  onCellClick: (dateStr: string, rect: DOMRect) => void;
+  /** `extend` is true when the host shift-clicked — the caller then
+   *  selects the whole span from the previous click to this date
+   *  instead of toggling one day. */
+  onCellClick: (dateStr: string, rect: DOMRect, extend?: boolean) => void;
 }
 
 export function CalendarGrid({
@@ -327,7 +330,7 @@ export function CalendarGrid({
                   key={`day-${year}-${month}-${dayNum}`}
                   onClick={(e) => {
                     if (readOnly || isOutsideWindow) return;
-                    onCellClick(ds, (e.currentTarget as HTMLElement).getBoundingClientRect());
+                    onCellClick(ds, (e.currentTarget as HTMLElement).getBoundingClientRect(), e.shiftKey);
                   }}
                   aria-disabled={isOutsideWindow || undefined}
                   className={`relative ${cellHeightClass} border-r border-[var(--line)] last:border-r-0 transition-colors ${bg} ${isOutsideWindow ? "cursor-not-allowed opacity-35" : readOnly ? "cursor-default" : "cursor-pointer"} ${isSelected ? "bg-[var(--m-accent)]/10 ring-2 ring-inset ring-[var(--m-accent)]" : isOutsideWindow || readOnly ? "" : "hover:bg-[var(--bg-3)]/60"} ${isOpen && !isSelected ? "ring-1 ring-inset ring-emerald-500/40" : ""} ${isClosed && !isSelected ? "ring-1 ring-inset ring-rose-500/40" : ""}`}
