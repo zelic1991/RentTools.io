@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
-import { dayCount, directPaletteIndex, timeToPercent } from "./utils";
+import { assignDirectSlots, dayCount, directPaletteIndex, timeToPercent } from "./utils";
 import type { BarSegment, CalendarBar } from "./types";
 
 const DIRECT_COPY: CopyMap<{ label: string; connected: (platform: string) => string; open: string }> = {
@@ -171,6 +171,17 @@ export function CalendarGrid({
   // "Krajci · 9 Nächte" on the segment where the stay starts, when the
   // bar is wide enough; continuation rows and short bars show the name
   // alone. Nights, not days: the check-out day is not a night sold.
+  // One palette slot per Direct stay, assigned in calendar order so that
+  // two Direct guests back to back never share a colour (assignDirectSlots).
+  const directKey = (bar: CalendarBar) => (bar.reservationId != null ? `r${bar.reservationId}` : bar.name);
+  const directSlots = useMemo(() => {
+    const direct = bars
+      .filter((b) => !b.isBlock && !b.isExtension && b.platform !== "booking" && b.platform !== "airbnb" && b.platform !== "vrbo")
+      .slice()
+      .sort((x, y) => (x.startDate < y.startDate ? -1 : x.startDate > y.startDate ? 1 : 0));
+    return assignDirectSlots(direct.map(directKey), DIRECT_PALETTE.length);
+  }, [bars]);
+
   const barLabel = (seg: BarSegment): string => {
     if (seg.continuesLeft || seg.span < 4) return seg.name;
     const nights = dayCount(seg.startDate, seg.endDate);
@@ -521,7 +532,7 @@ export function CalendarGrid({
                           // of DIRECT_PALETTE, picked per booking (stable
                           // on the reservation id, else the name), so
                           // adjacent Direct guests are told apart.
-                          `${DIRECT_PALETTE[directPaletteIndex(seg.reservationId != null ? `r${seg.reservationId}` : seg.name, DIRECT_PALETTE.length)]}`
+                          `${DIRECT_PALETTE[directSlots.get(directKey(seg)) ?? directPaletteIndex(directKey(seg), DIRECT_PALETTE.length)]}`
                         } ${actionable ? "hover:brightness-110" : ""} `}
                         style={{
                           left: leftStyle,

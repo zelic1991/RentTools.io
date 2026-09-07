@@ -46,6 +46,28 @@ export function directPaletteIndex(key: string, size: number): number {
   return h % size;
 }
 
+/**
+ * Palette slots for Direct stays, given their keys in calendar order.
+ * Each stay takes its hashed slot unless that repeats the slot of the
+ * stay right before it — then it moves one slot on. So two Direct
+ * guests back to back never share a colour, and a guest keeps their
+ * colour unless a new booking lands directly in front of them with
+ * the same hash.
+ */
+export function assignDirectSlots(keysInDateOrder: string[], size: number): Map<string, number> {
+  const out = new Map<string, number>();
+  let prev = -1;
+  for (const key of keysInDateOrder) {
+    const known = out.get(key);
+    if (known !== undefined) { prev = known; continue; }
+    let slot = directPaletteIndex(key, size);
+    if (size > 1 && slot === prev) slot = (slot + 1) % size;
+    out.set(key, slot);
+    prev = slot;
+  }
+  return out;
+}
+
 export function dayCount(start: string, end: string): number {
   const d1 = new Date(start);
   const d2 = new Date(end);
