@@ -634,3 +634,45 @@ textarea {
   --cal-weekend: rgba(255, 255, 255, 0.025);
   --cal-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -16px rgba(0, 0, 0, 0.6);
 }
+
+/* Direct-guest palette for the stay ribbons. Default: six cool tones.
+   zf-brand: tones from the island itself — pine, sea, olive, clay,
+   plum-rose, deep teal — so a family booking sits inside the cream
+   palette instead of importing a web default. Coral stays Airbnb,
+   navy stays Booking.com. */
+:root {
+  --cal-direct-1: #0d9488;
+  --cal-direct-2: #6366f1;
+  --cal-direct-3: #7c3aed;
+  --cal-direct-4: #059669;
+  --cal-direct-5: #0e7490;
+  --cal-direct-6: #a21caf;
+  --cal-slant: 8px;
+}
+@media (min-width: 640px) {
+  :root { --cal-slant: 10px; }
+}
+.zf-brand,
+.editorial.zf-brand {
+  --cal-direct-1: #3F6B4E; /* pine */
+  --cal-direct-2: #2E7A96; /* sea */
+  --cal-direct-3: #6F7431; /* olive */
+  --cal-direct-4: #A8613A; /* clay */
+  --cal-direct-5: #8A5074; /* plum-rose */
+  --cal-direct-6: #2A6E69; /* deep teal */
+}
+
+/* Stay ribbons. A stay begins in the afternoon and ends in the morning,
+   so its real ends are cut on the diagonal: on a turnover day the
+   outgoing and the incoming ribbon interlock like roof tiles instead
+   of colliding. A wrap to the next week row stays square, so the stay
+   reads as one piece across it. */
+.cal-ribbon-in {
+  clip-path: polygon(var(--cal-slant) 0, 100% 0, 100% 100%, 0 100%);
+}
+.cal-ribbon-out {
+  clip-path: polygon(0 0, 100% 0, calc(100% - var(--cal-slant)) 100%, 0 100%);
+}
+.cal-ribbon-in.cal-ribbon-out {
+  clip-path: polygon(var(--cal-slant) 0, 100% 0, calc(100% - var(--cal-slant)) 100%, 0 100%);
+}

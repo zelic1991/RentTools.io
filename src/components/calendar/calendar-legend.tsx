@@ -12,18 +12,18 @@ export function CalendarLegend({ minNights, hasOverrides }: CalendarLegendProps)
   return (
     <div className="flex items-center gap-4 border-b border-[var(--line)] px-4 py-2">
       <div className="flex items-center gap-1.5">
-        <span className="h-2.5 w-6 rounded-sm bg-[var(--channel-airbnb,var(--m-accent))]" />
+        <span className="h-2.5 w-6 [clip-path:polygon(3px_0,100%_0,calc(100%-3px)_100%,0_100%)] bg-[var(--channel-airbnb,var(--m-accent))]" />
         <span className="text-xs text-[var(--ink-3)]">{t("calendar.airbnb")}</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="h-2.5 w-6 rounded-sm bg-[#003580]" />
+        <span className="h-2.5 w-6 [clip-path:polygon(3px_0,100%_0,calc(100%-3px)_100%,0_100%)] bg-[#003580]" />
         <span className="text-xs text-[var(--ink-3)]">{t("calendar.booking")}</span>
       </div>
       <div className="flex items-center gap-1.5">
         <span className="flex gap-0.5">
-          <span className="h-2.5 w-2 rounded-sm bg-teal-600" />
-          <span className="h-2.5 w-2 rounded-sm bg-indigo-500" />
-          <span className="h-2.5 w-2 rounded-sm bg-violet-600" />
+          <span className="h-2.5 w-2.5 [clip-path:polygon(2px_0,100%_0,calc(100%-2px)_100%,0_100%)] bg-[var(--cal-direct-1)]" />
+          <span className="h-2.5 w-2.5 [clip-path:polygon(2px_0,100%_0,calc(100%-2px)_100%,0_100%)] bg-[var(--cal-direct-2)]" />
+          <span className="h-2.5 w-2.5 [clip-path:polygon(2px_0,100%_0,calc(100%-2px)_100%,0_100%)] bg-[var(--cal-direct-4)]" />
         </span>
         <span className="text-xs text-[var(--ink-3)]">{t("calendar.directPerGuest")}</span>
       </div>
