@@ -28,6 +28,13 @@ export function CalendarLegend({ minNights, hasOverrides }: CalendarLegendProps)
         <span className="text-xs text-[var(--ink-3)]">{t("calendar.directPerGuest")}</span>
       </div>
       <div className="flex items-center gap-1.5">
+        <span
+          className="h-2.5 w-6 rounded-sm bg-slate-400/75"
+          style={{ backgroundImage: "repeating-linear-gradient(-45deg, transparent 0 3px, rgba(255,255,255,0.35) 3px 4px)" }}
+        />
+        <span className="text-xs text-[var(--ink-3)]">{t("calendar.blocked")}</span>
+      </div>
+      <div className="flex items-center gap-1.5">
         <span className="h-2.5 w-6 rounded-sm bg-[var(--cleaning-bg)] border border-[var(--cleaning-border)]" />
         <span className="text-xs text-[var(--ink-3)]">{t("calendar.cleaning")}</span>
       </div>

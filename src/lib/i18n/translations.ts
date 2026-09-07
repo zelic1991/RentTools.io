@@ -203,6 +203,7 @@ export const translations = {
   "calendar.open": { en: "Open", ru: "Откр.", de: "Offen", fr: "Ouvert", es: "Abierto" },
   "calendar.closed": { en: "Closed", ru: "Закр.", de: "Gesperrt", fr: "Fermé", es: "Cerrado" },
   "calendar.directPerGuest": { en: "Direct (one colour per guest)", ru: "Напрямую (свой цвет у каждого гостя)", de: "Direkt (eine Farbe je Gast)", fr: "Direct (une couleur par hôte)", es: "Directa (un color por huésped)" },
+  "calendar.blocked": { en: "Blocked", ru: "Блок", de: "Blockiert", fr: "Bloqué", es: "Bloqueado" },
   "calendar.conflict": { en: "Conflict", ru: "Конфликт", de: "Konflikt", fr: "Conflit", es: "Conflicto" },
   "calendar.cleaningQ": { en: "Cleaning?", ru: "Уборка?", de: "Reinigung?", fr: "Ménage ?", es: "¿Limpieza?" },
   "calendar.upcoming": { en: "Upcoming", ru: "Предстоящие", de: "Anstehend", fr: "À venir", es: "Próximas" },
