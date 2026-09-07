@@ -127,8 +127,8 @@ export function CalendarGrid({
   const { t, locale } = useI18n();
   const directCopy = resolveCopy(DIRECT_COPY, locale);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  let firstDayOffset = new Date(year, month, 1).getDay() - 1;
-  if (firstDayOffset < 0) firstDayOffset = 6;
+  // Monday-first column index of the 1st: Sun(0) -> 6, Mon(1) -> 0, ... Sat(6) -> 5.
+  const firstDayOffset = (new Date(year, month, 1).getDay() + 6) % 7;
   const monthKey = `${year}-${month}`;
 
   const checkInPct = timeToPercent(checkInTime);
