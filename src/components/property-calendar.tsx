@@ -814,7 +814,7 @@ export function PropertyCalendar({
                   {monthLabel}
                 </h3>
               )}
-              <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-2)] [overflow:clip] [overflow-clip-margin:12px]">
+              <div className="rounded-2xl border border-[var(--cal-line)] bg-[var(--cal-surface)] shadow-[var(--cal-shadow)] [overflow:clip] [overflow-clip-margin:12px]">
                 <CalendarGrid
                   year={m.getFullYear()}
                   month={m.getMonth()}

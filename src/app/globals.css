@@ -606,3 +606,31 @@ select,
 textarea {
   max-width: 100%;
 }
+
+/* =========================================================
+   Calendar surface tokens. The month card is paper on the desk: a
+   plane lighter than the page, a hairline grid, a faint weekend
+   tint, and a soft drop shadow — instead of page-coloured cells with
+   dark rules that read like a spreadsheet.
+========================================================= */
+:root {
+  --cal-surface: #ffffff;
+  --cal-line: rgba(14, 14, 16, 0.07);
+  --cal-weekend: rgba(14, 14, 16, 0.025);
+  --cal-shadow: 0 1px 2px rgba(14, 14, 16, 0.04), 0 12px 32px -16px rgba(14, 14, 16, 0.2);
+}
+.zf-brand,
+.editorial.zf-brand {
+  --cal-surface: #FFFCF7;
+  --cal-line: rgba(43, 36, 29, 0.09);
+  --cal-weekend: rgba(236, 225, 204, 0.4);
+  --cal-shadow: 0 1px 2px rgba(43, 36, 29, 0.05), 0 12px 32px -16px rgba(43, 36, 29, 0.28);
+}
+.dark,
+.dark .zf-brand,
+.dark .editorial {
+  --cal-surface: #17171a;
+  --cal-line: rgba(255, 255, 255, 0.07);
+  --cal-weekend: rgba(255, 255, 255, 0.025);
+  --cal-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -16px rgba(0, 0, 0, 0.6);
+}
