@@ -110,25 +110,10 @@ export async function fetchGoogleProfile(accessToken: string): Promise<GooglePro
   return (await res.json()) as GoogleProfile;
 }
 
-/**
- * Public origin of the incoming request, honoring proxy headers.
- *
- * Behind a reverse proxy (nginx → Next on localhost) `new URL(request.url)`
- * reflects the proxy hop's HTTP/localhost addressing, not the public-facing
- * URL Cloudflare presents to users. Honor X-Forwarded-Proto / X-Forwarded-Host
- * first, fall back to the request URL only when no proxy headers are present
- * (e.g. local dev).
- */
-export function getPublicOrigin(request: Request): string {
-  const url = new URL(request.url);
-  const fwdProto = request.headers.get("x-forwarded-proto");
-  const fwdHost = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  // Take the FIRST forwarded value if a comma-separated chain is sent
-  // (Cloudflare → nginx → next can stack headers in some setups).
-  const proto = (fwdProto?.split(",")[0]?.trim()) || url.protocol.replace(/:$/, "");
-  const host = (fwdHost?.split(",")[0]?.trim()) || url.host;
-  return `${proto}://${host}`;
-}
+// Public-origin helpers live in a dependency-free module so routes and
+// tests can use them without pulling in Prisma.
+export { getPublicOrigin, configuredPublicOrigin } from "./public-origin";
+import { getPublicOrigin } from "./public-origin";
 
 /**
  * Derive the redirect URI for the Google OAuth flow. Must match a URI
