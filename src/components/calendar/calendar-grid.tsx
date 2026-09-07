@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
-import { directPaletteIndex, timeToPercent } from "./utils";
+import { dayCount, directPaletteIndex, timeToPercent } from "./utils";
 import type { BarSegment, CalendarBar } from "./types";
 
 const DIRECT_COPY: CopyMap<{ label: string; connected: (platform: string) => string; open: string }> = {
@@ -141,6 +141,7 @@ export function CalendarGrid({
   const { t, locale } = useI18n();
   const directCopy = resolveCopy(DIRECT_COPY, locale);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   // Monday-first column index of the 1st: Sun(0) -> 6, Mon(1) -> 0, ... Sat(6) -> 5.
   const firstDayOffset = (new Date(year, month, 1).getDay() + 6) % 7;
   const monthKey = `${year}-${month}`;
@@ -166,6 +167,16 @@ export function CalendarGrid({
     }
     return result;
   }, [firstDayOffset, daysInMonth]);
+
+  // "Krajci · 9 Nächte" on the segment where the stay starts, when the
+  // bar is wide enough; continuation rows and short bars show the name
+  // alone. Nights, not days: the check-out day is not a night sold.
+  const barLabel = (seg: BarSegment): string => {
+    if (seg.continuesLeft || seg.span < 4) return seg.name;
+    const nights = dayCount(seg.startDate, seg.endDate);
+    if (nights < 1) return seg.name;
+    return `${seg.name} · ${nights} ${nights === 1 ? t("common.night") : t("common.nights")}`;
+  };
 
   const hasBarOnDay = (dayNum: number) => {
     const ds = `${year}-${String(month + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
@@ -211,7 +222,10 @@ export function CalendarGrid({
         rightMarginPct: reachesEnd
           ? (abutsRightPartner ? 100 - checkInPct : 100 - checkOutPct)
           : 0,
-        showLabel: isActualStart || isMonthContinuation,
+        // Repeat the name on every week row the stay runs through (the
+        // way Smoobu and Airbnb's host calendar do), as long as the
+        // segment is wide enough to carry it. A one-day tail stays bare.
+        showLabel: isActualStart || isMonthContinuation || span >= 2,
         // continuesLeft: this segment is NOT the bar's real start day
         // (so it's a Monday or month-1 continuation); continuesRight:
         // this segment ends mid-bar (Sunday or last-of-month).
@@ -301,6 +315,7 @@ export function CalendarGrid({
               const isOutsideWindow = ds < visibleFrom || ds > visibleUntil;
               const isToday = year === today.getFullYear() && month === today.getMonth() && dayNum === today.getDate();
               const isConflict = conflictDates.has(ds);
+              const isPast = ds < todayStr;
               const segments = segmentsForDay(dayNum);
               const hasBar = hasBarOnDay(dayNum);
               // Two flavours of manual-cleaning state:
@@ -347,7 +362,7 @@ export function CalendarGrid({
                     onCellClick(ds, (e.currentTarget as HTMLElement).getBoundingClientRect(), e.shiftKey);
                   }}
                   aria-disabled={isOutsideWindow || undefined}
-                  className={`relative ${cellHeightClass} border-r border-[var(--line)] last:border-r-0 transition-colors ${bg} ${isOutsideWindow ? "cursor-not-allowed opacity-35" : readOnly ? "cursor-default" : "cursor-pointer"} ${isSelected ? "bg-[var(--m-accent)]/10 ring-2 ring-inset ring-[var(--m-accent)]" : isOutsideWindow || readOnly ? "" : "hover:bg-[var(--bg-3)]/60"} ${isOpen && !isSelected ? "ring-1 ring-inset ring-emerald-500/40" : ""} ${isClosed && !isSelected ? "ring-1 ring-inset ring-rose-500/40" : ""}`}
+                  className={`relative ${cellHeightClass} border-r border-[var(--line)] last:border-r-0 transition-colors ${bg || (di >= 5 ? "bg-[var(--ink)]/[0.035]" : "")} ${isOutsideWindow ? "cursor-not-allowed opacity-35" : readOnly ? "cursor-default" : "cursor-pointer"} ${isSelected ? "bg-[var(--m-accent)]/10 ring-2 ring-inset ring-[var(--m-accent)]" : isOutsideWindow || readOnly ? "" : "hover:bg-[var(--bg-3)]/60"} ${isOpen && !isSelected ? "ring-1 ring-inset ring-emerald-500/40" : ""} ${isClosed && !isSelected ? "ring-1 ring-inset ring-rose-500/40" : ""}`}
                 >
                   <div className="absolute top-1 left-1.5 sm:top-1.5 sm:left-2 z-20 pointer-events-none">
                     <span className={`text-[12px] sm:text-sm font-medium leading-none ${
@@ -355,6 +370,7 @@ export function CalendarGrid({
                       : isToday ? "inline-flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full ring-[1.5px] ring-[var(--m-accent)] text-[var(--m-accent)] font-bold"
                       : isOpen ? "text-emerald-500 font-semibold"
                       : isClosed ? "text-rose-500 font-semibold"
+                      : isPast ? "text-[var(--ink-4)]"
                       : "text-[var(--ink-2)]"
                     }`}>{dayNum}</span>
                   </div>
@@ -523,7 +539,7 @@ export function CalendarGrid({
                             style={{ backgroundColor: platformColor(sourcePlatform) }}
                           />
                         )}
-                        {seg.showLabel ? (seg.isExtension ? `${directCopy.label} · ${seg.name}` : seg.isBlock ? t("calendar.blocked") : seg.name) : ""}
+                        {seg.showLabel ? (seg.isExtension ? `${directCopy.label} · ${seg.name}` : seg.isBlock ? t("calendar.blocked") : barLabel(seg)) : ""}
                       </div>
                     );
                   })}
