@@ -654,11 +654,15 @@ textarea {
 }
 .zf-brand,
 .editorial.zf-brand {
+  /* Ordered so that neighbouring slots differ in hue: consecutive
+     reservation ids land on consecutive slots (see directPaletteIndex),
+     and those are the stays most likely to sit side by side. Pine next
+     to olive - two greens - is exactly what showed up in August. */
   --cal-direct-1: #3F6B4E; /* pine */
-  --cal-direct-2: #2E7A96; /* sea */
-  --cal-direct-3: #6F7431; /* olive */
-  --cal-direct-4: #A8613A; /* clay */
-  --cal-direct-5: #8A5074; /* plum-rose */
+  --cal-direct-2: #A8613A; /* clay */
+  --cal-direct-3: #2E7A96; /* sea */
+  --cal-direct-4: #8A5074; /* plum-rose */
+  --cal-direct-5: #6F7431; /* olive */
   --cal-direct-6: #2A6E69; /* deep teal */
 }
 
