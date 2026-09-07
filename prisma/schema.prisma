@@ -49,6 +49,10 @@ model MagicLoginToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   usedAt    DateTime?
+  // "once": single use, 30 minutes. "family": reusable for a season, for
+  // a relative who should just tap a link and be in - see magic-login.ts.
+  kind       String    @default("once")
+  lastUsedAt DateTime?
   createdAt DateTime @default(now())
 
   @@index([userId, expiresAt])

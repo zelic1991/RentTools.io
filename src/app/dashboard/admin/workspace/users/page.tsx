@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap, type Locale } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 5 — Users & roles sub-route at
 // /dashboard/admin/workspace/users. Migrates the User Management
@@ -83,7 +83,9 @@ export default function AdminUsersPage() {
   const [newPassword, setNewPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [magicLink, setMagicLink] = useState<{ url: string; username: string } | null>(null);
+  const [magicLink, setMagicLink] = useState<{ url: string; username: string; userId: number; kind: "once" | "family" } | null>(null);
+  const [linkLocale, setLinkLocale] = useState<Locale>(locale);
+  const [linkNotice, setLinkNotice] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -150,12 +152,24 @@ export default function AdminUsersPage() {
     window.alert(data?.error || "Impersonation failed");
   };
 
-  const createMagicLink = async (id: number, username: string) => {
+  const createMagicLink = async (id: number, username: string, kind: "once" | "family") => {
     setMagicLink(null);
-    const res = await fetch(`/api/admin/users/${id}/magic-link`, { method: "POST" });
+    setLinkNotice(null);
+    const res = await fetch(`/api/admin/users/${id}/magic-link`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind, locale: linkLocale }),
+    });
     if (!res.ok) { window.alert("Unable to create link"); return; }
     const data = await res.json();
-    setMagicLink({ url: data.url, username });
+    setMagicLink({ url: data.url, username, userId: id, kind });
+  };
+
+  const revokeLinks = async (id: number) => {
+    const res = await fetch(`/api/admin/users/${id}/magic-link`, { method: "DELETE" });
+    if (!res.ok) { window.alert("Unable to revoke links"); return; }
+    setMagicLink(null);
+    setLinkNotice(tr("settings.loginLinkRevoked"));
   };
 
   const isSuperAdmin = role === "superadmin";
@@ -205,14 +219,40 @@ export default function AdminUsersPage() {
         </div>
       )}
 
+      {isSuperAdmin && (
+        <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-[var(--ink-3)]">
+          <label htmlFor="link-locale">{tr("settings.loginLinkLanguage")}</label>
+          <select
+            id="link-locale"
+            value={linkLocale}
+            onChange={(e) => setLinkLocale(e.target.value as Locale)}
+            className="h-8 rounded-md border border-[var(--line-2)] bg-[var(--bg)] px-2 text-xs text-[var(--ink)]"
+          >
+            {(["en", "ru", "de", "fr", "es", "hr"] as const).map((code) => (
+              <option key={code} value={code}>{code.toUpperCase()}</option>
+            ))}
+          </select>
+          {linkNotice && <span className="text-emerald-600">{linkNotice}</span>}
+        </div>
+      )}
+
       {magicLink && (
         <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm">
-          <p className="font-medium text-[var(--ink)]">Einmal-Login-Link für {magicLink.username}</p>
+          <p className="font-medium text-[var(--ink)]">{tr("settings.loginLinkFor", { name: magicLink.username })}</p>
           <div className="mt-2 flex gap-2">
             <input readOnly value={magicLink.url} className="min-w-0 flex-1 rounded-md border border-[var(--line-2)] bg-[var(--bg)] px-2 text-xs text-[var(--ink)]" />
-            <button type="button" onClick={() => void navigator.clipboard.writeText(magicLink.url)} className="rounded-md bg-[var(--m-accent)] px-3 py-1.5 text-xs text-white">Kopieren</button>
+            <button type="button" onClick={() => void navigator.clipboard.writeText(magicLink.url)} className="rounded-md bg-[var(--m-accent)] px-3 py-1.5 text-xs text-white">{tr("common.copy")}</button>
           </div>
-          <p className="mt-1 text-xs text-[var(--ink-4)]">30 Minuten gültig · einmal verwendbar</p>
+          <p className="mt-1 text-xs text-[var(--ink-4)]">
+            {magicLink.kind === "family" ? tr("settings.loginLinkFamilyHint") : tr("settings.loginLinkOnceHint")}
+          </p>
+          <button
+            type="button"
+            onClick={() => void revokeLinks(magicLink.userId)}
+            className="mt-2 rounded-md px-2 py-1 text-xs text-rose-500 hover:bg-rose-500/10"
+          >
+            {tr("settings.loginLinkRevoke", { name: magicLink.username })}
+          </button>
         </div>
       )}
 
@@ -266,9 +306,14 @@ export default function AdminUsersPage() {
                         <div className="flex items-center justify-end gap-0.5">
                           <button
                             type="button"
-                            onClick={() => void createMagicLink(u.id, u.username)}
+                            onClick={() => void createMagicLink(u.id, u.username, "once")}
                             className="rounded-md px-1.5 py-1 text-xs text-[var(--ink-4)] hover:bg-emerald-500/15 hover:text-emerald-500"
-                          >Link</button>
+                          >{tr("settings.loginLinkOnce")}</button>
+                          <button
+                            type="button"
+                            onClick={() => void createMagicLink(u.id, u.username, "family")}
+                            className="rounded-md px-1.5 py-1 text-xs text-[var(--ink-4)] hover:bg-emerald-500/15 hover:text-emerald-500"
+                          >{tr("settings.loginLinkFamily")}</button>
                           <button
                             type="button"
                             onClick={() => impersonate(u.id, u.username)}
