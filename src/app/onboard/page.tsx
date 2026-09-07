@@ -8,7 +8,7 @@ import { MarketingHeader } from "@/components/marketing-header";
 import { useI18n } from "@/lib/i18n/context";
 import { localePath } from "@/lib/i18n/alternates";
 import { buildProtectedFeedUrl } from "@/lib/feed-utils";
-import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 /* ────────────────────────────────────────────────────────────────────
    Types

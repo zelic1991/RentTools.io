@@ -9,7 +9,7 @@ import { PropertyManagersPanel } from "@/components/property-managers-panel";
 import { PropertySwitcher } from "@/components/property-switcher";
 import { PlatformInstructions } from "@/components/platform-instructions";
 import { useI18n } from "@/lib/i18n/context";
-import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import type { CalendarLink, Property, SyncLogEntry } from "@/lib/types";
 
 interface CopyShape {
