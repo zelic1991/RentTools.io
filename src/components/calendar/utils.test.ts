@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { directPaletteIndex, expandDateRange } from "./utils";
+import { assignDirectSlots, directPaletteIndex, expandDateRange } from "./utils";
 
 describe("expandDateRange", () => {
   it("returns a single date when both ends are the same", () => {
@@ -92,5 +92,37 @@ describe("directPaletteIndex", () => {
 
   it("tolerates a zero-size palette", () => {
     expect(directPaletteIndex("anything", 0)).toBe(0);
+  });
+});
+
+describe("assignDirectSlots", () => {
+  it("never gives two neighbouring stays the same slot", () => {
+    // Force collisions: pick four ids that all hash to the same slot.
+    const target = directPaletteIndex("r3", 6);
+    const keys: string[] = [];
+    for (let n = 3; keys.length < 4 && n < 500; n++) {
+      if (directPaletteIndex(`r${n}`, 6) === target) keys.push(`r${n}`);
+    }
+    expect(keys).toHaveLength(4);
+    const slots = assignDirectSlots(keys, 6);
+    for (let i = 1; i < keys.length; i++) {
+      expect(slots.get(keys[i])).not.toBe(slots.get(keys[i - 1]));
+    }
+  });
+
+  it("keeps the hashed slot when there is no collision", () => {
+    const keys = ["r1", "r2", "r3"];
+    const slots = assignDirectSlots(keys, 6);
+    for (const k of keys) expect(slots.get(k)).toBe(directPaletteIndex(k, 6));
+  });
+
+  it("gives a stay that appears twice one slot", () => {
+    const slots = assignDirectSlots(["r7", "r8", "r7"], 6);
+    expect(slots.size).toBe(2);
+  });
+
+  it("stays inside the palette", () => {
+    const slots = assignDirectSlots(["a", "b", "c", "d", "e", "f", "g"], 6);
+    for (const v of slots.values()) { expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThan(6); }
   });
 });
