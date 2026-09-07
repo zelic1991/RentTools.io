@@ -5,7 +5,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { applySeoOverrides } from "@/lib/seo";
 import { getLocale } from "@/lib/i18n/server";
 import { localePath } from "@/lib/i18n/alternates";
-import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import {
   CHANGELOG,
   type ChangelogChange,

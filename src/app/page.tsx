@@ -9,7 +9,7 @@ import { GoogleOneTap } from "@/components/google-one-tap";
 import { JsonLd } from "@/components/json-ld";
 import { MarketingHeader } from "@/components/marketing-header";
 import { getLocale } from "@/lib/i18n/server";
-import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 // Per-path SEO override hook (RT-18.3). The root layout already supplies
 // title / description / OG / canonical defaults; this lets a super-admin

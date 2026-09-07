@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AuthGuard } from "@/components/auth-guard";
 import { useI18n } from "@/lib/i18n/context";
-import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 // RT-25.9 tick 1 — CMS admin shell skeleton. Sidebar + content pane.
 // Sub-routes are added in subsequent ticks; for now only the admin

@@ -3,7 +3,7 @@ import { applySeoOverrides } from "@/lib/seo";
 import { getLocale } from "@/lib/i18n/server";
 import { localizedAlternates } from "@/lib/i18n/alternates";
 import { toOgLocale } from "@/lib/i18n/locale-tags";
-import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 // Per-locale title/description so the SERP entry actually reads as
 // native copy in each market. Title length stays under ~60 chars

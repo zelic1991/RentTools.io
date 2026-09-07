@@ -5,7 +5,7 @@ import { CleaningSchedule } from "@/components/cleaning-schedule";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { SupportFooter } from "@/components/support-footer";
 import { useI18n } from "@/lib/i18n/context";
-import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import { SUPPORTED_LOCALES } from "@/lib/i18n/alternates";
 import type { Property, CalendarLink, DateOverride } from "@/lib/types";
 

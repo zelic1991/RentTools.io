@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import { timeToPercent } from "./utils";
 import type { BarSegment, CalendarBar } from "./types";
 

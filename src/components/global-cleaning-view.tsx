@@ -6,7 +6,7 @@ import { CleaningSchedule, type CleanerAssignmentInfo } from "@/components/clean
 import { PropertySwitcher } from "@/components/property-switcher";
 import { useIncludePotential } from "@/lib/use-include-potential";
 import { useI18n } from "@/lib/i18n/context";
-import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import type { Property, CalendarLink, DateOverride } from "@/lib/types";
 
 interface CopyShape {
