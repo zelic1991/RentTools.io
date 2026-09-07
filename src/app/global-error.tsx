@@ -19,6 +19,9 @@ export default function GlobalError({
           <h1>Something went wrong</h1>
           <p>An unexpected error occurred. We&apos;ve been notified.</p>
           {error.digest && <p style={{ color: "#888", fontFamily: "monospace" }}>Error ID: {error.digest}</p>}
+          {/* Plain anchor on purpose: global-error replaces the root layout,
+              so a full reload is the only safe way back. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/" style={{ color: "#ff385c" }}>Go home</a>
         </div>
       </body>
