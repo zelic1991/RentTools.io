@@ -1270,6 +1270,8 @@ CREATE TABLE IF NOT EXISTS "MagicLoginToken" (
     "userId" INTEGER NOT NULL,
     "expiresAt" DATETIME NOT NULL,
     "usedAt" DATETIME,
+    "kind" TEXT NOT NULL DEFAULT 'once',
+    "lastUsedAt" DATETIME,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "MagicLoginToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
@@ -1279,6 +1281,14 @@ CREATE INDEX IF NOT EXISTS "MagicLoginToken_userId_expiresAt_idx" ON "MagicLogin
   for (const stmt of magicLoginSchema.split(";").map((s) => s.trim()).filter(Boolean)) {
     await prisma.$executeRawUnsafe(stmt);
     console.log("OK:", stmt.substring(0, 60) + "...");
+  }
+  // Family login links (reusable, language-carrying) - see src/lib/magic-login.ts.
+  // Existing rows keep kind = 'once' and stay single-use.
+  for (const migration of [
+    `ALTER TABLE "MagicLoginToken" ADD COLUMN "kind" TEXT NOT NULL DEFAULT 'once'`,
+    `ALTER TABLE "MagicLoginToken" ADD COLUMN "lastUsedAt" DATETIME`,
+  ]) {
+    await runAdditiveMigration(migration);
   }
 
   console.log(`\nSchema pushed to ${config.label} successfully!`);
