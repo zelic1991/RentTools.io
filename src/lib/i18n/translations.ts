@@ -232,6 +232,7 @@ export const translations = {
   "calendar.forcedClosed": { en: "Forced closed", ru: "Принуд. закрыто", de: "Erzwungen gesperrt", fr: "Fermé (forcé)", es: "Cerrado (forzado)", hr: "Ručno zatvoreno" },
   "calendar.open": { en: "Open", ru: "Откр.", de: "Offen", fr: "Ouvert", es: "Abierto", hr: "Otvoreno" },
   "calendar.closed": { en: "Closed", ru: "Закр.", de: "Gesperrt", fr: "Fermé", es: "Cerrado", hr: "Zatvoreno" },
+  "calendar.blocked": { en: "Blocked", ru: "Блок", de: "Blockiert", fr: "Bloqué", es: "Bloqueado", hr: "Blokirano" },
   "calendar.conflict": { en: "Conflict", ru: "Конфликт", de: "Konflikt", fr: "Conflit", es: "Conflicto", hr: "Sukob" },
   "calendar.cleaningQ": { en: "Cleaning?", ru: "Уборка?", de: "Reinigung?", fr: "Ménage ?", es: "¿Limpieza?", hr: "Čišćenje?" },
   "calendar.upcoming": { en: "Upcoming", ru: "Предстоящие", de: "Anstehend", fr: "À venir", es: "Próximas", hr: "Nadolazeće" },

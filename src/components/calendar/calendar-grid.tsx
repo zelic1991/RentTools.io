@@ -451,7 +451,7 @@ export function CalendarGrid({
                     const actionable = !readOnly && Boolean(
                       (seg.isExtension && seg.reservationId && onOpenExtension)
                       || seg.reservationId
-                      || (seg.eventUid && onClaimBar),
+                      || (seg.eventUid && !seg.isBlock && onClaimBar),
                     );
                     return (
                       <div
@@ -479,6 +479,9 @@ export function CalendarGrid({
                           // colour which made manual reservations look
                           // like Airbnb ones.
                           isConflict ? "bg-rose-500 ring-1 ring-rose-500/40" :
+                          // Platform host-block: muted + striped so a
+                          // closure reads as "not bookable", not as a guest.
+                          seg.isBlock ? "bg-slate-400/75 ring-1 ring-slate-300/40 text-white/90" :
                           seg.isExtension ? "bg-slate-600 ring-1 ring-slate-300/40" :
                           seg.platform === "booking" ? "bg-[#003580]" :
                           seg.platform === "airbnb" ? "bg-[var(--channel-airbnb,var(--m-accent))]" :
@@ -493,7 +496,7 @@ export function CalendarGrid({
                           left: leftStyle,
                           width: widthStyle,
                           zIndex: 10,
-                          backgroundImage: seg.isExtension
+                          backgroundImage: seg.isExtension || seg.isBlock
                             ? "repeating-linear-gradient(-45deg, transparent 0 6px, rgba(255,255,255,0.22) 6px 8px)"
                             : undefined,
                         }}
@@ -506,7 +509,7 @@ export function CalendarGrid({
                             style={{ backgroundColor: platformColor(sourcePlatform) }}
                           />
                         )}
-                        {seg.showLabel ? (seg.isExtension ? `${directCopy.label} · ${seg.name}` : seg.name) : ""}
+                        {seg.showLabel ? (seg.isExtension ? `${directCopy.label} · ${seg.name}` : seg.isBlock ? t("calendar.blocked") : seg.name) : ""}
                       </div>
                     );
                   })}

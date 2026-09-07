@@ -61,6 +61,8 @@ interface CalendarEntry {
   linkedEventUid?: string;
   linkedEventPlatform?: string;
   linkedEventRole?: "claim" | "extension";
+  /** Platform host-block, not a guest stay. See CalendarBar.isBlock. */
+  isBlock?: boolean;
 }
 
 export interface CalendarData {
@@ -143,6 +145,13 @@ export function useCalendarData(
       // range disappeared. Composite key fixes that without changing
       // render order (startDate is still the first sort segment).
       const evKey = `${ev.startDate}|${platform}`;
+      // Airbnb marks host-blocks in the summary ("Not available" /
+      // "Blocked"); a guest stay is "Reserved". Booking.com can't be
+      // told apart this way — with "booked dates only" export every stay
+      // is "CLOSED - Not available" — so the flag is Airbnb-only.
+      const isAirbnbBlock = platform === "airbnb" && (
+        ev.summary.includes("Not available") || ev.summary.includes("Blocked")
+      );
       if (!evMap.has(evKey)) {
         evMap.set(evKey, {
           name: ev.summary || "Reserved",
@@ -150,11 +159,9 @@ export function useCalendarData(
           startDate: ev.startDate,
           endDate: ev.endDate,
           eventUid: ev.uid,
+          isBlock: isAirbnbBlock,
         });
       }
-      const isAirbnbBlock = platform === "airbnb" && (
-        ev.summary.includes("Not available") || ev.summary.includes("Blocked")
-      );
       if (!isAirbnbBlock) {
         allBookings.push({ start: ev.startDate, end: ev.endDate, platform, name: ev.summary });
       }
@@ -661,6 +668,7 @@ export function useCalendarData(
         platform: ev.platform,
         reservationId: resId,
         eventUid: ev.eventUid,
+        isBlock: ev.isBlock,
         linkedEventUid: ev.linkedEventUid,
         linkedEventPlatform: ev.linkedEventPlatform,
         linkedEventRole: ev.linkedEventRole,
