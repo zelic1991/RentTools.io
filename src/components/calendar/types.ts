@@ -36,6 +36,10 @@ export interface CalendarBar {
   /** Symmetric: a linked partner abuts on the RIGHT. */
   linkedAfter?: boolean;
   isExtension?: boolean;
+  /** True for a platform host-block ("Airbnb (Not available)" / "Blocked")
+   *  rather than a guest stay. Rendered muted + striped and labelled as a
+   *  block, so a six-month winter closure no longer looks like a guest. */
+  isBlock?: boolean;
   /** Vertical stacking row assigned by the interval-graph coloring
    *  pass in use-calendar-data.ts. 0 = primary row (top of cell), 1 =
    *  stacked below, etc. Computed so that two bars overlapping on any
