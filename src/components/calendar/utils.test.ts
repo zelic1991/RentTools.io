@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { expandDateRange } from "./utils";
+import { directPaletteIndex, expandDateRange } from "./utils";
 
 describe("expandDateRange", () => {
   it("returns a single date when both ends are the same", () => {
@@ -54,5 +54,43 @@ describe("expandDateRange", () => {
     // every night in between, so the popover offers one 10-night
     // reservation instead of ten single-day toggles.
     expect(expandDateRange("2027-08-17", "2027-08-27")).toHaveLength(11);
+  });
+});
+
+describe("directPaletteIndex", () => {
+  it("stays within the palette", () => {
+    for (const key of ["", "a", "Robert", "Gäste aus Polen", "r10", "r11"]) {
+      const i = directPaletteIndex(key, 6);
+      expect(i).toBeGreaterThanOrEqual(0);
+      expect(i).toBeLessThan(6);
+    }
+  });
+
+  it("is deterministic for the same key", () => {
+    expect(directPaletteIndex("Krajci", 6)).toBe(directPaletteIndex("Krajci", 6));
+    expect(directPaletteIndex("r10", 6)).toBe(directPaletteIndex("r10", 6));
+  });
+
+  it("gives back-to-back reservation ids different colours", () => {
+    // Bookings entered one after another get consecutive ids. djb2 makes
+    // the hash of "r7" and "r8" differ by exactly one, so their slots
+    // differ too — the pair most likely to sit side by side on the grid
+    // never shares a colour. (Arbitrary pairs can collide; that is the
+    // price of six slots.)
+    for (const base of [0, 10, 20, 100]) {
+      for (let n = base; n < base + 9; n++) {
+        expect(directPaletteIndex(`r${n}`, 6)).not.toBe(directPaletteIndex(`r${n + 1}`, 6));
+      }
+    }
+  });
+
+  it("uses every slot of the palette", () => {
+    const seen = new Set<number>();
+    for (let n = 1; n <= 36; n++) seen.add(directPaletteIndex(`r${n}`, 6));
+    expect(seen.size).toBe(6);
+  });
+
+  it("tolerates a zero-size palette", () => {
+    expect(directPaletteIndex("anything", 0)).toBe(0);
   });
 });
