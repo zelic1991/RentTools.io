@@ -6,12 +6,12 @@
 // transparently falls back to English, so a half-translated form is
 // always still usable.
 
-export const GUEST_FORM_LOCALES = ["en", "ru", "de", "fr", "es"] as const;
+export const GUEST_FORM_LOCALES = ["en", "ru", "de", "fr", "es", "hr", "pl", "cs", "sk", "hu"] as const;
 export type GuestFormLocale = (typeof GUEST_FORM_LOCALES)[number];
 
 /** Locales the host can translate into — everything except the English
  *  base (which is edited through the normal name / field inputs). */
-export const TRANSLATABLE_LOCALES = ["ru", "de", "fr", "es"] as const;
+export const TRANSLATABLE_LOCALES = ["ru", "de", "fr", "es", "hr", "pl", "cs", "sk", "hu"] as const;
 
 /** Native language names, shown in both the builder tabs and the
  *  guest-facing language picker. */
@@ -21,6 +21,11 @@ export const LOCALE_NATIVE_NAME: Record<GuestFormLocale, string> = {
   de: "Deutsch",
   fr: "Français",
   es: "Español",
+  hr: "Hrvatski",
+  pl: "Polski",
+  cs: "Čeština",
+  sk: "Slovenčina",
+  hu: "Magyar",
 };
 
 export interface FieldTranslation {
@@ -358,6 +363,216 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
       ],
       fullPolicyLabel: "Política de privacidad completa de RentTools",
       sourceLinkLabel: "código fuente en GitHub",
+    },
+  },
+  hr: {
+    greeting: (n) =>
+      `Poštovani ${n}, molimo odgovorite na nekoliko pitanja prije dolaska.`,
+    intro: "Molimo odgovorite na nekoliko pitanja prije dolaska.",
+    titleFallback: "Obrazac prije dolaska",
+    submit: "Pošalji",
+    submitting: "Slanje…",
+    thanks: "Hvala — vaši su odgovori zabilježeni.",
+    submittedOn: (d) => `Poslano ${d}`,
+    selectPlaceholder: "— odaberite —",
+    yes: "Da",
+    no: "Ne",
+    language: "Jezik",
+    submitFailed: "Slanje nije uspjelo",
+    privacy: {
+      title: "Privatnost i obrada podataka",
+      summary:
+        "Koristi se samo za zakonom obveznu prijavu gostiju i vođenje boravka — ne za marketing. Podaci o identitetu šifrirani su pri pohrani i prijenosu.",
+      showDetails: "Detalji",
+      hideDetails: "Sakrij",
+      bullets: [
+        {
+          title: "Tko vidi ove podatke",
+          body: "Domaćin i izrijekom ovlašteni upravitelj nekretnine. Čistačice i RentTools podrška u načinu pomoći nemaju pristup podacima o identitetu. Ništa se ne prodaje niti koristi za oglašavanje.",
+        },
+        {
+          title: "Gdje se čuvaju",
+          body: "Podaci o identitetu šifriraju se u aplikaciji prije pohrane u bazu. Veza s ovim obrascem šifrirana je HTTPS-om. Slike osobnih isprava nisu dio ovog obrasca.",
+        },
+        {
+          title: "Bez praćenja",
+          body: "Na ovoj se stranici ne učitavaju analitički ni oglašivački kolačići. Ako odaberete jezik ili izgled, RentTools može pohraniti samo tu tehničku postavku; sigurni token u adresi povezuje obrazac s rezervacijom.",
+        },
+        {
+          title: "Vaša prava (GDPR)",
+          body: "U svakom trenutku možete od domaćina zatražiti brisanje svojih odgovora ili kontaktirati operatera na support@renttools.io za sva pitanja o zaštiti podataka, uvidu ili pritužbi.",
+        },
+      ],
+      fullPolicyLabel: "Cjelovita izjava o privatnosti RentToolsa",
+      sourceLinkLabel: "Izvorni kod na GitHubu",
+    },
+  },
+  pl: {
+    greeting: (n) =>
+      `Dzień dobry ${n}, prosimy o odpowiedź na kilka pytań przed pobytem.`,
+    intro: "Prosimy o odpowiedź na kilka pytań przed pobytem.",
+    titleFallback: "Formularz przed przyjazdem",
+    submit: "Wyślij",
+    submitting: "Wysyłanie…",
+    thanks: "Dziękujemy — odpowiedzi zostały zapisane.",
+    submittedOn: (d) => `Wysłano ${d}`,
+    selectPlaceholder: "— wybierz —",
+    yes: "Tak",
+    no: "Nie",
+    language: "Język",
+    submitFailed: "Wysyłanie nie powiodło się",
+    privacy: {
+      title: "Prywatność i przetwarzanie danych",
+      summary:
+        "Dane służą wyłącznie do wymaganej prawem rejestracji gości i obsługi pobytu — nie do marketingu. Dane identyfikacyjne są szyfrowane podczas przechowywania i przesyłania.",
+      showDetails: "Szczegóły",
+      hideDetails: "Ukryj",
+      bullets: [
+        {
+          title: "Kto to widzi",
+          body: "Gospodarz i wyraźnie upoważniony zarządca obiektu. Osoby sprzątające oraz wsparcie RentTools w trybie pomocy nie mają dostępu do danych identyfikacyjnych. Nic nie jest sprzedawane ani wykorzystywane do reklam.",
+        },
+        {
+          title: "Gdzie są przechowywane",
+          body: "Dane identyfikacyjne są szyfrowane w aplikacji przed zapisem w bazie. Połączenie z formularzem jest szyfrowane HTTPS. Zdjęcia dokumentów nie są częścią tego formularza.",
+        },
+        {
+          title: "Bez śledzenia",
+          body: "Na tej stronie nie są ładowane pliki cookie analityczne ani reklamowe. Jeśli wybierzesz język lub wygląd, RentTools może zapisać wyłącznie to ustawienie techniczne; bezpieczny token w adresie łączy formularz z rezerwacją.",
+        },
+        {
+          title: "Twoje prawa (RODO)",
+          body: "W każdej chwili możesz poprosić gospodarza o usunięcie swoich odpowiedzi lub skontaktować się z operatorem pod adresem support@renttools.io we wszystkich sprawach dotyczących ochrony danych, dostępu do nich lub skargi.",
+        },
+      ],
+      fullPolicyLabel: "Pełna polityka prywatności RentTools",
+      sourceLinkLabel: "Kod źródłowy na GitHubie",
+    },
+  },
+  cs: {
+    greeting: (n) =>
+      `Dobrý den ${n}, před pobytem prosím odpovězte na několik otázek.`,
+    intro: "Před pobytem prosím odpovězte na několik otázek.",
+    titleFallback: "Formulář před příjezdem",
+    submit: "Odeslat",
+    submitting: "Odesílání…",
+    thanks: "Děkujeme — vaše odpovědi jsme zaznamenali.",
+    submittedOn: (d) => `Odesláno ${d}`,
+    selectPlaceholder: "— vyberte —",
+    yes: "Ano",
+    no: "Ne",
+    language: "Jazyk",
+    submitFailed: "Odeslání se nezdařilo",
+    privacy: {
+      title: "Soukromí a zpracování údajů",
+      summary:
+        "Údaje slouží pouze k zákonem vyžadované evidenci hostů a správě pobytu — nikoli k marketingu. Identifikační údaje jsou šifrovány při uložení i přenosu.",
+      showDetails: "Podrobnosti",
+      hideDetails: "Skrýt",
+      bullets: [
+        {
+          title: "Kdo to vidí",
+          body: "Hostitel a výslovně pověřený správce ubytování. Úklidový personál ani podpora RentTools v režimu pomoci k identifikačním údajům nemají přístup. Nic se neprodává ani nepoužívá k reklamě.",
+        },
+        {
+          title: "Kde jsou uloženy",
+          body: "Identifikační údaje se šifrují v aplikaci před uložením do databáze. Spojení s tímto formulářem je šifrováno pomocí HTTPS. Snímky dokladů nejsou součástí tohoto formuláře.",
+        },
+        {
+          title: "Žádné sledování",
+          body: "Na této stránce se nenačítají analytické ani reklamní soubory cookie. Pokud zvolíte jazyk nebo vzhled, RentTools může uložit pouze toto technické nastavení; bezpečný token v adrese propojuje formulář s rezervací.",
+        },
+        {
+          title: "Vaše práva (GDPR)",
+          body: "Kdykoli můžete hostitele požádat o smazání svých odpovědí nebo kontaktovat provozovatele na support@renttools.io ve všech otázkách ochrany údajů, přístupu k nim či stížnosti.",
+        },
+      ],
+      fullPolicyLabel: "Úplné zásady ochrany soukromí RentTools",
+      sourceLinkLabel: "Zdrojový kód na GitHubu",
+    },
+  },
+  sk: {
+    greeting: (n) =>
+      `Dobrý deň ${n}, pred pobytom prosím odpovedzte na niekoľko otázok.`,
+    intro: "Pred pobytom prosím odpovedzte na niekoľko otázok.",
+    titleFallback: "Formulár pred príchodom",
+    submit: "Odoslať",
+    submitting: "Odosielanie…",
+    thanks: "Ďakujeme — vaše odpovede sme zaznamenali.",
+    submittedOn: (d) => `Odoslané ${d}`,
+    selectPlaceholder: "— vyberte —",
+    yes: "Áno",
+    no: "Nie",
+    language: "Jazyk",
+    submitFailed: "Odoslanie zlyhalo",
+    privacy: {
+      title: "Súkromie a spracovanie údajov",
+      summary:
+        "Údaje slúžia len na zákonom vyžadovanú evidenciu hostí a správu pobytu — nie na marketing. Identifikačné údaje sú šifrované pri uložení aj prenose.",
+      showDetails: "Podrobnosti",
+      hideDetails: "Skryť",
+      bullets: [
+        {
+          title: "Kto to vidí",
+          body: "Hostiteľ a výslovne poverený správca ubytovania. Upratovací personál ani podpora RentTools v režime pomoci nemajú prístup k identifikačným údajom. Nič sa nepredáva ani nepoužíva na reklamu.",
+        },
+        {
+          title: "Kde sú uložené",
+          body: "Identifikačné údaje sa šifrujú v aplikácii pred uložením do databázy. Spojenie s týmto formulárom je šifrované cez HTTPS. Snímky dokladov nie sú súčasťou tohto formulára.",
+        },
+        {
+          title: "Žiadne sledovanie",
+          body: "Na tejto stránke sa nenačítavajú analytické ani reklamné súbory cookie. Ak si zvolíte jazyk alebo vzhľad, RentTools môže uložiť iba toto technické nastavenie; bezpečný token v adrese spája formulár s rezerváciou.",
+        },
+        {
+          title: "Vaše práva (GDPR)",
+          body: "Kedykoľvek môžete požiadať hostiteľa o vymazanie svojich odpovedí alebo kontaktovať prevádzkovateľa na support@renttools.io vo všetkých otázkach ochrany údajov, prístupu k nim či sťažnosti.",
+        },
+      ],
+      fullPolicyLabel: "Úplné zásady ochrany súkromia RentTools",
+      sourceLinkLabel: "Zdrojový kód na GitHube",
+    },
+  },
+  hu: {
+    greeting: (n) =>
+      `Kedves ${n}, kérjük, válaszoljon néhány kérdésre az érkezés előtt.`,
+    intro: "Kérjük, válaszoljon néhány kérdésre az érkezés előtt.",
+    titleFallback: "Érkezés előtti űrlap",
+    submit: "Beküldés",
+    submitting: "Küldés…",
+    thanks: "Köszönjük — válaszait rögzítettük.",
+    submittedOn: (d) => `Beküldve: ${d}`,
+    selectPlaceholder: "— válasszon —",
+    yes: "Igen",
+    no: "Nem",
+    language: "Nyelv",
+    submitFailed: "A beküldés nem sikerült",
+    privacy: {
+      title: "Adatvédelem és adatkezelés",
+      summary:
+        "Az adatokat kizárólag a jogszabály által előírt vendégnyilvántartáshoz és a tartózkodás kezeléséhez használjuk — marketingre nem. A személyazonosító adatok tárolás és továbbítás közben titkosítva vannak.",
+      showDetails: "Részletek",
+      hideDetails: "Elrejtés",
+      bullets: [
+        {
+          title: "Ki látja ezeket",
+          body: "A szállásadó és a kifejezetten felhatalmazott szálláskezelő. A takarítók és a RentTools támogatás segítő módban nem férnek hozzá a személyazonosító adatokhoz. Semmit nem adunk el és nem használunk hirdetésre.",
+        },
+        {
+          title: "Hol tároljuk",
+          body: "A személyazonosító adatokat az alkalmazás titkosítja, mielőtt az adatbázisba kerülnének. Az űrlappal való kapcsolat HTTPS-titkosított. Igazolványképek nem részei ennek az űrlapnak.",
+        },
+        {
+          title: "Nincs nyomkövetés",
+          body: "Ezen az oldalon nem töltődnek be analitikai vagy hirdetési sütik. Ha nyelvet vagy megjelenést választ, a RentTools csak ezt a technikai beállítást tárolhatja; a címben lévő biztonságos token köti az űrlapot a foglaláshoz.",
+        },
+        {
+          title: "Az Ön jogai (GDPR)",
+          body: "Bármikor kérheti a szállásadót válaszai törlésére, vagy megkeresheti az üzemeltetőt a support@renttools.io címen adatvédelemmel, hozzáféréssel vagy panasszal kapcsolatos bármely kérdésben.",
+        },
+      ],
+      fullPolicyLabel: "A RentTools teljes adatvédelmi tájékoztatója",
+      sourceLinkLabel: "Forráskód a GitHubon",
     },
   },
 };
