@@ -86,7 +86,7 @@ describe("guest form chrome copy", () => {
       for (const key of ["intro", "titleFallback", "submit", "thanks", "language"] as const) {
         expect(c[key].trim(), `${locale}.${key}`).not.toBe("");
       }
-      expect(c.greeting("Ana"), locale).toContain("Ana");
+      expect(c.greeting("Ana").trim(), locale).not.toBe("");
       expect(c.privacy.title.trim(), locale).not.toBe("");
       expect(c.privacy.summary.trim(), locale).not.toBe("");
       expect(c.privacy.bullets.length, locale).toBe(GUEST_UI_COPY.en.privacy.bullets.length);
@@ -94,6 +94,28 @@ describe("guest form chrome copy", () => {
         expect(bullet.title.trim(), locale).not.toBe("");
         expect(bullet.body.trim(), locale).not.toBe("");
       }
+    }
+  });
+
+  it("only puts the guest's name in a greeting the language can inflect", () => {
+    // Croatian, Polish and Czech decline a name in direct address, and
+    // Croatian also marks gender ("Poštovani Ana" is wrong for a woman).
+    // A stored booking name carries neither, so those greet without it
+    // rather than guess. Hungarian "Kedves Ana" needs no inflection.
+    for (const locale of ["en", "ru", "de", "fr", "es", "hu"] as const) {
+      expect(GUEST_UI_COPY[locale].greeting("Ana"), locale).toContain("Ana");
+    }
+    for (const locale of ["hr", "pl", "cs", "sk"] as const) {
+      expect(GUEST_UI_COPY[locale].greeting("Ana"), locale).not.toContain("Ana");
+    }
+  });
+
+  it("says plainly that support cannot read identity data while impersonating", () => {
+    // The claim is a security promise; "help mode" does not carry it.
+    for (const locale of GUEST_FORM_LOCALES) {
+      const whoSees = GUEST_UI_COPY[locale].privacy.bullets[0].body;
+      expect(whoSees.length, locale).toBeGreaterThan(120);
+      expect(whoSees, locale).toMatch(/RentTools/);
     }
   });
 

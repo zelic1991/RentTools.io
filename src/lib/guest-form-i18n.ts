@@ -187,7 +187,7 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
       bullets: [
         {
           title: "Who sees this",
-          body: "The host and an explicitly authorised property manager. Cleaners and RentTools support impersonation cannot access the identity payload. Nothing is sold or used for advertising.",
+          body: "The host and an explicitly authorised property manager. Cleaners cannot see identity data, and RentTools support cannot see it either — not even while temporarily signed in as the host to help. Nothing is sold or used for advertising.",
         },
         {
           title: "Where it's stored",
@@ -234,7 +234,7 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
       bullets: [
         {
           title: "Кто видит эти данные",
-          body: "Хозяин и явно уполномоченный управляющий объектом. Уборщики и служба поддержки RentTools в режиме имитации не имеют доступа к идентификационным данным. Данные не продаются и не используются для рекламы.",
+          body: "Хозяин и явно уполномоченный управляющий объектом. Уборщики не видят идентификационные данные, и поддержка RentTools их тоже не видит — даже когда для помощи временно вошла в систему от имени хозяина. Ничего не продаётся и не используется для рекламы.",
         },
         {
           title: "Где хранятся данные",
@@ -281,7 +281,7 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
       bullets: [
         {
           title: "Wer sieht diese Angaben",
-          body: "Der Gastgeber und ein ausdrücklich berechtigter Unterkunftsmanager. Reinigungskräfte und der RentTools-Support im Supportmodus erhalten keinen Zugriff auf die Identitätsdaten. Keine Verwendung für Werbung.",
+          body: "Der Gastgeber und ein ausdrücklich berechtigter Unterkunftsmanager. Reinigungskräfte sehen die Identitätsdaten nicht, und der RentTools-Support sieht sie ebenfalls nicht — auch dann nicht, wenn er zur Hilfe vorübergehend als Gastgeber angemeldet ist. Keine Verwendung für Werbung.",
         },
         {
           title: "Wo werden die Daten gespeichert",
@@ -328,7 +328,7 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
       bullets: [
         {
           title: "Qui voit ces informations",
-          body: "L’hôte et un gestionnaire du logement expressément autorisé. Le personnel de ménage et l’assistance RentTools en mode d’usurpation n’accèdent pas aux données d’identité. Aucune vente ni utilisation publicitaire.",
+          body: "L’hôte et un gestionnaire de logement expressément autorisé. Le personnel de ménage ne voit pas les données d’identité, et le support RentTools ne les voit pas non plus — même lorsqu’il est temporairement connecté en tant qu’hôte pour aider. Rien n’est vendu ni utilisé à des fins publicitaires.",
         },
         {
           title: "Où elles sont stockées",
@@ -375,7 +375,7 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
       bullets: [
         {
           title: "Quién ve estos datos",
-          body: "El anfitrión y un gestor del alojamiento autorizado expresamente. El personal de limpieza y el soporte de RentTools en modo de suplantación no acceden a los datos de identidad. No se venden ni se usan para publicidad.",
+          body: "El anfitrión y un gestor de alojamiento expresamente autorizado. El personal de limpieza no ve los datos de identidad, y el soporte de RentTools tampoco los ve, ni siquiera cuando ha iniciado sesión temporalmente como anfitrión para ayudar. Nada se vende ni se usa para publicidad.",
         },
         {
           title: "Dónde se almacenan",
@@ -395,8 +395,8 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
     },
   },
   hr: {
-    greeting: (n) =>
-      `Poštovani ${n}, molimo odgovorite na nekoliko pitanja prije dolaska.`,
+    greeting: () =>
+      "Dobar dan! Molimo odgovorite na nekoliko pitanja prije dolaska.",
     intro: "Molimo odgovorite na nekoliko pitanja prije dolaska.",
     titleFallback: "Obrazac prije dolaska",
     submit: "Pošalji",
@@ -422,7 +422,7 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
       bullets: [
         {
           title: "Tko vidi ove podatke",
-          body: "Domaćin i izrijekom ovlašteni upravitelj nekretnine. Čistačice i RentTools podrška u načinu pomoći nemaju pristup podacima o identitetu. Ništa se ne prodaje niti koristi za oglašavanje.",
+          body: "Domaćin i izrijekom ovlašteni upravitelj nekretnine. Čistačice ne vide podatke o identitetu, a ne vidi ih ni RentTools podrška — ni onda kada je radi pomoći privremeno prijavljena kao domaćin. Ništa se ne prodaje niti koristi za oglašavanje.",
         },
         {
           title: "Gdje se čuvaju",
@@ -442,8 +442,8 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
     },
   },
   pl: {
-    greeting: (n) =>
-      `Dzień dobry ${n}, prosimy o odpowiedź na kilka pytań przed pobytem.`,
+    greeting: () =>
+      "Dzień dobry! Prosimy o odpowiedź na kilka pytań przed pobytem.",
     intro: "Prosimy o odpowiedź na kilka pytań przed pobytem.",
     titleFallback: "Formularz przed przyjazdem",
     submit: "Wyślij",
@@ -469,7 +469,7 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
       bullets: [
         {
           title: "Kto to widzi",
-          body: "Gospodarz i wyraźnie upoważniony zarządca obiektu. Osoby sprzątające oraz wsparcie RentTools w trybie pomocy nie mają dostępu do danych identyfikacyjnych. Nic nie jest sprzedawane ani wykorzystywane do reklam.",
+          body: "Gospodarz i wyraźnie upoważniony zarządca obiektu. Osoby sprzątające nie widzą danych identyfikacyjnych, nie widzi ich również wsparcie RentTools — nawet wtedy, gdy w celu pomocy jest tymczasowo zalogowane jako gospodarz. Nic nie jest sprzedawane ani wykorzystywane do reklam.",
         },
         {
           title: "Gdzie są przechowywane",
@@ -489,8 +489,8 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
     },
   },
   cs: {
-    greeting: (n) =>
-      `Dobrý den ${n}, před pobytem prosím odpovězte na několik otázek.`,
+    greeting: () =>
+      "Dobrý den! Před pobytem prosím odpovězte na několik otázek.",
     intro: "Před pobytem prosím odpovězte na několik otázek.",
     titleFallback: "Formulář před příjezdem",
     submit: "Odeslat",
@@ -516,7 +516,7 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
       bullets: [
         {
           title: "Kdo to vidí",
-          body: "Hostitel a výslovně pověřený správce ubytování. Úklidový personál ani podpora RentTools v režimu pomoci k identifikačním údajům nemají přístup. Nic se neprodává ani nepoužívá k reklamě.",
+          body: "Hostitel a výslovně pověřený správce ubytování. Úklidový personál identifikační údaje nevidí a nevidí je ani podpora RentTools — a to ani tehdy, když je kvůli pomoci dočasně přihlášena jako hostitel. Nic se neprodává ani nepoužívá k reklamě.",
         },
         {
           title: "Kde jsou uloženy",
@@ -536,8 +536,8 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
     },
   },
   sk: {
-    greeting: (n) =>
-      `Dobrý deň ${n}, pred pobytom prosím odpovedzte na niekoľko otázok.`,
+    greeting: () =>
+      "Dobrý deň! Pred pobytom prosím odpovedzte na niekoľko otázok.",
     intro: "Pred pobytom prosím odpovedzte na niekoľko otázok.",
     titleFallback: "Formulár pred príchodom",
     submit: "Odoslať",
@@ -563,7 +563,7 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
       bullets: [
         {
           title: "Kto to vidí",
-          body: "Hostiteľ a výslovne poverený správca ubytovania. Upratovací personál ani podpora RentTools v režime pomoci nemajú prístup k identifikačným údajom. Nič sa nepredáva ani nepoužíva na reklamu.",
+          body: "Hostiteľ a výslovne poverený správca ubytovania. Upratovací personál identifikačné údaje nevidí a nevidí ich ani podpora RentTools — ani vtedy, keď je kvôli pomoci dočasne prihlásená ako hostiteľ. Nič sa nepredáva ani nepoužíva na reklamu.",
         },
         {
           title: "Kde sú uložené",
@@ -610,7 +610,7 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
       bullets: [
         {
           title: "Ki látja ezeket",
-          body: "A szállásadó és a kifejezetten felhatalmazott szálláskezelő. A takarítók és a RentTools támogatás segítő módban nem férnek hozzá a személyazonosító adatokhoz. Semmit nem adunk el és nem használunk hirdetésre.",
+          body: "A szállásadó és a kifejezetten felhatalmazott szálláskezelő. A takarítók nem látják a személyazonosító adatokat, és a RentTools támogatás sem látja azokat — akkor sem, amikor segítségnyújtás céljából ideiglenesen a szállásadó nevében van bejelentkezve. Semmit nem adunk el és nem használunk hirdetésre.",
         },
         {
           title: "Hol tároljuk",
