@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { GUEST_FIELD_COPY, type GuestFormFieldCopy } from "@/lib/guest-form-fields-i18n";
 import {
   GUEST_UI_COPY,
   LOCALE_NATIVE_NAME,
@@ -74,6 +75,7 @@ export function GuestFormView({
   const langs = useMemo(() => availableLocales(i18n), [i18n]);
   const [lang, setLang] = useState<GuestFormLocale>("en");
   const copy = GUEST_UI_COPY[lang];
+  const fc = GUEST_FIELD_COPY[lang];
 
   const initialAnswers = Object.fromEntries(
     (initialPrecheckin?.customAnswers ?? []).map((answer) => [answer.fieldId, answer.value]),
@@ -278,13 +280,13 @@ export function GuestFormView({
       ) : (
         <form onSubmit={submit} className="space-y-6">
           <section className="rounded-xl border border-[#1e2329] bg-[#11161d] p-4 sm:p-5">
-            <h2 className="text-lg font-semibold">Stay details</h2>
+            <h2 className="text-lg font-semibold">{fc.stayDetails}</h2>
             <p className="mt-1 text-xs text-[#a0a0a8]">
-              Reservation: {checkIn} to {checkOut}. These dates come from your reservation and cannot be changed here.
+              {fc.stayDatesNote(checkIn, checkOut)}
             </p>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="block">
-                <span className="block text-sm font-medium">Expected arrival time *</span>
+                <span className="block text-sm font-medium">{fc.expectedArrival} *</span>
                 <input
                   type="time"
                   required
@@ -297,7 +299,9 @@ export function GuestFormView({
                 />
               </label>
               <ControlledSelect
-                label="Arrival organization"
+                placeholder={copy.selectPlaceholder}
+                optionLabels={fc.optionLabels}
+                label={fc.arrivalOrganization}
                 value={precheckin.arrivalOrganization}
                 options={ARRIVAL_ORGANIZATIONS}
                 onChange={(value) => {
@@ -306,7 +310,9 @@ export function GuestFormView({
                 }}
               />
               <ControlledSelect
-                label="Service type"
+                placeholder={copy.selectPlaceholder}
+                optionLabels={fc.optionLabels}
+                label={fc.serviceType}
                 value={precheckin.serviceType}
                 options={SERVICE_TYPES}
                 onChange={(value) => {
@@ -320,10 +326,10 @@ export function GuestFormView({
           <section className="space-y-4">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="text-lg font-semibold">Travelers</h2>
+                <h2 className="text-lg font-semibold">{fc.travelers}</h2>
                 <p className="text-xs text-[#a0a0a8]">
-                  Enter every person staying, including children.
-                  {maxTravelers !== null ? ` This reservation is for ${maxTravelers}.` : ""}
+                  {fc.travelersHint}
+                  {maxTravelers !== null ? fc.travelersFor(maxTravelers) : ""}
                 </p>
               </div>
               <button
@@ -332,11 +338,13 @@ export function GuestFormView({
                 disabled={maxTravelers !== null && precheckin.travelers.length >= maxTravelers}
                 className="rounded-md border border-[#2c333d] bg-[#161b22] px-3 py-2 text-xs font-medium"
               >
-                Add traveler
+                {fc.addTraveler}
               </button>
             </div>
             {precheckin.travelers.map((traveler, index) => (
               <TravelerEditor
+                copy={fc}
+                placeholder={copy.selectPlaceholder}
                 key={String(traveler.clientId ?? index)}
                 index={index}
                 traveler={traveler}
@@ -350,7 +358,7 @@ export function GuestFormView({
 
           {fields.length > 0 && (
             <section className="space-y-4 rounded-xl border border-[#1e2329] bg-[#11161d] p-4 sm:p-5">
-              <h2 className="text-lg font-semibold">Additional questions</h2>
+              <h2 className="text-lg font-semibold">{fc.additionalQuestions}</h2>
           {fields.map((f) => (
             <FieldInput
               key={f.id}
@@ -359,6 +367,7 @@ export function GuestFormView({
               value={values[f.id]}
               onChange={(v) => set(f.id, v)}
               copy={copy}
+              questionFallback={fc.questionFallback}
             />
           ))}
             </section>
@@ -378,7 +387,7 @@ export function GuestFormView({
             {busy ? copy.submitting : copy.submit}
           </button>
           <p aria-live="polite" className="text-center text-[11px] text-[#707782]">
-            {draftState === "saving" ? "Saving encrypted draft…" : draftState === "saved" ? "Encrypted draft saved" : draftState === "error" ? "Draft could not be saved" : ""}
+            {draftState === "saving" ? fc.draftSaving : draftState === "saved" ? fc.draftSaved : draftState === "error" ? fc.draftError : ""}
           </p>
         </form>
       )}
@@ -394,24 +403,32 @@ function ControlledSelect({
   value,
   options,
   onChange,
+  placeholder,
+  optionLabels,
 }: {
   label: string;
   value: string;
   options: readonly string[];
   onChange: (value: string) => void;
+  placeholder: string;
+  optionLabels: Record<string, string>;
 }) {
   return (
     <label className="block min-w-0">
       <span className="block text-sm font-medium">{label} *</span>
       <select required value={value} onChange={(event) => onChange(event.target.value)} className={STRUCTURED_INPUT_CLASS}>
-        <option value="">Select…</option>
-        {options.map((option) => <option key={option} value={option}>{option.replaceAll("_", " ")}</option>)}
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option key={option} value={option}>{optionLabels[option] ?? option.replaceAll("_", " ")}</option>
+        ))}
       </select>
     </label>
   );
 }
 
 function TravelerEditor({
+  copy: fc,
+  placeholder,
   index,
   traveler,
   canRemove,
@@ -419,6 +436,8 @@ function TravelerEditor({
   onRemove,
   onMarkLead,
 }: {
+  copy: GuestFormFieldCopy;
+  placeholder: string;
   index: number;
   traveler: Record<string, unknown>;
   canRemove: boolean;
@@ -444,28 +463,28 @@ function TravelerEditor({
   const nonEu = requiresNonEuBorderFields(text("residenceCountry"));
   return (
     <fieldset className="rounded-xl border border-[#1e2329] bg-[#11161d] p-4 sm:p-5">
-      <legend className="px-1 text-sm font-semibold">Traveler {index + 1}{isLead ? " · lead guest" : ""}</legend>
+      <legend className="px-1 text-sm font-semibold">{fc.travelerN(index + 1)}{isLead ? fc.leadSuffix : ""}</legend>
       <div className="mb-4 flex flex-wrap gap-2">
-        {!isLead && <button type="button" onClick={onMarkLead} className="rounded-md border border-[#2c333d] px-2.5 py-1.5 text-xs">Make lead guest</button>}
-        {canRemove && <button type="button" onClick={onRemove} className="rounded-md border border-rose-500/30 px-2.5 py-1.5 text-xs text-rose-200">Remove</button>}
+        {!isLead && <button type="button" onClick={onMarkLead} className="rounded-md border border-[#2c333d] px-2.5 py-1.5 text-xs">{fc.makeLead}</button>}
+        {canRemove && <button type="button" onClick={onRemove} className="rounded-md border border-rose-500/30 px-2.5 py-1.5 text-xs text-rose-200">{fc.remove}</button>}
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        {field("firstName", "First name", "text", "given-name")}
-        {field("lastName", "Last name", "text", "family-name")}
-        {field("dateOfBirth", "Date of birth", "date", "bday")}
-        <ControlledSelect label="Gender" value={text("gender")} options={GENDERS} onChange={(value) => onChange("gender", value)} />
-        <ControlledSelect label="Citizenship country" value={text("citizenshipCountry")} options={COUNTRY_CODES} onChange={(value) => onChange("citizenshipCountry", value)} />
-        <ControlledSelect label="Birth country" value={text("birthCountry")} options={COUNTRY_CODES} onChange={(value) => onChange("birthCountry", value)} />
-        {field("birthPlace", "Birth place")}
-        <ControlledSelect label="Residence country" value={text("residenceCountry")} options={COUNTRY_CODES} onChange={(value) => onChange("residenceCountry", value)} />
-        {field("residencePlace", "Residence place")}
-        {field("residenceAddress", "Residence address", "text", "street-address")}
-        <ControlledSelect label="Document type" value={text("documentType")} options={DOCUMENT_TYPES} onChange={(value) => onChange("documentType", value)} />
-        {field("documentNumber", "Document number")}
+        {field("firstName", fc.firstName, "text", "given-name")}
+        {field("lastName", fc.lastName, "text", "family-name")}
+        {field("dateOfBirth", fc.dateOfBirth, "date", "bday")}
+        <ControlledSelect placeholder={placeholder} optionLabels={fc.optionLabels} label={fc.gender} value={text("gender")} options={GENDERS} onChange={(value) => onChange("gender", value)} />
+        <ControlledSelect placeholder={placeholder} optionLabels={fc.optionLabels} label={fc.citizenshipCountry} value={text("citizenshipCountry")} options={COUNTRY_CODES} onChange={(value) => onChange("citizenshipCountry", value)} />
+        <ControlledSelect placeholder={placeholder} optionLabels={fc.optionLabels} label={fc.birthCountry} value={text("birthCountry")} options={COUNTRY_CODES} onChange={(value) => onChange("birthCountry", value)} />
+        {field("birthPlace", fc.birthPlace)}
+        <ControlledSelect placeholder={placeholder} optionLabels={fc.optionLabels} label={fc.residenceCountry} value={text("residenceCountry")} options={COUNTRY_CODES} onChange={(value) => onChange("residenceCountry", value)} />
+        {field("residencePlace", fc.residencePlace)}
+        {field("residenceAddress", fc.residenceAddress, "text", "street-address")}
+        <ControlledSelect placeholder={placeholder} optionLabels={fc.optionLabels} label={fc.documentType} value={text("documentType")} options={DOCUMENT_TYPES} onChange={(value) => onChange("documentType", value)} />
+        {field("documentNumber", fc.documentNumber)}
         {nonEu && (
           <>
             <label className="block min-w-0">
-              <span className="block text-sm font-medium">Border entry date</span>
+              <span className="block text-sm font-medium">{fc.borderEntryDate}</span>
               <input type="date" value={text("borderEntryDate")} onChange={(event) => onChange("borderEntryDate", event.target.value)} className={STRUCTURED_INPUT_CLASS} />
             </label>
             <label className="block min-w-0">
@@ -574,17 +593,19 @@ function FieldInput({
   value,
   onChange,
   copy,
+  questionFallback,
 }: {
   field: FormField;
   resolved: ResolvedField;
   value: unknown;
   onChange: (v: unknown) => void;
   copy: GuestUiCopy;
+  questionFallback: string;
 }) {
   const labelEl = (
     <>
       <span className="block text-sm font-medium text-[#e8e8ec]">
-        {resolved.label || "Question"}
+        {resolved.label || questionFallback}
         {field.required && <span className="ml-1 text-[#ff385c]">*</span>}
       </span>
       {resolved.helpText && (
