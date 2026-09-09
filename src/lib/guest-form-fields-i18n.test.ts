@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   ARRIVAL_ORGANIZATIONS,
@@ -101,6 +103,46 @@ describe("guest form chrome copy", () => {
         GUEST_UI_COPY.en.privacy.summary,
       );
       expect(GUEST_UI_COPY[locale].submit, locale).not.toBe(GUEST_UI_COPY.en.submit);
+    }
+  });
+});
+
+/**
+ * The tests above prove the translations exist. They cannot prove the
+ * component uses them — and that is exactly how "Border entry place"
+ * and "Border entry point" shipped in English with a full set of
+ * translations sitting unused next to them, under a green suite.
+ *
+ * These read the consumer's source instead.
+ */
+describe("the guest form actually consumes the translations", () => {
+  const source = readFileSync(
+    resolve(process.cwd(), "src/components/guest-form-filler.tsx"),
+    "utf8",
+  )
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+
+  it("references every field-copy key", () => {
+    for (const key of KEYS) {
+      expect(source, `fc.${key} is never rendered`).toContain(`fc.${key}`);
+    }
+  });
+
+  it("references the link-state messages", () => {
+    for (const key of ["linkSecurityError", "linkStorageError", "linkInactive"] as const) {
+      expect(source, `copy.${key} is never rendered`).toContain(`copy.${key}`);
+    }
+  });
+
+  it("leaves no English field label hardcoded in the markup", () => {
+    for (const key of KEYS) {
+      const value = GUEST_FIELD_COPY.en[key];
+      if (typeof value !== "string" || value.length < 4) continue;
+      expect(source, `"${value}" is hardcoded instead of using fc.${key}`)
+        .not.toContain(`>${value}<`);
+      expect(source, `"${value}" is hardcoded instead of using fc.${key}`)
+        .not.toContain(`"${value}"`);
     }
   });
 });

@@ -248,21 +248,15 @@ export function GuestFormView({
 
       {linkState === "security-error" ? (
         <div className="rounded-lg border border-rose-500/40 bg-rose-500/5 p-5">
-          <p className="text-sm font-medium text-rose-200">
-            This form is temporarily unavailable while your host completes a security setting. No data was collected.
-          </p>
+          <p className="text-sm font-medium text-rose-200">{copy.linkSecurityError}</p>
         </div>
       ) : linkState === "storage-error" ? (
         <div className="rounded-lg border border-rose-500/40 bg-rose-500/5 p-5">
-          <p className="text-sm font-medium text-rose-200">
-            Your saved data cannot be opened securely right now. Nothing was overwritten. Please contact your host.
-          </p>
+          <p className="text-sm font-medium text-rose-200">{copy.linkStorageError}</p>
         </div>
       ) : linkState === "revoked" || linkState === "expired" ? (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-5">
-          <p className="text-sm font-medium text-amber-200">
-            This secure link is no longer active. Please contact your host for a new one.
-          </p>
+          <p className="text-sm font-medium text-amber-200">{copy.linkInactive}</p>
         </div>
       ) : alreadySubmitted ? (
         <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-5">
@@ -488,11 +482,11 @@ function TravelerEditor({
               <input type="date" value={text("borderEntryDate")} onChange={(event) => onChange("borderEntryDate", event.target.value)} className={STRUCTURED_INPUT_CLASS} />
             </label>
             <label className="block min-w-0">
-              <span className="block text-sm font-medium">Border entry place</span>
+              <span className="block text-sm font-medium">{fc.borderEntryPlace}</span>
               <input value={text("borderEntryPlace")} onChange={(event) => onChange("borderEntryPlace", event.target.value)} className={STRUCTURED_INPUT_CLASS} />
             </label>
             <label className="block min-w-0 sm:col-span-2">
-              <span className="block text-sm font-medium">Border entry point</span>
+              <span className="block text-sm font-medium">{fc.borderEntryPoint}</span>
               <input value={text("borderEntryPoint")} onChange={(event) => onChange("borderEntryPoint", event.target.value)} className={STRUCTURED_INPUT_CLASS} />
             </label>
           </>

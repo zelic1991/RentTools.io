@@ -126,6 +126,10 @@ export interface GuestUiCopy {
   no: string;
   language: string;
   submitFailed: string;
+  /** Shown instead of the form when the secure link cannot be used. */
+  linkSecurityError: string;
+  linkStorageError: string;
+  linkInactive: string;
   privacy: GuestPrivacyCopy;
 }
 
@@ -169,6 +173,11 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
     no: "No",
     language: "Language",
     submitFailed: "Submit failed",
+    linkSecurityError:
+      "This form is temporarily unavailable while your host completes a security setting. No data was collected.",
+    linkStorageError:
+      "Your saved data cannot be opened securely right now. Nothing was overwritten. Please contact your host.",
+    linkInactive: "This secure link is no longer active. Please contact your host for a new one.",
     privacy: {
       title: "Privacy & data handling",
       summary:
@@ -211,6 +220,11 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
     no: "Нет",
     language: "Язык",
     submitFailed: "Не удалось отправить",
+    linkSecurityError:
+      "Эта форма временно недоступна, пока хозяин завершает настройку безопасности. Никакие данные не собраны.",
+    linkStorageError:
+      "Сохранённые данные сейчас нельзя безопасно открыть. Ничего не перезаписано. Свяжитесь с хозяином.",
+    linkInactive: "Эта защищённая ссылка больше не активна. Попросите у хозяина новую.",
     privacy: {
       title: "Конфиденциальность и обработка данных",
       summary:
@@ -253,6 +267,11 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
     no: "Nein",
     language: "Sprache",
     submitFailed: "Senden fehlgeschlagen",
+    linkSecurityError:
+      "Dieses Formular ist vorübergehend nicht verfügbar, während Ihr Gastgeber eine Sicherheitseinstellung abschließt. Es wurden keine Daten erfasst.",
+    linkStorageError:
+      "Ihre gespeicherten Daten können derzeit nicht sicher geöffnet werden. Es wurde nichts überschrieben. Bitte wenden Sie sich an Ihren Gastgeber.",
+    linkInactive: "Dieser sichere Link ist nicht mehr aktiv. Bitte fordern Sie bei Ihrem Gastgeber einen neuen an.",
     privacy: {
       title: "Datenschutz & Datenverarbeitung",
       summary:
@@ -295,6 +314,11 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
     no: "Non",
     language: "Langue",
     submitFailed: "Échec de l'envoi",
+    linkSecurityError:
+      "Ce formulaire est temporairement indisponible pendant que votre hôte finalise un paramètre de sécurité. Aucune donnée n’a été collectée.",
+    linkStorageError:
+      "Vos données enregistrées ne peuvent pas être ouvertes en toute sécurité pour le moment. Rien n’a été écrasé. Veuillez contacter votre hôte.",
+    linkInactive: "Ce lien sécurisé n’est plus actif. Veuillez en demander un nouveau à votre hôte.",
     privacy: {
       title: "Confidentialité et traitement des données",
       summary:
@@ -337,6 +361,11 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
     no: "No",
     language: "Idioma",
     submitFailed: "Error al enviar",
+    linkSecurityError:
+      "Este formulario no está disponible temporalmente mientras su anfitrión completa un ajuste de seguridad. No se recopiló ningún dato.",
+    linkStorageError:
+      "Sus datos guardados no se pueden abrir de forma segura en este momento. No se sobrescribió nada. Póngase en contacto con su anfitrión.",
+    linkInactive: "Este enlace seguro ya no está activo. Solicite uno nuevo a su anfitrión.",
     privacy: {
       title: "Privacidad y tratamiento de datos",
       summary:
@@ -379,6 +408,11 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
     no: "Ne",
     language: "Jezik",
     submitFailed: "Slanje nije uspjelo",
+    linkSecurityError:
+      "Ovaj obrazac trenutačno nije dostupan dok domaćin ne dovrši sigurnosnu postavku. Nikakvi podaci nisu prikupljeni.",
+    linkStorageError:
+      "Vaši spremljeni podaci trenutačno se ne mogu sigurno otvoriti. Ništa nije prebrisano. Obratite se domaćinu.",
+    linkInactive: "Ovaj sigurni link više nije aktivan. Zatražite novi od domaćina.",
     privacy: {
       title: "Privatnost i obrada podataka",
       summary:
@@ -421,6 +455,11 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
     no: "Nie",
     language: "Język",
     submitFailed: "Wysyłanie nie powiodło się",
+    linkSecurityError:
+      "Ten formularz jest chwilowo niedostępny, ponieważ gospodarz kończy ustawienie zabezpieczeń. Nie zebrano żadnych danych.",
+    linkStorageError:
+      "Zapisanych danych nie można teraz bezpiecznie otworzyć. Nic nie zostało nadpisane. Skontaktuj się z gospodarzem.",
+    linkInactive: "Ten bezpieczny link nie jest już aktywny. Poproś gospodarza o nowy.",
     privacy: {
       title: "Prywatność i przetwarzanie danych",
       summary:
@@ -463,6 +502,11 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
     no: "Ne",
     language: "Jazyk",
     submitFailed: "Odeslání se nezdařilo",
+    linkSecurityError:
+      "Tento formulář je dočasně nedostupný, dokud hostitel nedokončí nastavení zabezpečení. Žádné údaje nebyly shromážděny.",
+    linkStorageError:
+      "Uložená data teď nelze bezpečně otevřít. Nic nebylo přepsáno. Kontaktujte prosím hostitele.",
+    linkInactive: "Tento zabezpečený odkaz už není aktivní. Požádejte hostitele o nový.",
     privacy: {
       title: "Soukromí a zpracování údajů",
       summary:
@@ -505,6 +549,11 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
     no: "Nie",
     language: "Jazyk",
     submitFailed: "Odoslanie zlyhalo",
+    linkSecurityError:
+      "Tento formulár je dočasne nedostupný, kým hostiteľ nedokončí nastavenie zabezpečenia. Žiadne údaje neboli zhromaždené.",
+    linkStorageError:
+      "Uložené údaje sa teraz nedajú bezpečne otvoriť. Nič nebolo prepísané. Kontaktujte prosím hostiteľa.",
+    linkInactive: "Tento zabezpečený odkaz už nie je aktívny. Požiadajte hostiteľa o nový.",
     privacy: {
       title: "Súkromie a spracovanie údajov",
       summary:
@@ -547,6 +596,11 @@ export const GUEST_UI_COPY: Record<GuestFormLocale, GuestUiCopy> = {
     no: "Nem",
     language: "Nyelv",
     submitFailed: "A beküldés nem sikerült",
+    linkSecurityError:
+      "Ez az űrlap átmenetileg nem érhető el, amíg a szállásadó be nem fejez egy biztonsági beállítást. Adatokat nem gyűjtöttünk.",
+    linkStorageError:
+      "A mentett adatai most nem nyithatók meg biztonságosan. Semmi nem íródott felül. Kérjük, keresse a szállásadót.",
+    linkInactive: "Ez a biztonságos link már nem aktív. Kérjen újat a szállásadótól.",
     privacy: {
       title: "Adatvédelem és adatkezelés",
       summary:
