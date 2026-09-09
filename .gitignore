@@ -135,3 +135,5 @@ design/
 /mob-*.png
 /screenshot-*.png
 /page-*.png
+# Scratch output from local lint runs — never belongs in a commit.
+.lint-*
