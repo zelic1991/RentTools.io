@@ -1111,7 +1111,7 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
       avgStayNights,
       topPlatform,
     };
-  }, [propertyKpis, buckets]);
+  }, [propertyKpis, buckets, c.directLabel]);
 
   const activePlatforms = useMemo(() => {
     const totals = new Map<string, number>();
