@@ -83,6 +83,18 @@ const COPY: CopyMap<CopyShape> = {
     dataSourcesHelper:
       "El calendario se calcula a partir de sus reservas + eventos iCal, deduplicados. El nombre del alojamiento aparece en cada línea al copiar / imprimir.",
   },
+  hr: {
+    emptyState: "Dodajte nekretninu da vidite raspored čišćenja.",
+    cleaning: "Čišćenje",
+    acrossAllProperties: (count) =>
+      `U svih ${count} ${count === 1 ? "nekretnini" : "nekretnina"}`,
+    allPropertiesLabel: (count) => `Sve nekretnine (${count})`,
+    view: "Prikaz",
+    potentialHelper: "Čišćenja koja su važna samo ako rupu popuni novi gost.",
+    dataSources: "Izvori podataka",
+    dataSourcesHelper:
+      "Raspored se računa iz vaših rezervacija i iCal događaja, bez dupliranja. Nazivi nekretnina pojavljuju se u svakom retku pri kopiranju ili ispisu.",
+  },
 };
 
 // Sidebar carries the View toggle (include-potential) + a Data

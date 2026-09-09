@@ -42,6 +42,11 @@ const COPY: CopyMap<CopyShape> = {
     view: "Vista",
     includePotentialHint: "Limpiezas que solo importan si un huésped reserva el hueco intermedio.",
   },
+  hr: {
+    cleaning: "Čišćenje",
+    view: "Prikaz",
+    includePotentialHint: "Čišćenja koja su važna samo ako rupu popuni novi gost.",
+  },
 };
 
 // View / display options live in the sidebar so they sit alongside the

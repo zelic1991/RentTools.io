@@ -27,6 +27,10 @@ const RESET_COPY: CopyMap<{ title: string; description: string }> = {
     title: "Restablecer contraseña",
     description: "Restablezca la contraseña de su cuenta RentTools con un código enviado a su correo.",
   },
+  hr: {
+    title: "Ponovno postavljanje lozinke",
+    description: "Postavite novu lozinku za svoj RentTools račun pomoću koda poslanog na e-mail.",
+  },
 };
 
 export async function generateMetadata(): Promise<Metadata> {

@@ -14,6 +14,7 @@ const DAYS_LABEL: CopyMap<(n: number) => string> = {
   de: (n) => (n === 1 ? "Tag" : "Tage"),
   fr: (n) => (n === 1 ? "jour" : "jours"),
   es: (n) => (n === 1 ? "día" : "días"),
+  hr: (n) => (n === 1 ? "dan" : "dana"),
 };
 
 export function ConflictBanner({ conflicts }: ConflictBannerProps) {

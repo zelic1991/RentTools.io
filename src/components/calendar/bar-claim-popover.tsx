@@ -68,6 +68,16 @@ const COPY: CopyMap<CopyShape> = {
     save: "Guardar",
     saving: "Guardando…",
   },
+  hr: {
+    heading: "Imenujte ovu rezervaciju",
+    body: "Ova je rezervacija stigla s iCal-a. Dodajte ime gosta da se pojavi na vašem popisu.",
+    guestNameLabel: "Ime gosta",
+    guestNamePlaceholder: "Ivana Horvat",
+    defaultGuestFallback: "Gost",
+    cancel: "Odustani",
+    save: "Spremi",
+    saving: "Spremanje…",
+  },
 };
 
 export interface ClaimableBar {

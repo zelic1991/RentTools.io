@@ -122,6 +122,24 @@ const COPY: CopyMap<CopyShape> = {
     close: "Cerrar",
     dateLocale: "es-ES",
   },
+  hr: {
+    direct: "Izravno",
+    heading: "Izravno produženje",
+    connectedTo: (platform) => `Povezano s ${platform}`,
+    body: (platform) =>
+      `Ova su noćenja dodana izravno u RentToolsu uz rezervaciju s platforme ${platform}.`,
+    openDetails: "Otvori detalje rezervacije",
+    cancelExtension: "Otkaži izravno produženje",
+    confirmHeading: "Ukloniti ovaj izravni dio?",
+    confirmBody: (range, platform) =>
+      `${range} i svi podaci vezani uz ovaj izravni dio bit će uklonjeni. Izvorna rezervacija s platforme ${platform} ostaje u kalendaru.`,
+    keepExtension: "Zadrži produženje",
+    removeDirectDates: "Ukloni izravne datume",
+    removing: "Uklanjanje…",
+    failed: "Otkazivanje izravnog produženja nije uspjelo. Pokušajte ponovno.",
+    close: "Zatvori",
+    dateLocale: "hr-HR",
+  },
 };
 
 function platformName(platform: string): string {

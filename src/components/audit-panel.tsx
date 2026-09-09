@@ -14,6 +14,7 @@ const COPY: CopyMap<CopyShape> = {
   de: { dateLocale: "de-DE" },
   fr: { dateLocale: "fr-FR" },
   es: { dateLocale: "es-ES" },
+  hr: { dateLocale: "hr" },
 };
 
 interface AuditEntry {

@@ -12,6 +12,7 @@ const DIRECT_COPY: CopyMap<{ label: string; connected: (platform: string) => str
   de: { label: "Direkt", connected: (p) => `Mit ${p} verbunden`, open: "Verlängerungsaktionen öffnen" },
   fr: { label: "Direct", connected: (p) => `Liée à ${p}`, open: "Ouvrir les actions de prolongation" },
   es: { label: "Directa", connected: (p) => `Conectada con ${p}`, open: "Abrir acciones de ampliación" },
+  hr: { label: "Izravno", connected: (p) => `Povezano s ${p}`, open: "Otvori radnje produženja" },
 };
 
 function platformName(platform: string): string {

@@ -16,6 +16,7 @@ const COPY: CopyMap<CopyShape> = {
   de: { property: "Unterkunft", all: "Alle" },
   fr: { property: "Logement", all: "Tous" },
   es: { property: "Alojamiento", all: "Todos" },
+  hr: { property: "Nekretnina", all: "Sve" },
 };
 
 interface PropertySwitcherProps {

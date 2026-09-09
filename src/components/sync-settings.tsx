@@ -212,6 +212,40 @@ const COPY: CopyMap<CopyShape> = {
     hubNote:
       "Mantenga RentTools como su único punto central. Conecte cada plataforma aquí — y desactive los enlaces de calendario que haya creado directamente entre plataformas (p. ej. Airbnb → Booking). Cuando todas las plataformas se sincronizan solo a través de RentTools, cada reserva se cuenta una vez. Si las plataformas también se sincronizan entre sí, la misma reserva da vueltas en bucle y puede aparecer como una reserva doble.",
   },
+  hr: {
+    save: "Spremi",
+    cancel: "Odustani",
+    rename: "Preimenuj",
+    platformName: "Naziv platforme",
+    custom: "vlastita",
+    remove: "Ukloni",
+    draftImportHint: "Prvo imenujte platformu da dobijete njezin uvozni URL.",
+    addAnother: "Dodaj još jednu platformu",
+    daysShort: (n) => (n !== 1 ? "dana" : "dan"),
+    nightsShort: (n) => (n !== 1 ? "noćenja" : "noćenje"),
+    monthsShort: "mj.",
+    feedTokenTitle: "Token za pristup feedu",
+    feedTokenDesc:
+      "Zaštićeni URL feeda omogućuje odobrenim vanjskim servisima čitanje objedinjenog kalendara ove nekretnine u iCal formatu. Token držite privatnim.",
+    feedTokenActiveNote:
+      "Vaši su feedovi zaštićeni privatnim tokenom. Zamjena poništava stari URL — novi zalijepite svugdje gdje se koristi.",
+    feedTokenPublicNote:
+      "Ovaj stariji feed još nije zaštićen. Stvorite token prije dijeljenja.",
+    rotate: "Zamijeni",
+    generateToken: "Stvori token",
+    dangerZone: "Opasna zona",
+    dangerZoneDesc:
+      "Brisanje ove nekretnine uklanja sve njezine rezervacije, goste, dokumente putovnica, zapise sinkronizacije i iCal veze. To se ne može poništiti.",
+    confirmDelete: (name) =>
+      `Obrisati nekretninu „${name}”? Time se uklanjaju sve rezervacije i povezani podaci. To se ne može poništiti.`,
+    deleteProperty: "Obriši nekretninu",
+    dateLocale: "hr-HR",
+    secCalendars: "Kalendari",
+    secStayRules: "Pravila boravka",
+    secAccess: "Pristup i dijeljenje",
+    hubNote:
+      "Neka RentTools ostane vaše jedino čvorište. Ovdje povežite svaku platformu — i isključite kalendarske veze koje ste postavili izravno između platformi (npr. Airbnb → Booking). Kad se sve platforme sinkroniziraju samo preko RentToolsa, svaka se rezervacija broji jednom. Ako se platforme sinkroniziraju i međusobno, ista se rezervacija vraća u krug i može izgledati kao lažna dvostruka rezervacija.",
+  },
 };
 
 interface TestResult {

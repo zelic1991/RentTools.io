@@ -74,6 +74,14 @@ const HINT_COPY: CopyMap<HintCopy> = {
     after:
       ". Una vez configurado, aquí aparecerá un enlace para compartir en cada reserva.",
   },
+  hr: {
+    title: "Savjet — obrazac prije dolaska.",
+    before:
+      "Obrazac za goste (podaci iz putovnice, vrijeme dolaska, pitanja) postavljate na",
+    link: "stranici obrasca prije dolaska",
+    after:
+      ". Nakon postavljanja ovdje se za svaku rezervaciju pojavi link za dijeljenje.",
+  },
 };
 
 interface LogEntry {

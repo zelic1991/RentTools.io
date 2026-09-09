@@ -54,6 +54,14 @@ const COPY: CopyMap<CopyShape> = {
     selectCleaner: "Seleccionar personal…",
     add: "Añadir",
   },
+  hr: {
+    cleaners: "Čistačice",
+    remove: "Ukloni",
+    noneAssigned: "Još nijedna čistačica nije dodijeljena.",
+    noneAvailable: "Nema dostupnih računa čistačica",
+    selectCleaner: "Odaberite čistačicu…",
+    add: "Dodaj",
+  },
 };
 
 interface Assignment {

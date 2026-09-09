@@ -233,6 +233,34 @@ const COPY: CopyMap<CopyShape> = {
     hubTip:
       "Consejo: conecte cada plataforma a RentTools y desactive los enlaces de calendario que haya creado directamente entre plataformas. Cuando RentTools es el único punto central, cada reserva se cuenta una sola vez — si las plataformas también se sincronizan entre sí, la misma reserva da vueltas en bucle y parece una reserva doble.",
   },
+  hr: {
+    step1Title: "Nazovite svoju prvu nekretninu",
+    step1Body:
+      "Samo oznaka za vas — poslije je možete preimenovati. Zatim povezujemo barem jedan kalendar.",
+    step1Placeholder: "npr. Apartman Zalazak",
+    step1Continue: "Nastavi →",
+    step1Creating: "Stvaranje…",
+    step1Sample: "Ili isprobajte primjer nekretnine →",
+    step2TitlePrefix: "Povežite kalendar s „",
+    step2TitleSuffix: "”",
+    step2Body:
+      "Zalijepite iCal izvozni URL s bilo koje platforme na kojoj oglašavate. Zatim naš URL kopirate natrag k njima — stvaramo ga čim spremite.",
+    customFallback: "Vlastita platforma",
+    customNamePlaceholder: "Naziv platforme",
+    test: "Testiraj",
+    save: "Spremi",
+    connected: "Povezano",
+    pasteBackPrefix: "Zalijepite natrag u ",
+    pasteBackSuffix: ":",
+    copy: "Kopiraj",
+    copied: "Kopirano",
+    addAnotherPlatform: "Dodaj još jednu platformu",
+    notListing: "Ne oglašavate nigdje?",
+    manualReservationLink: "Dodajte ručnu rezervaciju →",
+    finish: "Nastavi na pregled →",
+    hubTip:
+      "Savjet: povežite svaku platformu s RentToolsom i isključite kalendarske veze koje ste postavili izravno između platformi. Kad je RentTools jedino čvorište, svaka se rezervacija broji jednom — međusobno povezane platforme vraćaju istu rezervaciju u krug i to izgleda kao dvostruka rezervacija.",
+  },
 };
 
 function clientSlug(raw: string): string {

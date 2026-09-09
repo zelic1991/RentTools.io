@@ -102,6 +102,22 @@ const COPY: CopyMap<CopyShape> = {
     edit: "Editar",
     remove: "Eliminar",
   },
+  hr: {
+    nameAndBodyRequired: "Naziv i tekst su obavezni",
+    confirmDelete: "Obrisati ovaj predložak?",
+    title: "Predlošci poruka",
+    newTemplate: "Novi predložak",
+    namePlaceholder: "Naziv predloška",
+    subjectPlaceholder: "Predmet (nije obavezno)",
+    bodyPlaceholder: "Tekst poruke",
+    variables: "Varijable:",
+    preview: "Pregled",
+    cancel: "Odustani",
+    save: "Spremi",
+    empty: "Još nema predložaka.",
+    edit: "Uredi",
+    remove: "Obriši",
+  },
 };
 
 interface MessageTemplate {

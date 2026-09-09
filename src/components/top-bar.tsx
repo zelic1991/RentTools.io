@@ -170,6 +170,33 @@ const COPY: CopyMap<CopyShape> = {
     refreshingAll: "Actualizando…",
     refreshAllDone: "Calendarios actualizados",
   },
+  hr: {
+    tabDashboard: "Pregled",
+    tabCalendar: "Kalendar",
+    tabCleaning: "Čišćenje",
+    tabReports: "Izvještaji",
+    tabProperty: "Nekretnina",
+    allProperties: "Sve nekretnine",
+    dashboardAll: "Pregled (sve nekretnine)",
+    countLabel: (resCount, guestCount) =>
+      `${resCount} ${resCount === 1 ? "rezervacija" : resCount < 5 ? "rezervacije" : "rezervacija"}, ${guestCount} ${guestCount === 1 ? "gost" : guestCount < 5 ? "gosta" : "gostiju"}`,
+    addProperty: "Dodaj nekretninu",
+    searchGuests: "Traži goste",
+    searchGuestsTitle: "Traži goste (⌘K)",
+    searchPlaceholder: "Ime, putovnica, država…",
+    closeSearch: "Zatvori pretragu",
+    searching: "Traženje...",
+    noMatches: "Nema rezultata",
+    userMenu: "Korisnički izbornik",
+    personalAccount: "Moj račun",
+    theme: "Izgled",
+    language: "Jezik",
+    admin: "Administracija",
+    syncTasks: "Zadaci sinkronizacije",
+    refreshAll: "Osvježi sve kalendare",
+    refreshingAll: "Osvježavanje…",
+    refreshAllDone: "Kalendari osvježeni",
+  },
 };
 
 export type AppView = "dashboard" | "calendar" | "cleaning" | "sync" | "guest-form" | "guests" | "settings" | "tasks" | "reports" | "profile";

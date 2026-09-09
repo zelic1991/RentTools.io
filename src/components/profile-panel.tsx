@@ -48,6 +48,13 @@ const COPY: CopyMap<CopyShape> = {
     setPasswordHint:
       "Inició sesión con Google. Establezca una contraseña para iniciar sesión también con su correo y contraseña.",
   },
+  hr: {
+    dateLocale: "hr",
+    subtitle: "Osobni podaci, lozinka i aktivnost.",
+    setPassword: "Postavi lozinku",
+    setPasswordHint:
+      "Prijavili ste se Googleom. Postavite lozinku da se možete prijaviti i e-mailom i lozinkom.",
+  },
 };
 
 interface ProfileUser {

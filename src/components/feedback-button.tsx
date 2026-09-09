@@ -127,6 +127,24 @@ const COPY: CopyMap<CopyShape> = {
     send: "Enviar",
     sending: "Enviando…",
   },
+  hr: {
+    trigger: "Povratna informacija",
+    triggerAria: "Pošalji povratnu informaciju",
+    heading: "Pošaljite povratnu informaciju",
+    subtitle: "Što vam je na umu? Greška, funkcija koja nedostaje ili lijepa riječ.",
+    close: "Zatvori",
+    successTitle: "Hvala — primljeno.",
+    successBody: "Održavatelj čita svaku poruku.",
+    messageLabel: "Poruka",
+    messagePlaceholder: "Što radi, što ne radi, što nedostaje…",
+    emailLabel: "E-mail (nije obavezno)",
+    emailPlaceholder: "Ako želite odgovor",
+    networkError: "Greška u vezi",
+    couldntSend: (s) => `Slanje nije uspjelo (${s}). Pokušajte za koji trenutak.`,
+    cancel: "Odustani",
+    send: "Pošalji",
+    sending: "Slanje…",
+  },
 };
 
 type SubmitState =

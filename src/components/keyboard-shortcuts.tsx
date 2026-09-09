@@ -19,6 +19,7 @@ const COPY: CopyMap<CopyShape> = {
   de: { title: "Tastenkürzel" },
   fr: { title: "Raccourcis clavier" },
   es: { title: "Atajos de teclado" },
+  hr: { title: "Tipkovni prečaci" },
 };
 
 const SHORTCUTS: Shortcut[] = [
