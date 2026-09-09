@@ -49,6 +49,54 @@ describe("guest form field copy", () => {
     }
   });
 
+  it("inflects the guest count, one language at a time", () => {
+    // The live form read "Ova je rezervacija za 2 osoba" until a smoke
+    // test on a real share link showed it. Three different rules, and
+    // 21/22 is where they part company - so every one is spelled out.
+    const at = (loc: "hr" | "pl" | "cs" | "sk" | "de" | "fr" | "es", n: number) =>
+      GUEST_FIELD_COPY[loc].travelersFor(n).trim();
+
+    // Croatian: last digit decides, teens excepted. 21 goes back to the
+    // singular, 22 to the paucal.
+    expect(at("hr", 1)).toBe("Ova je rezervacija za 1 osobu.");
+    expect(at("hr", 2)).toBe("Ova je rezervacija za 2 osobe.");
+    expect(at("hr", 5)).toBe("Ova je rezervacija za 5 osoba.");
+    expect(at("hr", 11)).toBe("Ova je rezervacija za 11 osoba.");
+    expect(at("hr", 21)).toBe("Ova je rezervacija za 21 osobu.");
+    expect(at("hr", 22)).toBe("Ova je rezervacija za 22 osobe.");
+
+    // Polish: "dla" governs the genitive, so there is no paucal at all
+    // and no ends-in-digit rule. Only one is different.
+    expect(at("pl", 1)).toBe("Ta rezerwacja jest dla 1 osoby.");
+    expect(at("pl", 2)).toBe("Ta rezerwacja jest dla 2 osób.");
+    expect(at("pl", 5)).toBe("Ta rezerwacja jest dla 5 osób.");
+    expect(at("pl", 11)).toBe("Ta rezerwacja jest dla 11 osób.");
+    expect(at("pl", 21)).toBe("Ta rezerwacja jest dla 21 osób.");
+    expect(at("pl", 22)).toBe("Ta rezerwacja jest dla 22 osób.");
+
+    // Czech: 1 / 2-4 / rest, and 21 stays with the rest.
+    expect(at("cs", 1)).toBe("Tato rezervace je pro 1 osobu.");
+    expect(at("cs", 2)).toBe("Tato rezervace je pro 2 osoby.");
+    expect(at("cs", 5)).toBe("Tato rezervace je pro 5 osob.");
+    expect(at("cs", 11)).toBe("Tato rezervace je pro 11 osob.");
+    expect(at("cs", 21)).toBe("Tato rezervace je pro 21 osob.");
+    expect(at("cs", 22)).toBe("Tato rezervace je pro 22 osob.");
+
+    // Slovak: same rule, different genitive plural.
+    expect(at("sk", 1)).toBe("Táto rezervácia je pre 1 osobu.");
+    expect(at("sk", 2)).toBe("Táto rezervácia je pre 2 osoby.");
+    expect(at("sk", 5)).toBe("Táto rezervácia je pre 5 osôb.");
+    expect(at("sk", 11)).toBe("Táto rezervácia je pre 11 osôb.");
+    expect(at("sk", 21)).toBe("Táto rezervácia je pre 21 osôb.");
+    expect(at("sk", 22)).toBe("Táto rezervácia je pre 22 osôb.");
+
+    // The three that only need singular versus plural.
+    expect(at("de", 1)).toBe("Diese Buchung ist für 1 Person.");
+    expect(at("de", 3)).toBe("Diese Buchung ist für 3 Personen.");
+    expect(at("fr", 1)).toBe("Cette réservation est pour 1 personne.");
+    expect(at("es", 1)).toBe("Esta reserva es para 1 persona.");
+  });
+
   it("labels every eVisitor option value, so no guest sees a raw code", () => {
     const values = [...GENDERS, ...DOCUMENT_TYPES, ...ARRIVAL_ORGANIZATIONS, ...SERVICE_TYPES];
     for (const locale of GUEST_FORM_LOCALES) {

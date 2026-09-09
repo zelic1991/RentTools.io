@@ -1,3 +1,4 @@
+import { csPlural, hrPlural } from "@/lib/i18n/translations";
 import type { GuestFormLocale } from "@/lib/guest-form-i18n";
 
 /**
@@ -163,7 +164,7 @@ export const GUEST_FIELD_COPY: Record<GuestFormLocale, GuestFormFieldCopy> = {
     serviceType: "Art der Leistung",
     travelers: "Reisende",
     travelersHint: "Bitte tragen Sie jede übernachtende Person ein, auch Kinder.",
-    travelersFor: (n) => ` Diese Buchung ist für ${n} Personen.`,
+    travelersFor: (n) => ` Diese Buchung ist für ${n} ${n === 1 ? "Person" : "Personen"}.`,
     addTraveler: "Reisenden hinzufügen",
     travelerN: (i) => `Reisende Person ${i}`,
     leadSuffix: " · Hauptgast",
@@ -212,7 +213,7 @@ export const GUEST_FIELD_COPY: Record<GuestFormLocale, GuestFormFieldCopy> = {
     serviceType: "Type de service",
     travelers: "Voyageurs",
     travelersHint: "Indiquez chaque personne qui séjourne, enfants compris.",
-    travelersFor: (n) => ` Cette réservation est pour ${n} personnes.`,
+    travelersFor: (n) => ` Cette réservation est pour ${n} ${n === 1 ? "personne" : "personnes"}.`,
     addTraveler: "Ajouter un voyageur",
     travelerN: (i) => `Voyageur ${i}`,
     leadSuffix: " · voyageur principal",
@@ -261,7 +262,7 @@ export const GUEST_FIELD_COPY: Record<GuestFormLocale, GuestFormFieldCopy> = {
     serviceType: "Tipo de servicio",
     travelers: "Viajeros",
     travelersHint: "Indique a todas las personas que se alojan, incluidos los niños.",
-    travelersFor: (n) => ` Esta reserva es para ${n} personas.`,
+    travelersFor: (n) => ` Esta reserva es para ${n} ${n === 1 ? "persona" : "personas"}.`,
     addTraveler: "Añadir viajero",
     travelerN: (i) => `Viajero ${i}`,
     leadSuffix: " · huésped principal",
@@ -310,7 +311,8 @@ export const GUEST_FIELD_COPY: Record<GuestFormLocale, GuestFormFieldCopy> = {
     serviceType: "Vrsta usluge",
     travelers: "Putnici",
     travelersHint: "Upišite svaku osobu koja boravi, uključujući djecu.",
-    travelersFor: (n) => ` Ova je rezervacija za ${n} osoba.`,
+    travelersFor: (n) =>
+      ` Ova je rezervacija za ${n} ${hrPlural(n, "osobu", "osobe", "osoba")}.`,
     addTraveler: "Dodaj putnika",
     travelerN: (i) => `Putnik ${i}`,
     leadSuffix: " · nositelj rezervacije",
@@ -359,7 +361,9 @@ export const GUEST_FIELD_COPY: Record<GuestFormLocale, GuestFormFieldCopy> = {
     serviceType: "Rodzaj usługi",
     travelers: "Podróżni",
     travelersHint: "Wpisz każdą nocującą osobę, również dzieci.",
-    travelersFor: (n) => ` Ta rezerwacja jest dla ${n} osób.`,
+    // "dla" governs the genitive, so only one is different: dla 1 osoby,
+    // dla 2 / 5 / 21 / 22 osób. No paucal here.
+    travelersFor: (n) => ` Ta rezerwacja jest dla ${n} ${n === 1 ? "osoby" : "osób"}.`,
     addTraveler: "Dodaj podróżnego",
     travelerN: (i) => `Podróżny ${i}`,
     leadSuffix: " · gość główny",
@@ -408,7 +412,8 @@ export const GUEST_FIELD_COPY: Record<GuestFormLocale, GuestFormFieldCopy> = {
     serviceType: "Druh služby",
     travelers: "Cestující",
     travelersHint: "Uveďte každou ubytovanou osobu, včetně dětí.",
-    travelersFor: (n) => ` Tato rezervace je pro ${n} osob.`,
+    travelersFor: (n) =>
+      ` Tato rezervace je pro ${n} ${csPlural(n, "osobu", "osoby", "osob")}.`,
     addTraveler: "Přidat cestujícího",
     travelerN: (i) => `Cestující ${i}`,
     leadSuffix: " · hlavní host",
@@ -457,7 +462,8 @@ export const GUEST_FIELD_COPY: Record<GuestFormLocale, GuestFormFieldCopy> = {
     serviceType: "Druh služby",
     travelers: "Cestujúci",
     travelersHint: "Uveďte každú ubytovanú osobu vrátane detí.",
-    travelersFor: (n) => ` Táto rezervácia je pre ${n} osôb.`,
+    travelersFor: (n) =>
+      ` Táto rezervácia je pre ${n} ${csPlural(n, "osobu", "osoby", "osôb")}.`,
     addTraveler: "Pridať cestujúceho",
     travelerN: (i) => `Cestujúci ${i}`,
     leadSuffix: " · hlavný hosť",

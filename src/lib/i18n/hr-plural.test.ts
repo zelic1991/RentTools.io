@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hrPlural } from "./translations";
+import { csPlural, hrPlural } from "./translations";
 
 const res = (n: number) => hrPlural(n, "rezervacija", "rezervacije", "rezervacija");
 
@@ -39,5 +39,28 @@ describe("hrPlural", () => {
   it("ignores the sign", () => {
     expect(hrPlural(-1, "one", "few", "many")).toBe("one");
     expect(hrPlural(-3, "one", "few", "many")).toBe("few");
+  });
+});
+describe("csPlural", () => {
+  it("splits at 1, then 2-4, then the rest", () => {
+    expect(csPlural(1, "one", "few", "many")).toBe("one");
+    for (const n of [2, 3, 4]) expect(csPlural(n, "one", "few", "many"), String(n)).toBe("few");
+    for (const n of [0, 5, 11, 12, 100]) expect(csPlural(n, "one", "few", "many"), String(n)).toBe("many");
+  });
+
+  it("does not send 21 back to the singular, the way Croatian does", () => {
+    // The difference that makes this a second function rather than a
+    // reuse of hrPlural. Polish is a third case again and is handled at
+    // the call site - see the guest-count tests.
+    expect(csPlural(21, "osobu", "osoby", "osob")).toBe("osob");
+    expect(hrPlural(21, "osobu", "osobe", "osoba")).toBe("osobu");
+    expect(csPlural(22, "osobu", "osoby", "osob")).toBe("osob");
+    expect(hrPlural(22, "osobu", "osobe", "osoba")).toBe("osobe");
+  });
+
+  it("gets the guest-count sentence right for Czech and Slovak", () => {
+    expect(csPlural(1, "osobu", "osoby", "osob")).toBe("osobu");
+    expect(csPlural(2, "osobu", "osoby", "osob")).toBe("osoby");
+    expect(csPlural(6, "osobu", "osoby", "osob")).toBe("osob");
   });
 });

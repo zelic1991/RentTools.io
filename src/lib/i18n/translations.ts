@@ -21,9 +21,18 @@ export const LOCALE_FALLBACK: Partial<Record<Locale, Locale>> = { hr: "de" };
  * until something is there. An empty string counts as missing.
  */
 /**
- * Croatian noun form for a count. The rule is by last digit, with the
+ * Croatian noun form for a count. The rule goes by last digit, with the
  * teens as the exception: 1, 21, 31 take the singular; 2-4, 22-24 the
  * paucal; everything else - including 0 and 11-14 - the genitive plural.
+ *
+ * Croatian only. The other Slavic languages here differ, and treating
+ * them as one family is how "dla 21 osoby" reached the live form:
+ *   - Czech and Slovak split at 1 / 2-4 / rest with no ends-in-digit
+ *     rule at all (csPlural).
+ *   - Polish has a paucal in the nominative, but a phrase that governs
+ *     the genitive - "dla {n} osób" - takes the same form for 2, 5, 21
+ *     and 22 alike. Sentences like that need a plain singular/plural
+ *     split at the call site, not this function.
  *
  * Words whose paucal and genitive plural coincide (dan/dana,
  * noć/noći) can pass the same string twice.
@@ -34,6 +43,18 @@ export function hrPlural(n: number, one: string, few: string, many: string): str
   const mod100 = abs % 100;
   if (mod10 === 1 && mod100 !== 11) return one;
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
+/**
+ * Noun form for a count in Czech and Slovak: 1, then 2-4, then
+ * everything else. Unlike Croatian and Polish there is no ends-in-digit
+ * rule - 21 osob takes the same form as 5 osob, not the singular.
+ */
+export function csPlural(n: number, one: string, few: string, many: string): string {
+  const abs = Math.abs(n);
+  if (abs === 1) return one;
+  if (abs >= 2 && abs <= 4) return few;
   return many;
 }
 
