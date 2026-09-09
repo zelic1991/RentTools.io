@@ -14,11 +14,11 @@ describe("magic login tokens", () => {
     expect(createMagicToken(now).expiresAt.getTime() - now.getTime()).toBe(MAGIC_LINK_TTL_MS);
   });
 
-  it("gives a family link a season, not half an hour", () => {
+  it("gives a family link a year, not half an hour", () => {
     const now = new Date("2026-01-01T00:00:00.000Z");
     expect(ttlForKind("family")).toBe(FAMILY_LINK_TTL_MS);
     expect(ttlForKind("once")).toBe(MAGIC_LINK_TTL_MS);
-    expect(createMagicToken(now, ttlForKind("family")).expiresAt.getTime() - now.getTime()).toBe(90 * 24 * 60 * 60 * 1000);
+    expect(createMagicToken(now, ttlForKind("family")).expiresAt.getTime() - now.getTime()).toBe(365 * 24 * 60 * 60 * 1000);
   });
 
   it("builds the URL with an optional language for the holder", () => {

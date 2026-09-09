@@ -383,7 +383,7 @@ export const translations = {
   "settings.loginLinkFamily": { en: "Family link", de: "Familien-Link", hr: "Obiteljski link" },
   "settings.loginLinkFor": { en: "Login link for {name}", de: "Anmeldelink für {name}", hr: "Link za prijavu za {name}" },
   "settings.loginLinkOnceHint": { en: "Valid 30 minutes · single use", de: "30 Minuten gültig · einmal verwendbar", hr: "Vrijedi 30 minuta · jednokratno" },
-  "settings.loginLinkFamilyHint": { en: "Valid 90 days · reusable · anyone holding the link signs in as this user", de: "90 Tage gültig · mehrfach verwendbar · wer den Link hat, ist als dieser Benutzer angemeldet", hr: "Vrijedi 90 dana · višekratno · tko ima link, prijavljen je kao ovaj korisnik" },
+  "settings.loginLinkFamilyHint": { en: "Valid 365 days · reusable · anyone holding the link signs in as this user", de: "365 Tage gültig · mehrfach verwendbar · wer den Link hat, ist als dieser Benutzer angemeldet", hr: "Vrijedi 365 dana · višekratno · tko ima link, prijavljen je kao ovaj korisnik" },
   "settings.loginLinkLanguage": { en: "Language after sign-in", de: "Sprache nach der Anmeldung", hr: "Jezik nakon prijave" },
   "settings.loginLinkRevoke": { en: "Revoke all links for {name}", de: "Alle Links für {name} zurückziehen", hr: "Opozovi sve linkove za {name}" },
   "settings.loginLinkRevoked": { en: "Links revoked", de: "Links zurückgezogen", hr: "Linkovi opozvani" },
