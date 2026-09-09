@@ -16,6 +16,7 @@ const COPY: CopyMap<CopyShape> = {
   de: { saving: "Wird gespeichert…", saved: "Gespeichert" },
   fr: { saving: "Enregistrement…", saved: "Enregistré" },
   es: { saving: "Guardando…", saved: "Guardado" },
+  hr: { saving: "Spremanje…", saved: "Spremljeno" },
 };
 
 // Age computed dynamically from DOB so it doesn't go stale across years.

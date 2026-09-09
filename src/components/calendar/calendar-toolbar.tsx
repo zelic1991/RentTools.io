@@ -44,6 +44,12 @@ const COPY: CopyMap<CopyShape> = {
     syncErrorTitle: "Error de sincronización:",
     syncErrorShort: "Error de sync:",
   },
+  hr: {
+    syncNow: "Sinkroniziraj",
+    reservations: (n) => `${n} ${n === 1 ? "rezervacija" : n < 5 ? "rezervacije" : "rezervacija"}`,
+    syncErrorTitle: "Greška sinkronizacije:",
+    syncErrorShort: "Greška sinkr.:",
+  },
 };
 
 interface CalendarToolbarProps {

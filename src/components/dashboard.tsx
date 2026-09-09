@@ -185,6 +185,36 @@ const COPY: CopyMap<CopyShape> = {
       `hasta ${date} · ${nights} ${nights === 1 ? "noche" : "noches"} restantes`,
     inDays: (date, days) => `${date} (en ${days} d)`,
   },
+  hr: {
+    dateLocale: "hr-HR",
+    reservationsCount: (count) =>
+      `${count} ${count === 1 ? "rezervacija" : count < 5 ? "rezervacije" : "rezervacija"}`,
+    reservationsAcross: (resCount, propCount) =>
+      `${resCount} rezervacija u ${propCount} ${propCount === 1 ? "nekretnini" : propCount < 5 ? "nekretnine" : "nekretnina"}`,
+    needsAttention: "Zahtijeva pažnju",
+    doubleBooking: "Dvostruka rezervacija:",
+    moreCount: (n) => `+ još ${n}`,
+    cleanerConflict: "Sukob čistačice:",
+    moreCountSuffix: (n) => ` + još ${n}`,
+    openCleaning: "Otvori čišćenja →",
+    noCalendars: "Nema povezanih kalendara:",
+    connectCalendars: "Poveži kalendare",
+    reservationLabel: "Rezervacija",
+    availableLabel: "Slobodno",
+    nextLabel: "Sljedeće:",
+    noUpcoming: "Nema nadolazećih rezervacija",
+    bookingsCountShort: "rezervacija",
+    minNightsLabel: (n) => `min. ${n} ${n === 1 ? "noć" : "noći"}`,
+    syncShort: "Sinkr.",
+    searchPlaceholder: "Traži po imenu gosta...",
+    foundLabel: "pronađeno",
+    currentlyStaying: "Trenutno u kući",
+    daysShort: "d",
+    guestShort: "g",
+    untilNightsLeft: (date, nights) =>
+      `do ${date} · još ${nights} ${nights === 1 ? "noć" : "noći"}`,
+    inDays: (date, days) => `${date} (za ${days} d.)`,
+  },
 };
 
 // RT-25.6 tick 2 — bundled platform presets, kept inline rather than

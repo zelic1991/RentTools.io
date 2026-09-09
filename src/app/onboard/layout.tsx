@@ -34,6 +34,11 @@ const ONBOARD_COPY: CopyMap<{ title: string; description: string }> = {
     description:
       "Pegue las URL de sus calendarios de Airbnb y Booking.com, obtenga sus URL iCal de sincronización y guárdelas en una cuenta gratuita. No hace falta registrarse para probar.",
   },
+  hr: {
+    title: "Počnite — sinkronizirajte kalendare u 30 sekundi",
+    description:
+      "Zalijepite URL-ove kalendara s Airbnba i Booking.coma, dobijte URL-ove za sinkronizaciju koje vraćate natrag, pa spremite rad na besplatan račun. Za isprobavanje registracija nije potrebna.",
+  },
 };
 
 export async function generateMetadata(): Promise<Metadata> {

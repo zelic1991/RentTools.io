@@ -101,6 +101,20 @@ const COPY: CopyMap<CopyShape> = {
     creating: "Creando…",
     add: "Añadir alojamiento",
   },
+  hr: {
+    nameRequired: "Naziv nekretnine je obavezan",
+    backToDashboard: "Natrag na pregled",
+    addProperty: "Dodaj nekretninu",
+    propertyName: "Naziv nekretnine",
+    propertyNameHint: "Vidljivo samo vama — gosti to ne vide.",
+    propertyNamePlaceholder: "Kuća Zalazak",
+    calendarFeeds: "Kalendarski feedovi",
+    calendarFeedsHint: "Nije obavezno — možete ih dodati poslije u postavkama nekretnine. Podržani su Airbnb i Booking.com.",
+    icalExportUrl: "iCal izvozni URL",
+    cancel: "Odustani",
+    creating: "Stvaranje…",
+    add: "Dodaj nekretninu",
+  },
 };
 
 function AddPropertyContent() {

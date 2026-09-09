@@ -108,6 +108,18 @@ const COPY: CopyMap<CopyShape> = {
     pickADayHint: "Haga clic en cualquier fecha del calendario para abrir sus acciones o crear una reserva.",
     today: "Hoy",
   },
+  hr: {
+    weekdays: ["Pon", "Uto", "Sri", "Čet", "Pet", "Sub", "Ned"],
+    connectCalendar: "Poveži kalendar",
+    dateLocale: "hr",
+    syncNow: "Sinkroniziraj",
+    syncing: "Sinkronizacija…",
+    syncDone: "Kalendar ažuriran",
+    syncCooldown: (s) => `Sinkronizacija za ${s} s`,
+    pickADay: "Odaberite dan",
+    pickADayHint: "Kliknite bilo koji datum u kalendaru za radnje ili novu rezervaciju.",
+    today: "Danas",
+  },
 };
 
 interface PropertyCalendarProps {

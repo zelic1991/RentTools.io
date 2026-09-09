@@ -34,6 +34,11 @@ const SIGNUP_COPY: CopyMap<{ title: string; description: string }> = {
     description:
       "Cree una cuenta gratuita de RentTools. Sincronice Airbnb y Booking.com, automatice las limpiezas y gestione varios alojamientos desde un único panel.",
   },
+  hr: {
+    title: "Registracija",
+    description:
+      "Otvorite besplatan RentTools račun. Sinkronizirajte kalendare Airbnba i Booking.coma, automatizirajte čišćenje i vodite više nekretnina s jednog mjesta.",
+  },
 };
 
 // /signup needs its own canonical because the root layout's default

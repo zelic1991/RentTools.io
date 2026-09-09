@@ -56,6 +56,14 @@ const COPY: CopyMap<SyncHealthCopyShape> = {
     daysAgo: (d) => `hace ${d} ${d === 1 ? "día" : "días"}`,
     syncedPrefix: (label) => `Sincronizado ${label}`,
   },
+  hr: {
+    neverSynced: "Nikad sinkronizirano",
+    justNow: "upravo sada",
+    minutesAgo: (m) => `prije ${m} min`,
+    hoursAgo: (h) => `prije ${h} h`,
+    daysAgo: (d) => `prije ${d} d`,
+    syncedPrefix: (label) => `Sinkronizirano ${label}`,
+  },
 };
 
 export function computeSyncHealth(links: CalendarLink[], locale: Locale): SyncHealth | null {

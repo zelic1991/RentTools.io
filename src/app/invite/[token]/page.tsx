@@ -111,6 +111,21 @@ const COPY: CopyMap<CopyShape> = {
     expired: "Esta invitación ha caducado.",
     used: "Esta invitación ya ha sido usada por otra persona.",
   },
+  hr: {
+    loading: "Učitavanje pozivnice…",
+    inviteHeading: "Pozivnica za nekretninu",
+    invitingYou: "vas poziva da upravljate nekretninom",
+    scopeBlurb: "Dobivate potpun pristup upravljanju — kalendar, rezervacije, sinkronizacija, čišćenja. Ne možete obrisati nekretninu ni upravljati drugim upraviteljima.",
+    accepting: "Prihvaćanje…",
+    accept: "Prihvati pozivnicu",
+    decline: "Odbij",
+    alreadyAccepted: "Ovu ste pozivnicu već prihvatili.",
+    openApp: "Otvori aplikaciju",
+    notFound: "Pozivnica nije pronađena.",
+    revoked: "Ova je pozivnica opozvana.",
+    expired: "Ova je pozivnica istekla.",
+    used: "Ovu je pozivnicu već iskoristio netko drugi.",
+  },
 };
 
 export default function InvitePage({ params }: { params: Promise<{ token: string }> }) {

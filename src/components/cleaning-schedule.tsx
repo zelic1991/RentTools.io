@@ -88,6 +88,19 @@ const COPY: CopyMap<CopyShape> = {
     daysCount: (n) => (n === 1 ? "día" : "días"),
     cleaningCta: "Limpieza",
   },
+  hr: {
+    dateLocale: "hr-HR",
+    arriveByLabel: (time) => `brzo čišćenje, doći do ${time}`,
+    fullDayLabel: "cijeli dan na raspolaganju",
+    manualLabel: "čišćenje",
+    potentialPrefix: "moguće — ",
+    scheduleHeader: "Raspored čišćenja",
+    conflictNoBackup: " (sukob — nema zamjene)",
+    conflictBackupBusy: (name) => ` (sukob — zamjena ${name} je također zauzeta)`,
+    conflictBackupSet: (name) => ` (sukob — zamjena: ${name})`,
+    daysCount: (n) => (n === 1 ? "dan" : "dana"),
+    cleaningCta: "Čišćenje",
+  },
 };
 
 /** RT-25.10 tick 3 — single cleaner assignment slot for a property.

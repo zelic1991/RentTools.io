@@ -41,6 +41,11 @@ const COPY: CopyMap<CopyShape> = {
     cleanerBadge: "limpieza",
     noProperties: "Aún no se le ha asignado ningún alojamiento para limpiar.",
   },
+  hr: {
+    cleaningSchedule: "Raspored čišćenja",
+    cleanerBadge: "čistačica",
+    noProperties: "Još vam nije dodijeljena nijedna nekretnina za čišćenje.",
+  },
 };
 
 interface CalendarEvent {

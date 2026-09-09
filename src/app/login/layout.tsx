@@ -32,6 +32,11 @@ const LOGIN_COPY: CopyMap<{ title: string; description: string }> = {
     description:
       "Inicie sesión en RentTools para gestionar los calendarios de su alquiler vacacional, los planes de limpieza y los datos de los huéspedes.",
   },
+  hr: {
+    title: "Prijava",
+    description:
+      "Prijavite se u RentTools za upravljanje kalendarima kratkoročnog najma, rasporedom čišćenja i podacima gostiju.",
+  },
 };
 
 // /login needs its own canonical — see signup/layout.tsx for the

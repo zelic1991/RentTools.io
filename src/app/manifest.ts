@@ -47,6 +47,12 @@ const LOCALIZED: CopyMap<{ name: string; description: string; lang: string }> = 
       "Gestor de código abierto y gratuito para anfitriones de alquiler vacacional. Sincronice Airbnb y Booking.com y automatice las limpiezas.",
     lang: "es",
   },
+  hr: {
+    name: "RentTools",
+    description:
+      "Besplatan program otvorenog koda za iznajmljivače u kratkoročnom najmu. Sinkronizirajte Airbnb i Booking.com, automatizirajte čišćenje.",
+    lang: "hr",
+  },
 };
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
