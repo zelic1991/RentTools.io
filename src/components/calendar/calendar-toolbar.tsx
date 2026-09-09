@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import type { Property, CalendarLink } from "@/lib/types";
-import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
+import { hrPlural, resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 import { computeSyncHealth } from "./sync-health";
 
 interface CopyShape {
@@ -46,7 +46,7 @@ const COPY: CopyMap<CopyShape> = {
   },
   hr: {
     syncNow: "Sinkroniziraj",
-    reservations: (n) => `${n} ${n === 1 ? "rezervacija" : n < 5 ? "rezervacije" : "rezervacija"}`,
+    reservations: (n) => `${n} ${hrPlural(n, "rezervacija", "rezervacije", "rezervacija")}`,
     syncErrorTitle: "Greška sinkronizacije:",
     syncErrorShort: "Greška sinkr.:",
   },

@@ -7,7 +7,7 @@ import { CleaningSchedule, type CleanerAssignmentInfo } from "@/components/clean
 import { DashboardOnboarding } from "@/components/dashboard-onboarding";
 import { OperationalRemindersPanel } from "@/components/operational-reminders-panel";
 import { useI18n } from "@/lib/i18n/context";
-import { resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
+import { hrPlural, resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 import type { Property, CalendarLink, DateOverride } from "@/lib/types";
 
 interface CopyShape {
@@ -195,9 +195,9 @@ const COPY: CopyMap<CopyShape> = {
     dateLocale: "hr-HR",
     directLabel: "Izravno",
     reservationsCount: (count) =>
-      `${count} ${count === 1 ? "rezervacija" : count < 5 ? "rezervacije" : "rezervacija"}`,
+      `${count} ${hrPlural(count, "rezervacija", "rezervacije", "rezervacija")}`,
     reservationsAcross: (resCount, propCount) =>
-      `${resCount} rezervacija u ${propCount} ${propCount === 1 ? "nekretnini" : propCount < 5 ? "nekretnine" : "nekretnina"}`,
+      `${resCount} rezervacija u ${propCount} ${hrPlural(propCount, "nekretnini", "nekretnine", "nekretnina")}`,
     needsAttention: "Zahtijeva pažnju",
     doubleBooking: "Dvostruka rezervacija:",
     moreCount: (n) => `+ još ${n}`,
@@ -211,7 +211,7 @@ const COPY: CopyMap<CopyShape> = {
     nextLabel: "Sljedeće:",
     noUpcoming: "Nema nadolazećih rezervacija",
     bookingsCountShort: "rezervacija",
-    minNightsLabel: (n) => `min. ${n} ${n === 1 ? "noć" : "noći"}`,
+    minNightsLabel: (n) => `min. ${n} ${hrPlural(n, "noć", "noći", "noći")}`,
     syncShort: "Sinkr.",
     searchPlaceholder: "Traži po imenu gosta...",
     foundLabel: "pronađeno",
@@ -219,7 +219,7 @@ const COPY: CopyMap<CopyShape> = {
     daysShort: "d",
     guestShort: "g",
     untilNightsLeft: (date, nights) =>
-      `do ${date} · još ${nights} ${nights === 1 ? "noć" : "noći"}`,
+      `do ${date} · još ${nights} ${hrPlural(nights, "noć", "noći", "noći")}`,
     inDays: (date, days) => `${date} (za ${days} d.)`,
   },
 };
