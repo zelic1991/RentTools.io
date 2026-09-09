@@ -12,6 +12,7 @@ import type { Property, CalendarLink, DateOverride } from "@/lib/types";
 
 interface CopyShape {
   dateLocale: string;
+  directLabel: string;
   reservationsCount: (count: number) => string;
   reservationsAcross: (resCount: number, propCount: number) => string;
   needsAttention: string;
@@ -41,6 +42,7 @@ interface CopyShape {
 const COPY: CopyMap<CopyShape> = {
   en: {
     dateLocale: "en-GB",
+    directLabel: "Direct",
     reservationsCount: (count) => `${count} ${count === 1 ? "reservation" : "reservations"}`,
     reservationsAcross: (resCount, propCount) =>
       `${resCount} reservations across ${propCount} ${propCount === 1 ? "property" : "properties"}`,
@@ -70,6 +72,7 @@ const COPY: CopyMap<CopyShape> = {
   },
   ru: {
     dateLocale: "ru-RU",
+    directLabel: "Напрямую",
     reservationsCount: (count) =>
       `${count} ${count === 1 ? "бронирование" : count < 5 ? "бронирования" : "бронирований"}`,
     reservationsAcross: (resCount, propCount) =>
@@ -100,6 +103,7 @@ const COPY: CopyMap<CopyShape> = {
   },
   de: {
     dateLocale: "de-DE",
+    directLabel: "Direkt",
     reservationsCount: (count) => `${count} ${count === 1 ? "Buchung" : "Buchungen"}`,
     reservationsAcross: (resCount, propCount) =>
       `${resCount} Buchungen in ${propCount} ${propCount === 1 ? "Unterkunft" : "Unterkünften"}`,
@@ -129,6 +133,7 @@ const COPY: CopyMap<CopyShape> = {
   },
   fr: {
     dateLocale: "fr-FR",
+    directLabel: "Direct",
     reservationsCount: (count) => `${count} ${count === 1 ? "réservation" : "réservations"}`,
     reservationsAcross: (resCount, propCount) =>
       `${resCount} réservations sur ${propCount} ${propCount === 1 ? "logement" : "logements"}`,
@@ -158,6 +163,7 @@ const COPY: CopyMap<CopyShape> = {
   },
   es: {
     dateLocale: "es-ES",
+    directLabel: "Directa",
     reservationsCount: (count) => `${count} ${count === 1 ? "reserva" : "reservas"}`,
     reservationsAcross: (resCount, propCount) =>
       `${resCount} reservas en ${propCount} ${propCount === 1 ? "alojamiento" : "alojamientos"}`,
@@ -187,6 +193,7 @@ const COPY: CopyMap<CopyShape> = {
   },
   hr: {
     dateLocale: "hr-HR",
+    directLabel: "Izravno",
     reservationsCount: (count) =>
       `${count} ${count === 1 ? "rezervacija" : count < 5 ? "rezervacije" : "rezervacija"}`,
     reservationsAcross: (resCount, propCount) =>
@@ -243,7 +250,11 @@ const PLATFORM_PRESETS: ReadonlyArray<{ slug: string; displayName: string; color
 
 const PRESET_BY_SLUG = new Map(PLATFORM_PRESETS.map((p) => [p.slug, p]));
 
-function platformDisplayName(slug: string): string {
+/** Platform badge label. Every preset is a brand name and stays as it
+ *  is; "direct" is the one that is a word, so it takes the caller's
+ *  translation when there is one. */
+function platformDisplayName(slug: string, directLabel?: string): string {
+  if (slug === "direct" && directLabel) return directLabel;
   return PRESET_BY_SLUG.get(slug)?.displayName ?? slug;
 }
 
@@ -1805,7 +1816,7 @@ function ReservationRow({ res, isLast, hideProperty, formatDate, dayCount, local
         className="hidden shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-white sm:inline"
         style={{ backgroundColor: platformColor(res.platform) }}
       >
-        {platformDisplayName(res.platform)}
+        {platformDisplayName(res.platform, c.directLabel)}
       </span>
 
       <span className="hidden shrink-0 text-sm text-[var(--ink-3)] sm:inline">
