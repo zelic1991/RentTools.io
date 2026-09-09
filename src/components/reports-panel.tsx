@@ -24,6 +24,15 @@ import {
 
 interface CopyShape {
   reports: string;
+  storedAmounts: string;
+  storedAmountsHelp: string;
+  noStoredAmounts: string;
+  knownAmounts: (n: number) => string;
+  unknownAmounts: (n: number) => string;
+  avgPerNight: string;
+  byCheckInMonth: string;
+  byChannel: string;
+  directLabel: string;
   portfolioSubtitle: (count: number) => string;
   propertySubtitle: (name: string) => string;
   noDataYet: string;
@@ -73,6 +82,16 @@ interface CopyShape {
 const COPY: CopyMap<CopyShape> = {
   en: {
     reports: "Reports",
+    storedAmounts: "Stored gross booking amounts",
+    storedAmountsHelp:
+      "Only explicit owner-entered amounts are summed. No rates, fees, commissions, payments, or estimates.",
+    noStoredAmounts: "No stored amounts",
+    knownAmounts: (n) => `Known amounts: ${n} ${n === 1 ? "booking" : "bookings"}`,
+    unknownAmounts: (n) => `Amount unknown: ${n} ${n === 1 ? "booking" : "bookings"}`,
+    avgPerNight: "Avg / night:",
+    byCheckInMonth: "By check-in month",
+    byChannel: "By channel",
+    directLabel: "Direct",
     portfolioSubtitle: (count) =>
       `Portfolio across ${count} ${count === 1 ? "property" : "properties"} — history + upcoming`,
     propertySubtitle: (name) => `${name} — history & pipeline`,
@@ -123,6 +142,16 @@ const COPY: CopyMap<CopyShape> = {
   },
   ru: {
     reports: "Отчёты",
+    storedAmounts: "Сохранённые суммы броней",
+    storedAmountsHelp:
+      "Суммируются только суммы, введённые вручную. Без тарифов, сборов, комиссий, платежей и оценок.",
+    noStoredAmounts: "Нет сохранённых сумм",
+    knownAmounts: (n) => `Сумма известна: ${n}`,
+    unknownAmounts: (n) => `Сумма неизвестна: ${n}`,
+    avgPerNight: "⌀ / ночь:",
+    byCheckInMonth: "По месяцу заезда",
+    byChannel: "По каналу",
+    directLabel: "Напрямую",
     portfolioSubtitle: (count) => `Сводка по ${count} объектам — прошлое + ближайшие месяцы`,
     propertySubtitle: (name) => `${name} — история и план`,
     noDataYet: "нет данных",
@@ -171,6 +200,16 @@ const COPY: CopyMap<CopyShape> = {
   },
   de: {
     reports: "Berichte",
+    storedAmounts: "Gespeicherte Bruttobeträge",
+    storedAmountsHelp:
+      "Summiert werden nur selbst eingetragene Beträge. Keine Preise, Gebühren, Provisionen, Zahlungen oder Schätzungen.",
+    noStoredAmounts: "Keine Beträge gespeichert",
+    knownAmounts: (n) => `Betrag bekannt: ${n} ${n === 1 ? "Buchung" : "Buchungen"}`,
+    unknownAmounts: (n) => `Betrag unbekannt: ${n} ${n === 1 ? "Buchung" : "Buchungen"}`,
+    avgPerNight: "⌀ / Nacht:",
+    byCheckInMonth: "Nach Anreisemonat",
+    byChannel: "Nach Kanal",
+    directLabel: "Direkt",
     portfolioSubtitle: (count) =>
       `Portfolio über ${count} ${count === 1 ? "Unterkunft" : "Unterkünfte"} — Verlauf + Pipeline`,
     propertySubtitle: (name) => `${name} — Verlauf & Pipeline`,
@@ -221,6 +260,16 @@ const COPY: CopyMap<CopyShape> = {
   },
   fr: {
     reports: "Rapports",
+    storedAmounts: "Montants bruts enregistrés",
+    storedAmountsHelp:
+      "Seuls les montants saisis par l’hôte sont additionnés. Ni tarifs, ni frais, ni commissions, ni paiements, ni estimations.",
+    noStoredAmounts: "Aucun montant enregistré",
+    knownAmounts: (n) => `Montant connu : ${n} ${n === 1 ? "réservation" : "réservations"}`,
+    unknownAmounts: (n) => `Montant inconnu : ${n} ${n === 1 ? "réservation" : "réservations"}`,
+    avgPerNight: "Moy. / nuit :",
+    byCheckInMonth: "Par mois d’arrivée",
+    byChannel: "Par canal",
+    directLabel: "Direct",
     portfolioSubtitle: (count) =>
       `Portefeuille de ${count} ${count === 1 ? "logement" : "logements"} — historique + à venir`,
     propertySubtitle: (name) => `${name} — historique & pipeline`,
@@ -271,6 +320,16 @@ const COPY: CopyMap<CopyShape> = {
   },
   es: {
     reports: "Informes",
+    storedAmounts: "Importes brutos guardados",
+    storedAmountsHelp:
+      "Solo se suman los importes introducidos por el anfitrión. Sin tarifas, cargos, comisiones, pagos ni estimaciones.",
+    noStoredAmounts: "Sin importes guardados",
+    knownAmounts: (n) => `Importe conocido: ${n} ${n === 1 ? "reserva" : "reservas"}`,
+    unknownAmounts: (n) => `Importe desconocido: ${n} ${n === 1 ? "reserva" : "reservas"}`,
+    avgPerNight: "Media / noche:",
+    byCheckInMonth: "Por mes de entrada",
+    byChannel: "Por canal",
+    directLabel: "Directa",
     portfolioSubtitle: (count) =>
       `Cartera de ${count} ${count === 1 ? "alojamiento" : "alojamientos"} — historial + próximas`,
     propertySubtitle: (name) => `${name} — historial y pipeline`,
@@ -321,6 +380,18 @@ const COPY: CopyMap<CopyShape> = {
   },
   hr: {
     reports: "Izvještaji",
+    storedAmounts: "Spremljeni bruto iznosi rezervacija",
+    storedAmountsHelp:
+      "Zbrajaju se samo iznosi koje ste sami unijeli. Bez cijena, naknada, provizija, plaćanja ili procjena.",
+    noStoredAmounts: "Nema spremljenih iznosa",
+    knownAmounts: (n) =>
+      `Poznat iznos: ${n} ${n === 1 ? "rezervacija" : n < 5 ? "rezervacije" : "rezervacija"}`,
+    unknownAmounts: (n) =>
+      `Nepoznat iznos: ${n} ${n === 1 ? "rezervacija" : n < 5 ? "rezervacije" : "rezervacija"}`,
+    avgPerNight: "Prosj. / noćenju:",
+    byCheckInMonth: "Po mjesecu prijave",
+    byChannel: "Po kanalu",
+    directLabel: "Izravno",
     portfolioSubtitle: (count) =>
       `Portfelj od ${count} ${count === 1 ? "nekretnine" : "nekretnina"} — povijest i nadolazeće`,
     propertySubtitle: (name) => `${name} — povijest i najave`,
@@ -475,7 +546,11 @@ function linkedSourceKey(platform: string, uid: string): string {
  * latest upcoming stay (capped at +12 mo so an outlier booking 3 years
  * out doesn't squish the chart).
  */
-function buildMonthRange(stays: NormalizedStay[], pastMonths: PeriodChoice): MonthBucket[] {
+function buildMonthRange(
+  stays: NormalizedStay[],
+  pastMonths: PeriodChoice,
+  dateLocale: string,
+): MonthBucket[] {
   const now = new Date();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -521,7 +596,7 @@ function buildMonthRange(stays: NormalizedStay[], pastMonths: PeriodChoice): Mon
       year === currentMonthStart.getFullYear() && monthIndex === currentMonthStart.getMonth();
     buckets.push({
       key: ymKey(year, monthIndex),
-      label: cursor.toLocaleDateString("en-GB", {
+      label: cursor.toLocaleDateString(dateLocale, {
         month: "short",
         // Show year on Jan and on the very first bucket so cross-year context is visible.
         year: monthIndex === 0 || buckets.length === 0 ? "2-digit" : undefined,
@@ -572,9 +647,14 @@ interface PlatformMeta {
   color: string;
 }
 
-function platformMeta(slug: string): PlatformMeta {
+/** Presets are brand names and stay as they are; "direct" is a word, so
+ *  it takes the caller's translation when there is one. */
+function platformMeta(slug: string, directLabel?: string): PlatformMeta {
   const preset = PLATFORM_PRESETS.find((p) => p.slug === slug);
-  if (preset) return { slug, label: preset.displayName, color: resolvePlatformColor(preset.color) };
+  if (preset) {
+    const label = slug === "direct" && directLabel ? directLabel : preset.displayName;
+    return { slug, label, color: resolvePlatformColor(preset.color) };
+  }
   return { slug, label: slug.charAt(0).toUpperCase() + slug.slice(1), color: FALLBACK_PLATFORM_COLOR };
 }
 
@@ -970,10 +1050,10 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
   );
 
   const buckets = useMemo(() => {
-    const b = buildMonthRange(allStays, periodMonths);
+    const b = buildMonthRange(allStays, periodMonths, locale);
     fillBuckets(b, allStays);
     return b;
-  }, [allStays, periodMonths]);
+  }, [allStays, periodMonths, locale]);
 
   const propertyKpis: PropertyKpis[] = useMemo(() => {
     return targetProperties.map((p) => computePropertyKpis(p, allStays, buckets));
@@ -1017,7 +1097,7 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
     for (const [slug, n] of perPlatform) {
       if (n > topNights) {
         topNights = n;
-        topPlatform = platformMeta(slug);
+        topPlatform = platformMeta(slug, c.directLabel);
       }
     }
     return {
@@ -1031,7 +1111,7 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
       avgStayNights,
       topPlatform,
     };
-  }, [propertyKpis, buckets]);
+  }, [propertyKpis, buckets, c.directLabel]);
 
   const activePlatforms = useMemo(() => {
     const totals = new Map<string, number>();
@@ -1041,8 +1121,8 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
       }
     }
     const entries = Array.from(totals.entries()).sort((a, b) => b[1] - a[1]);
-    return entries.map(([slug]) => platformMeta(slug));
-  }, [buckets]);
+    return entries.map(([slug]) => platformMeta(slug, c.directLabel));
+  }, [buckets, c]);
 
   const chartData = useMemo(
     () =>
@@ -1175,10 +1255,10 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <h2 className="text-sm font-semibold text-[var(--ink)]">
-                      Stored gross booking amounts
+                      {c.storedAmounts}
                     </h2>
                     <p className="mt-1 text-xs text-[var(--ink-3)]">
-                      Only explicit owner-entered amounts are summed. No rates, fees, commissions, payments, or estimates.
+                      {c.storedAmountsHelp}
                     </p>
                   </div>
                   <div className="text-left sm:text-right">
@@ -1193,17 +1273,17 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
                       ))
                     ) : (
                       <div className="text-sm font-medium text-[var(--ink-3)]">
-                        No stored amounts
+                        {c.noStoredAmounts}
                       </div>
                     )}
                   </div>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-[var(--ink-3)]">
-                  <span>Known amounts: {storedGrossSummary.knownCount} bookings</span>
-                  <span>Amount unknown: {storedGrossSummary.unknownCount} bookings</span>
+                  <span>{c.knownAmounts(storedGrossSummary.knownCount)}</span>
+                  <span>{c.unknownAmounts(storedGrossSummary.unknownCount)}</span>
                   {revenueBreakdown.averageNightlyCents.map(({ currency, amountCents }) => (
                     <span key={currency} className="tabular-nums">
-                      Avg / night:{" "}
+                      {c.avgPerNight}{" "}
                       <span className="font-medium text-[var(--ink)]">
                         {new Intl.NumberFormat(locale, { style: "currency", currency }).format(
                           amountCents / 100,
@@ -1220,7 +1300,7 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
                   <div className="mt-4 grid gap-4 border-t border-[var(--line)] pt-4 sm:grid-cols-2">
                     <div>
                       <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-3)]">
-                        By check-in month
+                        {c.byCheckInMonth}
                       </h3>
                       <ul className="mt-2 space-y-1">
                         {revenueBreakdown.byMonth.map((row) => (
@@ -1251,7 +1331,7 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
 
                     <div>
                       <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--ink-3)]">
-                        By channel
+                        {c.byChannel}
                       </h3>
                       <ul className="mt-2 space-y-1">
                         {revenueBreakdown.byChannel.map((row) => (
@@ -1262,9 +1342,9 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
                             <span className="flex items-center gap-1.5 text-[var(--ink-3)]">
                               <span
                                 className="inline-block h-2 w-2 shrink-0 rounded-full"
-                                style={{ background: platformMeta(row.platform).color }}
+                                style={{ background: platformMeta(row.platform, c.directLabel).color }}
                               />
-                              {platformMeta(row.platform).label}
+                              {platformMeta(row.platform, c.directLabel).label}
                               <span className="opacity-70">{row.nights}n</span>
                             </span>
                             <span className="font-medium tabular-nums text-[var(--ink)]">
