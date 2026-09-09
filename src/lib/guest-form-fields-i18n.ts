@@ -1,4 +1,4 @@
-import { csPlural, slavicPlural } from "@/lib/i18n/translations";
+import { csPlural, hrPlural } from "@/lib/i18n/translations";
 import type { GuestFormLocale } from "@/lib/guest-form-i18n";
 
 /**
@@ -312,7 +312,7 @@ export const GUEST_FIELD_COPY: Record<GuestFormLocale, GuestFormFieldCopy> = {
     travelers: "Putnici",
     travelersHint: "Upišite svaku osobu koja boravi, uključujući djecu.",
     travelersFor: (n) =>
-      ` Ova je rezervacija za ${n} ${slavicPlural(n, "osobu", "osobe", "osoba")}.`,
+      ` Ova je rezervacija za ${n} ${hrPlural(n, "osobu", "osobe", "osoba")}.`,
     addTraveler: "Dodaj putnika",
     travelerN: (i) => `Putnik ${i}`,
     leadSuffix: " · nositelj rezervacije",
@@ -361,8 +361,9 @@ export const GUEST_FIELD_COPY: Record<GuestFormLocale, GuestFormFieldCopy> = {
     serviceType: "Rodzaj usługi",
     travelers: "Podróżni",
     travelersHint: "Wpisz każdą nocującą osobę, również dzieci.",
-    travelersFor: (n) =>
-      ` Ta rezerwacja jest dla ${n} ${slavicPlural(n, "osoby", "osób", "osób")}.`,
+    // "dla" governs the genitive, so only one is different: dla 1 osoby,
+    // dla 2 / 5 / 21 / 22 osób. No paucal here.
+    travelersFor: (n) => ` Ta rezerwacja jest dla ${n} ${n === 1 ? "osoby" : "osób"}.`,
     addTraveler: "Dodaj podróżnego",
     travelerN: (i) => `Podróżny ${i}`,
     leadSuffix: " · gość główny",

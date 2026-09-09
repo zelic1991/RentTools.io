@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useI18n } from "@/lib/i18n/context";
-import { slavicPlural, resolveCopy, type CopyMap } from "@/lib/i18n/translations";
+import { hrPlural, resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import { SUPPORTED_LOCALES } from "@/lib/i18n/alternates";
 import type { Property } from "@/lib/types";
 
@@ -179,7 +179,7 @@ const COPY: CopyMap<CopyShape> = {
     allProperties: "Sve nekretnine",
     dashboardAll: "Pregled (sve nekretnine)",
     countLabel: (resCount, guestCount) =>
-      `${resCount} ${slavicPlural(resCount, "rezervacija", "rezervacije", "rezervacija")}, ${guestCount} ${slavicPlural(guestCount, "gost", "gosta", "gostiju")}`,
+      `${resCount} ${hrPlural(resCount, "rezervacija", "rezervacije", "rezervacija")}, ${guestCount} ${hrPlural(guestCount, "gost", "gosta", "gostiju")}`,
     addProperty: "Dodaj nekretninu",
     searchGuests: "Traži goste",
     searchGuestsTitle: "Traži goste (⌘K)",
