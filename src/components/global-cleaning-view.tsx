@@ -6,7 +6,7 @@ import { CleaningSchedule, type CleanerAssignmentInfo } from "@/components/clean
 import { PropertySwitcher } from "@/components/property-switcher";
 import { useIncludePotential } from "@/lib/use-include-potential";
 import { useI18n } from "@/lib/i18n/context";
-import { hrPlural, resolveCopy, type CopyMap } from "@/lib/i18n/translations";
+import { slavicPlural, resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import type { Property, CalendarLink, DateOverride } from "@/lib/types";
 
 interface CopyShape {
@@ -87,7 +87,7 @@ const COPY: CopyMap<CopyShape> = {
     emptyState: "Dodajte nekretninu da vidite raspored čišćenja.",
     cleaning: "Čišćenje",
     acrossAllProperties: (count) =>
-      `U svih ${count} ${hrPlural(count, "nekretnini", "nekretnine", "nekretnina")}`,
+      `U svih ${count} ${slavicPlural(count, "nekretnini", "nekretnine", "nekretnina")}`,
     allPropertiesLabel: (count) => `Sve nekretnine (${count})`,
     view: "Prikaz",
     potentialHelper: "Čišćenja koja su važna samo ako rupu popuni novi gost.",

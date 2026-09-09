@@ -15,7 +15,7 @@ import {
 } from "recharts";
 import { PropertySwitcher } from "@/components/property-switcher";
 import { useI18n } from "@/lib/i18n/context";
-import { hrPlural, resolveCopy, type CopyMap } from "@/lib/i18n/translations";
+import { slavicPlural, resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import type { Property } from "@/lib/types";
 import {
   summarizeRevenueBreakdown,
@@ -385,19 +385,19 @@ const COPY: CopyMap<CopyShape> = {
       "Zbrajaju se samo iznosi koje ste sami unijeli. Bez cijena, naknada, provizija, plaćanja ili procjena.",
     noStoredAmounts: "Nema spremljenih iznosa",
     knownAmounts: (n) =>
-      `Poznat iznos: ${n} ${hrPlural(n, "rezervacija", "rezervacije", "rezervacija")}`,
+      `Poznat iznos: ${n} ${slavicPlural(n, "rezervacija", "rezervacije", "rezervacija")}`,
     unknownAmounts: (n) =>
-      `Nepoznat iznos: ${n} ${hrPlural(n, "rezervacija", "rezervacije", "rezervacija")}`,
+      `Nepoznat iznos: ${n} ${slavicPlural(n, "rezervacija", "rezervacije", "rezervacija")}`,
     avgPerNight: "Prosj. / noćenju:",
     byCheckInMonth: "Po mjesecu prijave",
     byChannel: "Po kanalu",
     directLabel: "Izravno",
     portfolioSubtitle: (count) =>
-      `Portfelj od ${count} ${hrPlural(count, "nekretnine", "nekretnine", "nekretnina")} — povijest i nadolazeće`,
+      `Portfelj od ${count} ${slavicPlural(count, "nekretnine", "nekretnine", "nekretnina")} — povijest i nadolazeće`,
     propertySubtitle: (name) => `${name} — povijest i najave`,
     noDataYet: "još nema podataka",
     pastWindow: (months) =>
-      `zadnjih ${months} ${hrPlural(months, "mjesec", "mjeseca", "mjeseci")}`,
+      `zadnjih ${months} ${slavicPlural(months, "mjesec", "mjeseca", "mjeseci")}`,
     noProperties: "Još nema nekretnina za izvještaj.",
     pastOccupancy: "Prošla popunjenost",
     upcomingNights: "Nadolazeća noćenja",

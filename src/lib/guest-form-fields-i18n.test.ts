@@ -49,6 +49,25 @@ describe("guest form field copy", () => {
     }
   });
 
+  it("inflects the guest count instead of one fixed noun form", () => {
+    // The live form read "Ova je rezervacija za 2 osoba" until a smoke
+    // test on a real share link showed it. One sample per rule family.
+    expect(GUEST_FIELD_COPY.hr.travelersFor(1)).toContain("1 osobu");
+    expect(GUEST_FIELD_COPY.hr.travelersFor(2)).toContain("2 osobe");
+    expect(GUEST_FIELD_COPY.hr.travelersFor(6)).toContain("6 osoba");
+    expect(GUEST_FIELD_COPY.pl.travelersFor(1)).toContain("1 osoby");
+    expect(GUEST_FIELD_COPY.pl.travelersFor(2)).toContain("2 osób");
+    expect(GUEST_FIELD_COPY.cs.travelersFor(1)).toContain("1 osobu");
+    expect(GUEST_FIELD_COPY.cs.travelersFor(2)).toContain("2 osoby");
+    expect(GUEST_FIELD_COPY.cs.travelersFor(6)).toContain("6 osob");
+    expect(GUEST_FIELD_COPY.sk.travelersFor(2)).toContain("2 osoby");
+    expect(GUEST_FIELD_COPY.sk.travelersFor(6)).toContain("6 osôb");
+    expect(GUEST_FIELD_COPY.de.travelersFor(1)).toContain("1 Person.");
+    expect(GUEST_FIELD_COPY.de.travelersFor(3)).toContain("3 Personen");
+    expect(GUEST_FIELD_COPY.fr.travelersFor(1)).toContain("1 personne.");
+    expect(GUEST_FIELD_COPY.es.travelersFor(1)).toContain("1 persona.");
+  });
+
   it("labels every eVisitor option value, so no guest sees a raw code", () => {
     const values = [...GENDERS, ...DOCUMENT_TYPES, ...ARRIVAL_ORGANIZATIONS, ...SERVICE_TYPES];
     for (const locale of GUEST_FORM_LOCALES) {

@@ -7,7 +7,7 @@ import { CleaningSchedule, type CleanerAssignmentInfo } from "@/components/clean
 import { DashboardOnboarding } from "@/components/dashboard-onboarding";
 import { OperationalRemindersPanel } from "@/components/operational-reminders-panel";
 import { useI18n } from "@/lib/i18n/context";
-import { hrPlural, resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
+import { slavicPlural, resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 import type { Property, CalendarLink, DateOverride } from "@/lib/types";
 
 interface CopyShape {
@@ -195,9 +195,9 @@ const COPY: CopyMap<CopyShape> = {
     dateLocale: "hr-HR",
     directLabel: "Izravno",
     reservationsCount: (count) =>
-      `${count} ${hrPlural(count, "rezervacija", "rezervacije", "rezervacija")}`,
+      `${count} ${slavicPlural(count, "rezervacija", "rezervacije", "rezervacija")}`,
     reservationsAcross: (resCount, propCount) =>
-      `${resCount} rezervacija u ${propCount} ${hrPlural(propCount, "nekretnini", "nekretnine", "nekretnina")}`,
+      `${resCount} rezervacija u ${propCount} ${slavicPlural(propCount, "nekretnini", "nekretnine", "nekretnina")}`,
     needsAttention: "Zahtijeva pažnju",
     doubleBooking: "Dvostruka rezervacija:",
     moreCount: (n) => `+ još ${n}`,
@@ -211,7 +211,7 @@ const COPY: CopyMap<CopyShape> = {
     nextLabel: "Sljedeće:",
     noUpcoming: "Nema nadolazećih rezervacija",
     bookingsCountShort: "rezervacija",
-    minNightsLabel: (n) => `min. ${n} ${hrPlural(n, "noć", "noći", "noći")}`,
+    minNightsLabel: (n) => `min. ${n} ${slavicPlural(n, "noć", "noći", "noći")}`,
     syncShort: "Sinkr.",
     searchPlaceholder: "Traži po imenu gosta...",
     foundLabel: "pronađeno",
@@ -219,7 +219,7 @@ const COPY: CopyMap<CopyShape> = {
     daysShort: "d",
     guestShort: "g",
     untilNightsLeft: (date, nights) =>
-      `do ${date} · još ${nights} ${hrPlural(nights, "noć", "noći", "noći")}`,
+      `do ${date} · još ${nights} ${slavicPlural(nights, "noć", "noći", "noći")}`,
     inDays: (date, days) => `${date} (za ${days} d.)`,
   },
 };

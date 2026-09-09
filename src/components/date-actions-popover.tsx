@@ -5,7 +5,7 @@ import type { StayPlan } from "@/components/calendar/stay-plan";
 import { getExtendedStayRange } from "@/components/calendar/extendable-bookings";
 import { referencesSyncedEvent } from "@/components/calendar/linked-bookings";
 import { useI18n } from "@/lib/i18n/context";
-import { hrPlural, resolveCopy, type CopyMap } from "@/lib/i18n/translations";
+import { slavicPlural, resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   dateLocale: string;
@@ -437,7 +437,7 @@ const COPY: CopyMap<CopyShape> = {
   },
   hr: {
     dateLocale: "hr-HR",
-    staysTurnover: (count) => `${count} ${hrPlural(count, "boravak", "boravka", "boravaka")} — smjena`,
+    staysTurnover: (count) => `${count} ${slavicPlural(count, "boravak", "boravka", "boravaka")} — smjena`,
     manualCleaning: "Ručno čišćenje",
     blockDate: "Blokiraj ovaj datum",
     blockDateDesc: "Zaustavlja nove rezervacije. Bez oznake čišćenja.",
@@ -460,7 +460,7 @@ const COPY: CopyMap<CopyShape> = {
     scheduleAll: (count) => `Zakaži čišćenje (${count})`,
     openAll: (count) => `Otvori za rezervacije (${count})`,
     resetAll: (count) => `Vrati izmjene (${count})`,
-    createBulk: (count) => `Nova rezervacija (${count} ${hrPlural(count, "noćenje", "noćenja", "noćenja")})`,
+    createBulk: (count) => `Nova rezervacija (${count} ${slavicPlural(count, "noćenje", "noćenja", "noćenja")})`,
     createBulkDesc: (checkIn, checkOut) =>
       `Jedna rezervacija — prijava ${checkIn}, odjava ${checkOut}.`,
     turnoverNote: "Smjena istog dana — gost odlazi ujutro onog dana kad stiže sljedeći.",
@@ -488,14 +488,14 @@ const COPY: CopyMap<CopyShape> = {
     platformDirect: "Izravno",
     checkInLabel: "Prijava:",
     checkOutLabel: "Odjava:",
-    nightsParenthetical: (count) => `(${count} ${hrPlural(count, "noćenje", "noćenja", "noćenja")})`,
+    nightsParenthetical: (count) => `(${count} ${slavicPlural(count, "noćenje", "noćenja", "noćenja")})`,
     newStayLabel: "Novi boravak",
     extendingBooking: "Produžavanje…",
     linkedSourceMissing: "Ova se sinkronizirana rezervacija promijenila ili je nestala. Osvježite kalendar i pokušajte ponovno.",
     beforeCheckIn: "prije prijave",
     afterCheckOut: "nakon odjave",
     addNights: (nights, side) =>
-      `Dodaj ${nights} ${hrPlural(nights, "noćenje", "noćenja", "noćenja")} ${side}`,
+      `Dodaj ${nights} ${slavicPlural(nights, "noćenje", "noćenja", "noćenja")} ${side}`,
     cancel: "Odustani",
     saving: "Spremanje…",
     save: "Spremi",
