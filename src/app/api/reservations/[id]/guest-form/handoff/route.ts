@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { canManageProperty } from "@/lib/ownership";
+import { canAdministerProperty } from "@/lib/ownership";
 import { validatedPrecheckinHandoffPayload } from "@/lib/precheckin-handoff";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +48,7 @@ export async function GET(
     });
     if (
       !reservation ||
-      !(await canManageProperty(
+      !(await canAdministerProperty(
         reservation.propertyId,
         session.userId,
         session.role,

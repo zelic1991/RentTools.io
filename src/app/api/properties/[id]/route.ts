@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { canManageProperty, isPropertyOwner } from "@/lib/ownership";
+import { canAdministerProperty, isPropertyOwner } from "@/lib/ownership";
 
 export async function PATCH(
   request: NextRequest,
@@ -16,7 +16,7 @@ export async function PATCH(
     const numId = parseInt(id);
     if (isNaN(numId)) return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
 
-    if (!(await canManageProperty(numId, session.userId, session.role))) {
+    if (!(await canAdministerProperty(numId, session.userId, session.role))) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     const canReturnFeedToken = !session.impersonatorId &&
