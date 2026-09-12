@@ -278,12 +278,14 @@ function GuestsScreen({ data }: { data: MobileOperationsData }) {
               ) : (
                 <p className="mt-4 rounded-xl bg-[var(--zf-surface)] px-4 py-3 text-center text-xs text-[var(--zf-text-muted)] dark:bg-slate-800 dark:text-slate-300">Support-Ansicht ist schreibgeschützt.</p>
               )}
-              <MobileGuestLink
-                reservationId={reservation.id}
-                guestName={reservation.label}
-                bookedGuestCount={reservation.bookedGuestCount}
-                canWrite={data.canWrite}
-              />
+              {(data.access === "owner" || data.access === "manager") && (
+                <MobileGuestLink
+                  reservationId={reservation.id}
+                  guestName={reservation.label}
+                  bookedGuestCount={reservation.bookedGuestCount}
+                  canWrite={data.canWrite}
+                />
+              )}
             </article>
           ))}
         </div>

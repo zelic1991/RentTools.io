@@ -29,7 +29,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/auth", () => ({ getSession: mocks.getSession }));
-vi.mock("@/lib/ownership", () => ({ canManageProperty: mocks.canManageProperty }));
+vi.mock("@/lib/ownership", () => ({
+  canManageProperty: mocks.canManageProperty,
+  canAdministerProperty: mocks.canManageProperty,
+}));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     reservation: { findUnique: mocks.reservationFindUnique },

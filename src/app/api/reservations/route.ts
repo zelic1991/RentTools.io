@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { canManageProperty, listAccessiblePropertyIds } from "@/lib/ownership";
+import {
+  canManageProperty,
+  listAccessiblePropertyIds,
+  propertyAccessLevels,
+} from "@/lib/ownership";
+import { redactReservationsForAccess } from "@/lib/reservation-visibility";
 import { parseReservationDate } from "@/lib/reservation-dates";
 import { loadEffectiveLinkedStayRange } from "@/lib/linked-stay";
 import { validateReservationRevenue } from "@/lib/reservation-revenue";
@@ -47,7 +52,15 @@ export async function GET(request: NextRequest) {
           orderBy: { checkIn: "asc" },
           include: { _count: { select: { guests: true } } },
         });
-    return NextResponse.json(reservations);
+    if (session.role === "cleaner") return NextResponse.json(reservations);
+    // The rows carry takings and a contact phone. Family access is not
+    // part of the business side, and hiding these in the phone UI while
+    // the API serves them would be decoration, not a boundary.
+    const levels = await propertyAccessLevels(
+      session.userId,
+      [...new Set(reservations.map((row) => row.propertyId))],
+    );
+    return NextResponse.json(redactReservationsForAccess(reservations, levels));
   } catch (err) {
     console.error("Route error:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
