@@ -95,6 +95,9 @@ export interface MobileOperationsData {
     // mobileAvailabilityOverrides drops cleaning rows before they reach
     // the phone: cleaning is scheduling metadata, never availability.
     overrides: Array<{ date: string; type: "open" | "closed" }>;
+    /** Scheduled cleanings. Not availability — but the day sheet must
+     *  know they exist before it offers to block the day. */
+    cleaningDates: string[];
     visibleFrom: string;
     visibleUntil: string;
   };
@@ -367,20 +370,6 @@ export async function loadMobileOperations(options: {
     })),
   );
 
-  const upcomingCards = cards.filter((card) => card.checkOut >= today);
-  const openGuestTasks = canReadPii
-    ? upcomingCards.filter((card) => !card.guestState.complete)
-    : [];
-  const ownerReviews = canReadPii
-    ? upcomingCards.filter((card) => card.guestState.ownerReviewRequired)
-    : [];
-  const openEVisitor = canReadPii
-    ? upcomingCards.filter((card) =>
-        card.guestState.eVisitorStatus === "APPROVED_NOT_READY"
-          || card.guestState.eVisitorStatus === "READY_NOT_SUBMITTED"
-          || card.guestState.eVisitorStatus === "PRODUCTION_ERROR",
-      )
-    : [];
   // Same figures as the desktop panel, derived from the rows already
   // loaded above — the phone must not show a second, softer truth. The
   // access check is inside: this payload reaches the browser whole.
@@ -401,10 +390,27 @@ export async function loadMobileOperations(options: {
       startDate: event.startDate,
       endDate: event.endDate,
     })),
+    // visibleUntil is the last bookable NIGHT; clipping against it would
+    // drop that night from the count.
+    blockedDates: overrides.filter((row) => row.type === "closed").map((row) => row.date),
     today,
-    until: window.visibleUntil,
+    untilCheckout: window.checkoutUntil,
   });
 
+  const upcomingCards = cards.filter((card) => card.checkOut >= today);
+  const openGuestTasks = canReadPii
+    ? upcomingCards.filter((card) => !card.guestState.complete)
+    : [];
+  const ownerReviews = canReadPii
+    ? upcomingCards.filter((card) => card.guestState.ownerReviewRequired)
+    : [];
+  const openEVisitor = canReadPii
+    ? upcomingCards.filter((card) =>
+        card.guestState.eVisitorStatus === "APPROVED_NOT_READY"
+          || card.guestState.eVisitorStatus === "READY_NOT_SUBMITTED"
+          || card.guestState.eVisitorStatus === "PRODUCTION_ERROR",
+      )
+    : [];
   const operationalReminders: OperationalReminderDto[] = property.operationalReminders.map((reminder) => ({
     id: reminder.id,
     propertyId: reminder.propertyId,
@@ -452,6 +458,9 @@ export async function loadMobileOperations(options: {
       events: calendarEvents,
       links: calendarLinks,
       overrides,
+      cleaningDates: property.dateOverrides
+        .filter((override) => override.type === "cleaning")
+        .map((override) => override.date),
       visibleFrom: window.visibleFrom,
       visibleUntil: window.visibleUntil,
     },

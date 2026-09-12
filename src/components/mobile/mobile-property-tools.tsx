@@ -43,19 +43,21 @@ export function MobilePropertyTools({
     url: string,
     init: RequestInit,
     fallback: string,
-    success: string,
+    success: (body: unknown) => string | null,
   ): Promise<void> {
     setPending(key);
     setError(null);
     setDone(null);
     try {
       const response = await fetch(url, init);
+      const body = await response.json().catch(() => null);
       if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        setError(germanApiError(body?.error, fallback));
+        setError(germanApiError((body as { error?: unknown } | null)?.error, fallback));
         return;
       }
-      setDone(success);
+      const message = success(body);
+      if (message === null) return;
+      setDone(message);
       router.refresh();
     } catch {
       setError("Keine Verbindung. Bitte noch einmal versuchen.");
@@ -74,7 +76,26 @@ export function MobilePropertyTools({
         body: JSON.stringify({ propertyId }),
       },
       "Der Abgleich konnte nicht gestartet werden.",
-      "Abgleich gelaufen. Die Zeiten oben sind aktualisiert.",
+      // The route answers 200 even when every feed failed — the failures
+      // are counted in the body. Reporting success here would be the one
+      // lie this screen exists to prevent.
+      (body) => {
+        const summary = body as { errors?: number; newEvents?: number; removedEvents?: number } | null;
+        const errors = typeof summary?.errors === "number" ? summary.errors : 0;
+        if (errors > 0) {
+          setError(
+            errors === 1
+              ? "Ein Portal hat beim Abgleich nicht geantwortet. Status siehe oben."
+              : `${errors} Portale haben beim Abgleich nicht geantwortet. Status siehe oben.`,
+          );
+          router.refresh();
+          return null;
+        }
+        const changed = (summary?.newEvents ?? 0) + (summary?.removedEvents ?? 0);
+        return changed > 0
+          ? `Abgleich gelaufen, ${changed} Änderungen übernommen.`
+          : "Abgleich gelaufen, nichts Neues.";
+      },
     );
   }
 
@@ -89,16 +110,28 @@ export function MobilePropertyTools({
       setDone(null);
       return;
     }
+    // Send only what this screen actually changed. Sending all three
+    // would push the values loaded when the screen opened back over
+    // anything edited on the desktop in the meantime.
+    const patch: Record<string, unknown> = {};
+    if (result.patch.minNights !== minNights) patch.minNights = result.patch.minNights;
+    if (result.patch.checkInTime !== checkInTime) patch.checkInTime = result.patch.checkInTime;
+    if (result.patch.checkOutTime !== checkOutTime) patch.checkOutTime = result.patch.checkOutTime;
+    if (Object.keys(patch).length === 0) {
+      setError(null);
+      setDone("Nichts geändert.");
+      return;
+    }
     void run(
       "save",
       `/api/properties/${propertyId}`,
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(result.patch),
+        body: JSON.stringify(patch),
       },
       "Die Einstellungen konnten nicht gespeichert werden.",
-      "Gespeichert. Die Portale bekommen es beim nächsten Abruf.",
+      () => "Gespeichert. Die Portale bekommen es beim nächsten Abruf.",
     );
   }
 

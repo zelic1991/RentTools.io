@@ -50,6 +50,7 @@ export function MobileGuestLink({
   const [submission, setSubmission] = useState<MobileGuestLinkSubmission | null>(null);
   const [count, setCount] = useState(bookedGuestCount ? String(bookedGuestCount) : "");
   const [copied, setCopied] = useState(false);
+  const [minting, setMinting] = useState(false);
 
   const link = describeGuestLink(submission, new Date().toISOString());
   // Client components are also rendered on the server for the first
@@ -81,7 +82,7 @@ export function MobileGuestLink({
     setOpen(true);
     if (loaded) return;
     const body = await call<{ submission: MobileGuestLinkSubmission | null }>(
-      `/api/reservations/${reservationId}/guest-form/share`,
+      `/api/reservations/${reservationId}/guest-form/share?view=link`,
     );
     if (body) {
       setSubmission(body.submission);
@@ -90,10 +91,23 @@ export function MobileGuestLink({
   }
 
   async function createLink(): Promise<void> {
+    // One flag for the whole errand. The count and the link are two
+    // requests, and a gap between them let a second tap mint a second
+    // valid link that the host would never see, let alone revoke.
+    if (busy || minting) return;
+    setMinting(true);
+    try {
+      await mintLink();
+    } finally {
+      setMinting(false);
+    }
+  }
+
+  async function mintLink(): Promise<void> {
     const trimmed = count.trim();
     const parsed = trimmed === "" ? null : Number(trimmed);
-    if (parsed !== null && (!Number.isInteger(parsed) || parsed < 1)) {
-      setError("Gästezahl bitte als ganze Zahl eintragen.");
+    if (parsed !== null && (!Number.isInteger(parsed) || parsed < 1 || parsed > 50)) {
+      setError("Gästezahl bitte als ganze Zahl zwischen 1 und 50 eintragen.");
       return;
     }
     if (parsed !== null && parsed !== bookedGuestCount) {
@@ -204,8 +218,13 @@ export function MobileGuestLink({
             Ohne bestätigte Gästezahl gibt Airbnb oder Booking nicht her, für wie viele Personen der
             Link gilt — die App verlangt sie deshalb vor dem Erstellen.
           </p>
-          <button type="button" disabled={busy} onClick={() => void createLink()} className={`${PRIMARY} w-full`}>
-            {busy && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}
+          <button
+            type="button"
+            disabled={busy || minting}
+            onClick={() => void createLink()}
+            className={`${PRIMARY} w-full`}
+          >
+            {(busy || minting) && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}
             {link.state === "none" ? "Link erstellen" : "Neuen Link erstellen"}
           </button>
         </div>

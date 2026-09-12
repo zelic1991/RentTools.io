@@ -78,6 +78,8 @@ function stateLine(state: MobileDayState): string {
       return "Manuell freigegeben";
     case "buffer":
       return "Puffertag aus den Kanal-Einstellungen";
+    case "cleaning":
+      return "Reinigung geplant";
     default:
       return "Frei";
   }
@@ -165,8 +167,10 @@ export function MobileDaySheet({
     }
     const trimmedGuests = guests.trim();
     const guestCount = trimmedGuests === "" ? null : Number(trimmedGuests);
-    if (guestCount !== null && (!Number.isInteger(guestCount) || guestCount < 1)) {
-      setError("Gästezahl bitte als ganze Zahl eintragen.");
+    if (guestCount !== null && (!Number.isInteger(guestCount) || guestCount < 1 || guestCount > 50)) {
+      // Same range the server enforces, so the phone does not promise
+      // something the API will refuse.
+      setError("Gästezahl bitte als ganze Zahl zwischen 1 und 50 eintragen.");
       return null;
     }
     const editing = mode === "edit";
@@ -190,17 +194,41 @@ export function MobileDaySheet({
     };
   }
 
-  function toggleBlock(action: MobileDayAction): void {
-    void send(
-      action,
-      "/api/date-overrides",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ propertyId, date, type: "closed" }),
-      },
-      "Der Tag konnte nicht geändert werden.",
-    );
+  /**
+   * POST toggles: it removes an override of the same type instead of
+   * setting it. Relying on that means a stale screen does the opposite of
+   * the label — press "sperren" on a day someone already blocked and the
+   * block disappears, with a success message. So each button states its
+   * intent: unblock deletes, block deletes first and then sets, and both
+   * end in the state the host asked for.
+   */
+  function changeBlock(action: MobileDayAction): void {
+    const remove = `/api/date-overrides?propertyId=${propertyId}&date=${date}`;
+    if (action === "unblock") {
+      void send("unblock", remove, { method: "DELETE" }, "Die Sperre konnte nicht aufgehoben werden.");
+      return;
+    }
+    setPending("block");
+    setError(null);
+    void (async () => {
+      try {
+        await fetch(remove, { method: "DELETE" });
+      } catch {
+        // Nothing to remove, or offline — the POST below reports either.
+      } finally {
+        setPending(null);
+      }
+      void send(
+        "block",
+        "/api/date-overrides",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ propertyId, date, type: "closed" }),
+        },
+        "Der Tag konnte nicht gesperrt werden.",
+      );
+    })();
   }
 
   function submit(): void {
@@ -283,7 +311,7 @@ export function MobileDaySheet({
       remove();
       return;
     }
-    toggleBlock(action);
+    changeBlock(action);
   }
 
   return (
@@ -326,6 +354,13 @@ export function MobileDaySheet({
             {state.kind === "event" && (
               <p className="rounded-xl bg-[var(--zf-surface)] px-4 py-3 text-sm text-[var(--zf-text-muted)] dark:bg-slate-800 dark:text-slate-300">
                 Diese Buchung kommt von {platformLabel(state.platform)} und wird dort geändert.
+              </p>
+            )}
+            {state.kind === "cleaning" && (
+              <p className="rounded-xl bg-[var(--zf-surface)] px-4 py-3 text-sm text-[var(--zf-text-muted)] dark:bg-slate-800 dark:text-slate-300">
+                Für diesen Tag ist eine Reinigung eingeplant. Sperren geht hier nicht, weil das die
+                Reinigung ersetzen und den Tag an die Portale als belegt melden würde. Eine Buchung
+                lässt die Reinigung stehen.
               </p>
             )}
             {state.kind === "buffer" && (

@@ -35,6 +35,9 @@ export type MobileDayState =
   /** A turnover buffer from the channel settings — drawn as unavailable
    *  in the grid, but the app still accepts a direct booking on it. */
   | { kind: "buffer" }
+  /** A cleaning the host scheduled. Blocking the day would replace it,
+   *  and unlike a cleaning a block travels to Airbnb and Booking. */
+  | { kind: "cleaning" }
   | { kind: "free" };
 
 export type MobileDayAction = "create" | "block" | "unblock" | "edit" | "delete";
@@ -57,6 +60,10 @@ export function resolveMobileDay(
     /** Buffer days the grid paints as unavailable. Without them the
      *  sheet would call a struck-through day "frei". */
     bufferDates?: Iterable<string>;
+    /** Days with a scheduled cleaning. They are filtered out of the
+     *  phone's availability data on purpose — but a day the host cannot
+     *  see is a day the host can destroy. */
+    cleaningDates?: Iterable<string>;
   },
 ): MobileDayState {
   const reservation = input.reservations.find((row) =>
@@ -81,6 +88,12 @@ export function resolveMobileDay(
   const override = input.overrides.find((row) => day(row.date) === date);
   if (override?.type === "closed") return { kind: "blocked" };
   if (override?.type === "open") return { kind: "forced-open" };
+
+  if (input.cleaningDates) {
+    for (const cleaning of input.cleaningDates) {
+      if (day(cleaning) === date) return { kind: "cleaning" };
+    }
+  }
 
   if (input.bufferDates) {
     for (const buffer of input.bufferDates) {
@@ -108,6 +121,12 @@ export function mobileDayActions(
     // is honest; the sheet explains what the buffer still does.
     case "buffer":
       return ["create", "block"];
+    // No block here. The override table holds one row per day, so
+    // blocking would silently replace the cleaning — and a block, unlike
+    // a cleaning, is exported to the portals. A booking is safe: the
+    // create path leaves cleaning rows alone.
+    case "cleaning":
+      return ["create"];
     default:
       return ["create", "block"];
   }

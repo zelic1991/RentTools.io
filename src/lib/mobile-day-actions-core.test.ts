@@ -68,6 +68,15 @@ describe("mobile day state", () => {
     ).toEqual({ kind: "buffer" });
   });
 
+  it("shows a scheduled cleaning instead of an empty day", () => {
+    // Cleaning rows are filtered out of the phone's availability data, so
+    // the day looked free — and blocking it would have replaced the
+    // cleaning with an override that travels to Airbnb and Booking.
+    expect(
+      resolveMobileDay("2026-09-13", { ...empty, cleaningDates: ["2026-09-13"] }),
+    ).toEqual({ kind: "cleaning" });
+  });
+
   it("lets an explicit override beat a computed buffer", () => {
     const buffered = { ...empty, bufferDates: ["2026-09-12"] };
     expect(
@@ -114,6 +123,10 @@ describe("mobile day actions", () => {
 
   it("promises nothing on a platform booking the app cannot write", () => {
     expect(mobileDayActions(event, true)).toEqual([]);
+  });
+
+  it("never offers to block a cleaning day", () => {
+    expect(mobileDayActions({ kind: "cleaning" }, true)).toEqual(["create"]);
   });
 
   it("offers a booking on a buffer day, because the server takes one", () => {
