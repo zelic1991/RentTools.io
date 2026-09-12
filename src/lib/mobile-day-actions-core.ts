@@ -32,6 +32,9 @@ export type MobileDayState =
   | { kind: "event"; platform: string; startDate: string; endDate: string }
   | { kind: "blocked" }
   | { kind: "forced-open" }
+  /** A turnover buffer from the channel settings — drawn as unavailable
+   *  in the grid, but the app still accepts a direct booking on it. */
+  | { kind: "buffer" }
   | { kind: "free" };
 
 export type MobileDayAction = "create" | "block" | "unblock" | "edit" | "delete";
@@ -51,6 +54,9 @@ export function resolveMobileDay(
     reservations: MobileDayReservation[];
     events: MobileDayEvent[];
     overrides: MobileDayOverride[];
+    /** Buffer days the grid paints as unavailable. Without them the
+     *  sheet would call a struck-through day "frei". */
+    bufferDates?: Iterable<string>;
   },
 ): MobileDayState {
   const reservation = input.reservations.find((row) =>
@@ -70,9 +76,17 @@ export function resolveMobileDay(
     };
   }
 
+  // An explicit override is a decision someone made; a buffer is
+  // computed from the channel settings, so the decision wins.
   const override = input.overrides.find((row) => day(row.date) === date);
   if (override?.type === "closed") return { kind: "blocked" };
   if (override?.type === "open") return { kind: "forced-open" };
+
+  if (input.bufferDates) {
+    for (const buffer of input.bufferDates) {
+      if (day(buffer) === date) return { kind: "buffer" };
+    }
+  }
   return { kind: "free" };
 }
 
@@ -90,6 +104,10 @@ export function mobileDayActions(
       return [];
     case "blocked":
       return ["unblock", "create"];
+    // The server accepts a direct booking on a buffer day, so offering it
+    // is honest; the sheet explains what the buffer still does.
+    case "buffer":
+      return ["create", "block"];
     default:
       return ["create", "block"];
   }

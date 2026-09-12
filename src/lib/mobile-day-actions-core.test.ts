@@ -60,6 +60,24 @@ describe("mobile day state", () => {
     ).toEqual({ kind: "forced-open" });
   });
 
+  it("names a buffer day instead of calling it free", () => {
+    // The grid paints buffer days as unavailable. A sheet that says
+    // "Frei" on a struck-through day makes the calendar look broken.
+    expect(
+      resolveMobileDay("2026-09-12", { ...empty, bufferDates: ["2026-09-12"] }),
+    ).toEqual({ kind: "buffer" });
+  });
+
+  it("lets an explicit override beat a computed buffer", () => {
+    const buffered = { ...empty, bufferDates: ["2026-09-12"] };
+    expect(
+      resolveMobileDay("2026-09-12", { ...buffered, overrides: [{ date: "2026-09-12", type: "open" }] }),
+    ).toEqual({ kind: "forced-open" });
+    expect(
+      resolveMobileDay("2026-09-12", { ...buffered, overrides: [{ date: "2026-09-12", type: "closed" }] }),
+    ).toEqual({ kind: "blocked" });
+  });
+
   it("lets a stay outrank an override, so a block never hides a guest", () => {
     const state = resolveMobileDay("2026-09-21", {
       ...empty,
@@ -96,6 +114,10 @@ describe("mobile day actions", () => {
 
   it("promises nothing on a platform booking the app cannot write", () => {
     expect(mobileDayActions(event, true)).toEqual([]);
+  });
+
+  it("offers a booking on a buffer day, because the server takes one", () => {
+    expect(mobileDayActions({ kind: "buffer" }, true)).toEqual(["create", "block"]);
   });
 
   it("offers nothing at all in a read-only session", () => {
