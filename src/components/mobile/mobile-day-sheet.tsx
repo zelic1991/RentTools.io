@@ -280,10 +280,9 @@ export function MobileDaySheet({
     if (!booked) return;
     setPending("edit");
     try {
-      const response = await fetch(`/api/reservations?propertyId=${propertyId}`);
-      const rows: ReservationDetails[] | null = response.ok ? await response.json() : null;
-      const row = Array.isArray(rows) ? rows.find((entry) => entry.id === booked.id) : null;
-      if (!row) {
+      const response = await fetch(`/api/reservations/${booked.id}`);
+      const row: ReservationDetails | null = response.ok ? await response.json() : null;
+      if (!row || row.id !== booked.id) {
         setError("Die gespeicherten Werte konnten nicht geladen werden.");
         return;
       }

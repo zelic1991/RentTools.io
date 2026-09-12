@@ -434,7 +434,9 @@ function FamilyStartScreen({ data }: { data: MobileOperationsData }) {
 function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="rounded-2xl border border-[var(--zf-border)] bg-[var(--zf-bg)] p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="text-2xl font-semibold tabular-nums">{value}</div>
+      {/* 24px overflows the 134px a tile gets on a 375px screen as soon
+          as the season total reaches five digits; 20px carries six. */}
+      <div className="text-xl font-semibold tabular-nums sm:text-2xl">{value}</div>
       <div className="mt-1 text-xs text-[var(--zf-text-muted)] dark:text-slate-400">{label}</div>
       {hint && <div className="mt-1 text-[11px] text-[var(--zf-text-muted)] dark:text-slate-500">{hint}</div>}
     </div>
