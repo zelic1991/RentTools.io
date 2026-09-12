@@ -87,7 +87,9 @@ export interface MobileOperationsData {
     };
     events: MobileCalendarEvent[];
     links: Array<{ platform: string; bufferBefore: number; bufferAfter: number }>;
-    overrides: Array<{ date: string; type: "open" | "closed" | "cleaning" }>;
+    // mobileAvailabilityOverrides drops cleaning rows before they reach
+    // the phone: cleaning is scheduling metadata, never availability.
+    overrides: Array<{ date: string; type: "open" | "closed" }>;
     visibleFrom: string;
     visibleUntil: string;
   };

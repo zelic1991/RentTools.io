@@ -7,6 +7,8 @@ import { CalendarGrid } from "@/components/calendar/calendar-grid";
 import { useCalendarData } from "@/components/calendar/use-calendar-data";
 import type { MobileOperationsData } from "@/lib/mobile-operations";
 import { OperationalRemindersPanel } from "@/components/operational-reminders-panel";
+import { MobileDaySheet } from "@/components/mobile/mobile-day-sheet";
+import { resolveMobileDay } from "@/lib/mobile-day-actions-core";
 
 const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MONTH_FORMAT = new Intl.DateTimeFormat("de-AT", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -18,6 +20,9 @@ function monthKey(year: number, month: number): string {
 export function MobileCalendar({ data }: { data: MobileOperationsData }) {
   const [year, initialMonth] = data.today.split("-").map(Number);
   const [active, setActive] = useState({ year, month: initialMonth - 1 });
+  // Support sessions read; owner and manager act.
+  const canEdit = data.canWrite && (data.access === "owner" || data.access === "manager");
+  const [openDate, setOpenDate] = useState<string | null>(null);
   const computed = useCalendarData(
     data.calendar.property,
     data.calendar.events,
@@ -45,6 +50,24 @@ export function MobileCalendar({ data }: { data: MobileOperationsData }) {
     const key = monthKey(nextValue.year, nextValue.month);
     if (key >= minMonth && key <= maxMonth) setActive(nextValue);
   };
+
+  const dayState = openDate
+    ? resolveMobileDay(openDate, {
+        reservations: data.calendar.property.reservations.map((reservation) => ({
+          id: reservation.id,
+          name: reservation.name,
+          checkIn: reservation.checkIn,
+          checkOut: reservation.checkOut,
+          platform: reservation.platform,
+        })),
+        events: data.calendar.events.map((event) => ({
+          platform: event.platform,
+          startDate: event.startDate,
+          endDate: event.endDate,
+        })),
+        overrides: data.calendar.overrides,
+      })
+    : null;
 
   return (
     <section aria-labelledby="mobile-calendar-heading" className="space-y-4 text-[var(--zf-text)]">
@@ -92,7 +115,7 @@ export function MobileCalendar({ data }: { data: MobileOperationsData }) {
         </div>
         <div className="overflow-hidden px-1 pb-2 pt-1 sm:px-2">
           <CalendarGrid
-            readOnly
+            readOnly={!canEdit}
             year={active.year}
             month={active.month}
             today={todayDate}
@@ -112,8 +135,11 @@ export function MobileCalendar({ data }: { data: MobileOperationsData }) {
             cleaningOverrides={NO_DATES}
             bufferPresentation="blocked"
             selectedDates={new Set<string>()}
-            onSelectReservation={() => undefined}
-            onCellClick={() => undefined}
+            onSelectReservation={(id) => {
+              const reservation = data.calendar.property.reservations.find((row) => row.id === id);
+              if (reservation) setOpenDate(reservation.checkIn.slice(0, 10));
+            }}
+            onCellClick={(dateStr) => setOpenDate(dateStr)}
           />
         </div>
       </div>
@@ -124,6 +150,9 @@ export function MobileCalendar({ data }: { data: MobileOperationsData }) {
         <div className="flex min-h-11 items-center gap-2 rounded-xl border border-[var(--zf-border)] bg-[var(--zf-bg)] px-3"><span className="h-3 w-3 rounded-full bg-[#003580]" /> Booking</div>
         <div className="flex min-h-11 items-center gap-2 rounded-xl border border-[var(--zf-border)] bg-[var(--zf-bg)] px-3"><span className="h-3 w-3 rounded-full bg-[var(--zf-text-muted)]" /> Sonstige</div>
       </div>
+      {canEdit && (
+        <p className="text-xs text-[var(--zf-text-muted)]">Tippe einen Tag an, um zu buchen, zu sperren oder eine Buchung zu ändern.</p>
+      )}
       <p className="text-xs text-[var(--zf-text-muted)]">Ein Checkout-Tag bleibt für eine neue Anreise am selben Tag verfügbar. Nur Reservierungen, manuelle Sperren oder bewusst gesetzte Puffertage blockieren.</p>
 
       <OperationalRemindersPanel
@@ -158,6 +187,15 @@ export function MobileCalendar({ data }: { data: MobileOperationsData }) {
           })
         )}
       </section>
+      {openDate && dayState && (
+        <MobileDaySheet
+          propertyId={data.selectedProperty.id}
+          date={openDate}
+          state={dayState}
+          canWrite={canEdit}
+          onClose={() => setOpenDate(null)}
+        />
+      )}
     </section>
   );
 }
