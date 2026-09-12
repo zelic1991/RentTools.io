@@ -81,11 +81,11 @@ export function MobileShell({
             const locked = !canAccessMobileSection(data.access, item.section);
             const content = (
               <>
-                <span className={`relative flex h-7 w-12 items-center justify-center rounded-full ${active ? "bg-[var(--zf-brand-soft)] text-[var(--zf-brand)]" : "text-[var(--zf-text-muted)]"}`}>
+                <span className={`relative flex h-7 w-full max-w-12 items-center justify-center rounded-full ${active ? "bg-[var(--zf-brand-soft)] text-[var(--zf-brand)]" : "text-[var(--zf-text-muted)]"}`}>
                   <Icon aria-hidden className="h-5 w-5" strokeWidth={1.9} />
                   {locked && <LockKeyhole aria-hidden className="absolute -right-0.5 -top-0.5 h-3 w-3" />}
                 </span>
-                <span className="text-[11px] font-medium">{item.label}</span>
+                <span className="w-full truncate px-0.5 text-center text-[11px] font-medium">{item.label}</span>
               </>
             );
             const className = `flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] ${active ? "text-[var(--zf-brand)]" : "text-[var(--zf-text-muted)]"} ${locked ? "cursor-not-allowed opacity-55" : "hover:bg-[var(--zf-surface)]"}`;

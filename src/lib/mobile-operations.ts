@@ -24,7 +24,7 @@ import {
   type MobileSection,
 } from "@/lib/mobile-operations-core";
 import {
-  summarizeMobileReports,
+  mobileReportsForAccess,
   type MobileReportsData,
 } from "@/lib/mobile-reports-core";
 import type { OperationalReminderDto } from "@/lib/operational-reminders";
@@ -380,8 +380,9 @@ export async function loadMobileOperations(options: {
       )
     : [];
   // Same figures as the desktop panel, derived from the rows already
-  // loaded above — the phone must not show a second, softer truth.
-  const reports = summarizeMobileReports({
+  // loaded above — the phone must not show a second, softer truth. The
+  // access check is inside: this payload reaches the browser whole.
+  const reports = mobileReportsForAccess(access, {
     reservations: property.reservations.map((reservation) => ({
       checkIn: isoDate(reservation.checkIn),
       checkOut: isoDate(reservation.checkOut),

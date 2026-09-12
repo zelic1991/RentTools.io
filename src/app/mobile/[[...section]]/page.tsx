@@ -450,17 +450,25 @@ function ReportsScreen({ data }: { data: MobileOperationsData }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatTile label="Buchungen" value={String(reports.bookings)} hint={reports.averageNights === null ? undefined : `⌀ ${reports.averageNights.toLocaleString("de-AT")} Nächte`} />
-        <StatTile label="Anstehende Nächte" value={String(reports.upcomingNights)} hint="bis Ende des Buchungsfensters" />
+        <StatTile
+          label="Buchungen"
+          value={String(reports.bookings)}
+          hint={`seit Beginn${reports.averageNights === null ? "" : ` · ⌀ ${reports.averageNights.toLocaleString("de-AT")} Nächte`}`}
+        />
+        <StatTile
+          label="Belegte Nächte"
+          value={String(reports.upcomingNights)}
+          hint="ab heute · gebucht oder gesperrt"
+        />
         <StatTile
           label="Gespeicherte Beträge"
           value={totals.length > 0 ? formatMoney(totals[0].amountCents, totals[0].currency) : "–"}
-          hint={`${reports.stored.knownCount} mit Betrag · ${reports.stored.unknownCount} ohne`}
+          hint={`seit Beginn · ${reports.stored.knownCount} mit, ${reports.stored.unknownCount} ohne Betrag${totals.length > 1 ? ` · ${totals.length - 1} weitere Währung${totals.length > 2 ? "en" : ""} unten` : ""}`}
         />
         <StatTile
           label="⌀ pro Nacht"
           value={averages.length > 0 ? formatMoney(averages[0].amountCents, averages[0].currency) : "–"}
-          hint="nur aus Buchungen mit Betrag"
+          hint="nur Buchungen mit Betrag"
         />
       </div>
 
