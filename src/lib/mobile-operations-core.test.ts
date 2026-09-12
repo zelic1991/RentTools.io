@@ -144,14 +144,23 @@ describe("mobile guest state", () => {
 
 describe("mobile role boundary", () => {
   it("allows managers to read every mobile section", () => {
-    for (const section of ["start", "calendar", "guests", "portals", "cleaning"] as const) {
+    for (const section of ["start", "calendar", "guests", "portals", "reports", "cleaning"] as const) {
       expect(canAccessMobileSection("owner", section)).toBe(true);
     }
     expect(canAccessMobileSection("manager", "start")).toBe(true);
     expect(canAccessMobileSection("manager", "calendar")).toBe(true);
     expect(canAccessMobileSection("manager", "guests")).toBe(true);
     expect(canAccessMobileSection("manager", "portals")).toBe(true);
+    expect(canAccessMobileSection("manager", "reports")).toBe(true);
     expect(canAccessMobileSection("manager", "cleaning")).toBe(true);
+  });
+
+  it("keeps revenue away from family and cleaner accounts", () => {
+    // The mobile reports screen shows stored gross amounts. Family access
+    // exists so relatives can see the stay, not the takings.
+    expect(canAccessMobileSection("family", "reports")).toBe(false);
+    expect(canAccessMobileSection("cleaner", "reports")).toBe(false);
+    expect(canAccessMobileSection("family", "calendar")).toBe(true);
   });
 
   it("restricts cleaners to the cleaning workflow", () => {
@@ -159,6 +168,7 @@ describe("mobile role boundary", () => {
     expect(canAccessMobileSection("cleaner", "calendar")).toBe(false);
     expect(canAccessMobileSection("cleaner", "guests")).toBe(false);
     expect(canAccessMobileSection("cleaner", "portals")).toBe(false);
+    expect(canAccessMobileSection("cleaner", "reports")).toBe(false);
     expect(canAccessMobileSection("cleaner", "cleaning")).toBe(true);
   });
 });

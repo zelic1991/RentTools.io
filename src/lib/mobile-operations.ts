@@ -23,6 +23,10 @@ import {
   type MobileReservationInput,
   type MobileSection,
 } from "@/lib/mobile-operations-core";
+import {
+  mobileReportsForAccess,
+  type MobileReportsData,
+} from "@/lib/mobile-reports-core";
 import type { OperationalReminderDto } from "@/lib/operational-reminders";
 
 interface MobileCalendarReservation {
@@ -75,6 +79,7 @@ export interface MobileOperationsData {
   };
   guests: MobileReservationCard[];
   portals: MobilePortalCard[];
+  reports: MobileReportsData;
   operationalReminders: OperationalReminderDto[];
   calendar: {
     property: {
@@ -103,6 +108,8 @@ const RESERVATION_SELECT = {
   linkedEventPlatform: true,
   linkedEventRole: true,
   bookedGuestCount: true,
+  grossAmountCents: true,
+  currency: true,
   propertyId: true,
   createdAt: true,
   _count: { select: { guests: true } },
@@ -372,6 +379,30 @@ export async function loadMobileOperations(options: {
           || card.guestState.eVisitorStatus === "PRODUCTION_ERROR",
       )
     : [];
+  // Same figures as the desktop panel, derived from the rows already
+  // loaded above — the phone must not show a second, softer truth. The
+  // access check is inside: this payload reaches the browser whole.
+  const reports = mobileReportsForAccess(access, {
+    reservations: property.reservations.map((reservation) => ({
+      checkIn: isoDate(reservation.checkIn),
+      checkOut: isoDate(reservation.checkOut),
+      platform: reservation.platform,
+      grossAmountCents: reservation.grossAmountCents,
+      currency: reservation.currency,
+      linkedEventPlatform: reservation.linkedEventPlatform,
+      linkedEventUid: reservation.linkedEventUid,
+      linkedEventRole: reservation.linkedEventRole,
+    })),
+    events: property.calendarEvents.map((event) => ({
+      platform: event.platform,
+      uid: event.uid,
+      startDate: event.startDate,
+      endDate: event.endDate,
+    })),
+    today,
+    until: window.visibleUntil,
+  });
+
   const operationalReminders: OperationalReminderDto[] = property.operationalReminders.map((reminder) => ({
     id: reminder.id,
     propertyId: reminder.propertyId,
@@ -412,6 +443,7 @@ export async function loadMobileOperations(options: {
     },
     guests: canReadPii ? upcomingCards : [],
     portals,
+    reports,
     operationalReminders,
     calendar: {
       property: calendarProperty,

@@ -19,7 +19,7 @@ import { MobileShell } from "@/components/mobile/mobile-shell";
 import { loadMobileOperations, type MobileOperationsData, type MobileReservationCard } from "@/lib/mobile-operations";
 import { OperationalRemindersPanel } from "@/components/operational-reminders-panel";
 import { loadMobileCleaning, type MobileCleaningData } from "@/lib/mobile-cleaning";
-import { MOBILE_SECTIONS, type MobileSection } from "@/lib/mobile-operations-core";
+import { MOBILE_SECTIONS, safePlatformLabel, type MobileSection } from "@/lib/mobile-operations-core";
 
 const DATE = new Intl.DateTimeFormat("de-AT", {
   day: "2-digit",
@@ -30,6 +30,24 @@ const DATE = new Intl.DateTimeFormat("de-AT", {
 
 function formatDate(value: string): string {
   return DATE.format(new Date(`${value}T12:00:00.000Z`));
+}
+
+const MONTH = new Intl.DateTimeFormat("de-AT", {
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
+
+function formatMonth(month: string): string {
+  return MONTH.format(new Date(`${month}-01T12:00:00.000Z`));
+}
+
+function formatMoney(amountCents: number, currency: string): string {
+  return new Intl.NumberFormat("de-AT", {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 2,
+  }).format(amountCents / 100);
 }
 
 function formatDateTime(value: string | null): string {
@@ -395,6 +413,118 @@ function FamilyStartScreen({ data }: { data: MobileOperationsData }) {
   );
 }
 
+function StatTile({ label, value, hint }: { label: string; value: string; hint?: string }) {
+  return (
+    <div className="rounded-2xl border border-[var(--zf-border)] bg-[var(--zf-bg)] p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="text-2xl font-semibold tabular-nums">{value}</div>
+      <div className="mt-1 text-xs text-[var(--zf-text-muted)] dark:text-slate-400">{label}</div>
+      {hint && <div className="mt-1 text-[11px] text-[var(--zf-text-muted)] dark:text-slate-500">{hint}</div>}
+    </div>
+  );
+}
+
+function AmountRow({ label, nights, amount }: { label: string; nights: number; amount: string }) {
+  return (
+    <div className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-[var(--zf-border)] bg-[var(--zf-bg)] px-4 py-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-semibold">{label}</span>
+        <span className="mt-0.5 block text-xs text-[var(--zf-text-muted)] tabular-nums dark:text-slate-400">{nights} Nächte</span>
+      </span>
+      <span className="shrink-0 text-sm font-semibold tabular-nums">{amount}</span>
+    </div>
+  );
+}
+
+function ReportsScreen({ data }: { data: MobileOperationsData }) {
+  const { reports } = data;
+  const totals = reports.stored.totalsByCurrency;
+  const averages = reports.breakdown.averageNightlyCents;
+  return (
+    <section aria-labelledby="reports-heading" className="space-y-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--zf-brand)]">Berichte</p>
+        <h2 id="reports-heading" className="mt-1 text-2xl font-semibold tracking-tight">Zahlen</h2>
+        <p className="mt-1 text-sm text-[var(--zf-text-muted)] dark:text-slate-400">
+          Summiert werden nur selbst eingetragene Beträge – keine Preise, Gebühren oder Schätzungen.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatTile
+          label="Buchungen"
+          value={String(reports.bookings)}
+          hint={`seit Beginn${reports.averageNights === null ? "" : ` · ⌀ ${reports.averageNights.toLocaleString("de-AT")} Nächte`}`}
+        />
+        <StatTile
+          label="Belegte Nächte"
+          value={String(reports.upcomingNights)}
+          hint="ab heute · gebucht oder gesperrt"
+        />
+        <StatTile
+          label="Gespeicherte Beträge"
+          value={totals.length > 0 ? formatMoney(totals[0].amountCents, totals[0].currency) : "–"}
+          hint={`seit Beginn · ${reports.stored.knownCount} mit, ${reports.stored.unknownCount} ohne Betrag${totals.length > 1 ? ` · ${totals.length - 1} weitere Währung${totals.length > 2 ? "en" : ""} unten` : ""}`}
+        />
+        <StatTile
+          label="⌀ pro Nacht"
+          value={averages.length > 0 ? formatMoney(averages[0].amountCents, averages[0].currency) : "–"}
+          hint="nur Buchungen mit Betrag"
+        />
+      </div>
+
+      {totals.length > 1 && (
+        <div className="rounded-xl border border-[var(--zf-border)] bg-[var(--zf-bg)] px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-900">
+          {totals.map((total) => (
+            <div key={total.currency} className="flex justify-between gap-3 tabular-nums">
+              <span>{total.currency}</span>
+              <span className="font-semibold">{formatMoney(total.amountCents, total.currency)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <section aria-labelledby="reports-months" className="space-y-2">
+        <h3 id="reports-months" className="text-lg font-semibold tracking-tight">Nach Anreisemonat</h3>
+        {reports.breakdown.byMonth.length === 0 ? (
+          <EmptyState>Noch keine Buchung mit eingetragenem Betrag.</EmptyState>
+        ) : (
+          reports.breakdown.byMonth.map((row) => (
+            <AmountRow
+              key={`${row.month}-${row.currency}`}
+              label={formatMonth(row.month)}
+              nights={row.nights}
+              amount={formatMoney(row.amountCents, row.currency)}
+            />
+          ))
+        )}
+      </section>
+
+      <section aria-labelledby="reports-channels" className="space-y-2">
+        <h3 id="reports-channels" className="text-lg font-semibold tracking-tight">Nach Kanal</h3>
+        {reports.breakdown.byChannel.length === 0 ? (
+          <EmptyState>Noch keine Buchung mit eingetragenem Betrag.</EmptyState>
+        ) : (
+          reports.breakdown.byChannel.map((row) => (
+            <AmountRow
+              key={`${row.platform}-${row.currency}`}
+              label={safePlatformLabel(row.platform)}
+              nights={row.nights}
+              amount={formatMoney(row.amountCents, row.currency)}
+            />
+          ))
+        )}
+      </section>
+
+      <Link
+        href={`/dashboard?property=${data.selectedProperty.id}&view=reports`}
+        className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-[var(--zf-border)] bg-[var(--zf-bg)] px-4 text-sm font-semibold outline-none hover:border-[var(--zf-brand-pale)] hover:bg-[var(--zf-brand-soft)] focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] dark:border-slate-800 dark:bg-slate-900"
+      >
+        Diagramm und CSV-Export öffnen <ArrowRight aria-hidden className="h-4 w-4" />
+      </Link>
+    </section>
+  );
+}
+
 export default async function MobileOperationsPage({
   params,
 }: {
@@ -424,6 +554,7 @@ export default async function MobileOperationsPage({
       {data.section === "calendar" && <MobileCalendar data={data} />}
       {data.section === "guests" && <GuestsScreen data={data} />}
       {data.section === "portals" && <PortalsScreen data={data} />}
+      {data.section === "reports" && <ReportsScreen data={data} />}
     </MobileShell>
   );
 }

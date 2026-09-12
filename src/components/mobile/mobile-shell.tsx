@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   CalendarDays,
+  ChartColumn,
   CircleUserRound,
   House,
   LockKeyhole,
@@ -21,8 +22,20 @@ const NAVIGATION: Array<{
   { section: "calendar", label: "Kalender", href: "/mobile/calendar", icon: CalendarDays },
   { section: "guests", label: "Gäste", href: "/mobile/guests", icon: CircleUserRound },
   { section: "portals", label: "Portale", href: "/mobile/portals", icon: RadioTower },
+  { section: "reports", label: "Berichte", href: "/mobile/reports", icon: ChartColumn },
   { section: "cleaning", label: "Reinigung", href: "/mobile/cleaning", icon: Sparkles },
 ];
+
+// Tailwind only ships the column counts it can see in the source, so the
+// bar picks from a written-out map instead of building the class name.
+const NAV_COLUMNS: Record<number, string> = {
+  1: "grid-cols-1",
+  2: "grid-cols-2",
+  3: "grid-cols-3",
+  4: "grid-cols-4",
+  5: "grid-cols-5",
+  6: "grid-cols-6",
+};
 
 export function MobileShell({
   data,
@@ -31,7 +44,11 @@ export function MobileShell({
   data: MobileOperationsData | MobileCleaningData;
   children: React.ReactNode;
 }) {
-  const navigation = data.access === "family" ? NAVIGATION.filter((item) => item.section !== "portals") : NAVIGATION;
+  // Family gets the stay, not the business: no portal wiring, no revenue.
+  const navigation = data.access === "family"
+    ? NAVIGATION.filter((item) => item.section !== "portals" && item.section !== "reports")
+    : NAVIGATION;
+  const columns = NAV_COLUMNS[navigation.length] ?? "grid-cols-5";
   return (
     <div className="zf-brand min-h-dvh overflow-x-hidden bg-[var(--zf-bg)] text-[var(--zf-text)]">
       <header className="sticky top-0 z-30 border-b border-[var(--zf-border)] bg-[var(--zf-bg)]/95 backdrop-blur">
@@ -57,18 +74,18 @@ export function MobileShell({
         aria-label="Mobile Hauptnavigation"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--zf-border)] bg-[var(--zf-bg)]/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-12px_30px_-24px_rgba(63,23,53,.35)] backdrop-blur"
       >
-        <div className="mx-auto grid max-w-xl grid-cols-5 px-2 py-1.5">
+        <div className={`mx-auto grid max-w-xl ${columns} px-2 py-1.5`}>
           {navigation.map((item) => {
             const Icon = item.icon;
             const active = data.section === item.section;
             const locked = !canAccessMobileSection(data.access, item.section);
             const content = (
               <>
-                <span className={`relative flex h-7 w-12 items-center justify-center rounded-full ${active ? "bg-[var(--zf-brand-soft)] text-[var(--zf-brand)]" : "text-[var(--zf-text-muted)]"}`}>
+                <span className={`relative flex h-7 w-full max-w-12 items-center justify-center rounded-full ${active ? "bg-[var(--zf-brand-soft)] text-[var(--zf-brand)]" : "text-[var(--zf-text-muted)]"}`}>
                   <Icon aria-hidden className="h-5 w-5" strokeWidth={1.9} />
                   {locked && <LockKeyhole aria-hidden className="absolute -right-0.5 -top-0.5 h-3 w-3" />}
                 </span>
-                <span className="text-[11px] font-medium">{item.label}</span>
+                <span className="w-full truncate px-0.5 text-center text-[11px] font-medium">{item.label}</span>
               </>
             );
             const className = `flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] ${active ? "text-[var(--zf-brand)]" : "text-[var(--zf-text-muted)]"} ${locked ? "cursor-not-allowed opacity-55" : "hover:bg-[var(--zf-surface)]"}`;
