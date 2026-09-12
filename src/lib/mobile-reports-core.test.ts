@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  mobileReportsForAccess,
   summarizeMobileReports,
   type MobileReportsEvent,
   type MobileReportsReservation,
@@ -144,5 +145,39 @@ describe("mobile reports summary", () => {
       ...WINDOW,
     });
     expect(result.upcomingNights).toBe(1);
+  });
+});
+
+describe("who the figures are computed for", () => {
+  // The whole payload is serialised into the page for the client
+  // calendar, so a role that must not see revenue must not have it
+  // attached at all — hiding the nav entry would leave it in the source.
+  const input = {
+    reservations: [reservation({ grossAmountCents: 98765 })],
+    events: [],
+    ...WINDOW,
+  };
+
+  it("gives owner and manager the real numbers", () => {
+    for (const access of ["owner", "manager"] as const) {
+      const result = mobileReportsForAccess(access, input);
+      expect(result.stored.totalsByCurrency, access).toEqual([
+        { currency: "EUR", amountCents: 98765 },
+      ]);
+      expect(result.bookings, access).toBe(1);
+    }
+  });
+
+  it("attaches no amount at all for family and cleaner", () => {
+    for (const access of ["family", "cleaner"] as const) {
+      const result = mobileReportsForAccess(access, input);
+      expect(JSON.stringify(result), access).not.toContain("98765");
+      expect(result.stored.totalsByCurrency, access).toEqual([]);
+      expect(result.stored.knownCount, access).toBe(0);
+      expect(result.breakdown.byMonth, access).toEqual([]);
+      expect(result.breakdown.byChannel, access).toEqual([]);
+      expect(result.bookings, access).toBe(0);
+      expect(result.upcomingNights, access).toBe(0);
+    }
   });
 });
