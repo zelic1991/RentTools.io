@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isHostBlockSummary,
   mobileReportsForAccess,
   summarizeMobileReports,
   type MobileReportsEvent,
@@ -107,24 +108,15 @@ describe("mobile reports summary", () => {
     expect(result.upcomingNights).toBe(3);
   });
 
-  it("counts the days the host blocked by hand, as the tile promises", () => {
-    const result = summarizeMobileReports({
-      reservations: [],
-      events: [],
-      blockedDates: ["2026-10-01", "2026-10-02"],
-      ...WINDOW,
-    });
-    expect(result.upcomingNights).toBe(2);
-  });
-
-  it("does not count a blocked day twice when a stay covers it anyway", () => {
-    const result = summarizeMobileReports({
-      reservations: [reservation({ checkIn: "2026-10-01", checkOut: "2026-10-04" })],
-      events: [],
-      blockedDates: ["2026-10-02"],
-      ...WINDOW,
-    });
-    expect(result.upcomingNights).toBe(3);
+  it("leaves the host's own blocked days out, like the desktop does", () => {
+    // Live data made this obvious: with the winter closure counted, the
+    // phone said 246 nights ahead where the desktop said 48 — same flat,
+    // same day. Blocks are occupancy, not business.
+    expect(isHostBlockSummary("Airbnb (Not available)")).toBe(true);
+    expect(isHostBlockSummary("CLOSED - Not available")).toBe(true);
+    expect(isHostBlockSummary("Blocked")).toBe(true);
+    expect(isHostBlockSummary("Krajci")).toBe(false);
+    expect(isHostBlockSummary(null)).toBe(false);
   });
 
   it("counts a claimed event once, not twice", () => {
