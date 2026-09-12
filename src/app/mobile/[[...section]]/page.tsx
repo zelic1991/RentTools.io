@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { CleaningActions } from "@/components/mobile/cleaning-actions";
 import { MobileCalendar } from "@/components/mobile/mobile-calendar";
+import { MobileGuestLink } from "@/components/mobile/mobile-guest-link";
+import { MobilePropertyTools } from "@/components/mobile/mobile-property-tools";
 import { MobilePwaRegister } from "@/components/mobile/mobile-pwa-register";
 import { MobileShell } from "@/components/mobile/mobile-shell";
 import { loadMobileOperations, type MobileOperationsData, type MobileReservationCard } from "@/lib/mobile-operations";
@@ -276,6 +278,12 @@ function GuestsScreen({ data }: { data: MobileOperationsData }) {
               ) : (
                 <p className="mt-4 rounded-xl bg-[var(--zf-surface)] px-4 py-3 text-center text-xs text-[var(--zf-text-muted)] dark:bg-slate-800 dark:text-slate-300">Support-Ansicht ist schreibgeschützt.</p>
               )}
+              <MobileGuestLink
+                reservationId={reservation.id}
+                guestName={reservation.label}
+                bookedGuestCount={reservation.bookedGuestCount}
+                canWrite={data.canWrite}
+              />
             </article>
           ))}
         </div>
@@ -326,6 +334,14 @@ function PortalsScreen({ data }: { data: MobileOperationsData }) {
       </div>
       {!data.canSeeTechnicalDetails && (
         <div className="rounded-xl border border-[var(--zf-border)] bg-[var(--zf-bg)] px-4 py-3 text-sm text-[var(--zf-text-muted)] dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">Technische Feeddetails und Fehlertexte sind Owner-only.</div>
+      )}
+      {data.canWrite && (data.access === "owner" || data.access === "manager") && (
+        <MobilePropertyTools
+          propertyId={data.selectedProperty.id}
+          minNights={data.calendar.property.minNights}
+          checkInTime={data.calendar.property.checkInTime}
+          checkOutTime={data.calendar.property.checkOutTime}
+        />
       )}
     </section>
   );
