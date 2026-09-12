@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Copy, Link2, Loader2, Share2 } from "lucide-react";
+import { germanApiError } from "@/lib/mobile-api-errors";
 import {
   describeGuestLink,
   type MobileGuestLinkState,
@@ -64,11 +65,7 @@ export function MobileGuestLink({
       const response = await fetch(url, init);
       const body = await response.json().catch(() => null);
       if (!response.ok) {
-        setError(
-          body && typeof body.error === "string"
-            ? body.error
-            : "Das hat nicht geklappt. Bitte noch einmal versuchen.",
-        );
+        setError(germanApiError(body?.error, "Das hat nicht geklappt. Bitte noch einmal versuchen."));
         return null;
       }
       return body as T;

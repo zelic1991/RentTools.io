@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, RefreshCw, Save } from "lucide-react";
+import { germanApiError } from "@/lib/mobile-api-errors";
 import { validateMobilePropertySettings } from "@/lib/mobile-property-settings-core";
 
 /**
@@ -51,7 +52,7 @@ export function MobilePropertyTools({
       const response = await fetch(url, init);
       if (!response.ok) {
         const body = await response.json().catch(() => null);
-        setError(typeof body?.error === "string" ? body.error : fallback);
+        setError(germanApiError(body?.error, fallback));
         return;
       }
       setDone(success);
