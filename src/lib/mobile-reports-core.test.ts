@@ -32,7 +32,7 @@ function event(overrides: Partial<MobileReportsEvent> = {}): MobileReportsEvent 
   };
 }
 
-const WINDOW = { today: "2026-09-12", until: "2027-09-12" };
+const WINDOW = { today: "2026-09-12", untilCheckout: "2027-09-12" };
 
 describe("mobile reports summary", () => {
   it("says nothing rather than zero-euro on an empty property", () => {
@@ -93,6 +93,38 @@ describe("mobile reports summary", () => {
       ...WINDOW,
     });
     expect(result.upcomingNights).toBe(3 + 2);
+  });
+
+  it("keeps the last bookable night of the window", () => {
+    // The window ends with a checkout bound, not with the last night. The
+    // earlier version clipped against the night and lost it.
+    const result = summarizeMobileReports({
+      reservations: [reservation({ checkIn: "2027-09-10", checkOut: "2027-09-13" })],
+      events: [],
+      today: "2026-09-12",
+      untilCheckout: "2027-09-13",
+    });
+    expect(result.upcomingNights).toBe(3);
+  });
+
+  it("counts the days the host blocked by hand, as the tile promises", () => {
+    const result = summarizeMobileReports({
+      reservations: [],
+      events: [],
+      blockedDates: ["2026-10-01", "2026-10-02"],
+      ...WINDOW,
+    });
+    expect(result.upcomingNights).toBe(2);
+  });
+
+  it("does not count a blocked day twice when a stay covers it anyway", () => {
+    const result = summarizeMobileReports({
+      reservations: [reservation({ checkIn: "2026-10-01", checkOut: "2026-10-04" })],
+      events: [],
+      blockedDates: ["2026-10-02"],
+      ...WINDOW,
+    });
+    expect(result.upcomingNights).toBe(3);
   });
 
   it("counts a claimed event once, not twice", () => {

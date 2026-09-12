@@ -38,11 +38,8 @@ export function validateMobilePropertySettings(
   if (!TIME.test(checkOutTime)) {
     return { ok: false, error: "Check-out-Zeit bitte als Uhrzeit angeben, zum Beispiel 10:00." };
   }
-  // Same-day turnover is the normal case: the guest leaves in the
-  // morning, the next arrives in the afternoon. Check-out after check-in
-  // would leave no room for the cleaning between them.
-  if (checkOutTime >= checkInTime) {
-    return { ok: false, error: "Der Check-out muss vor dem Check-in liegen, sonst geht kein Wechseltag." };
-  }
+  // Deliberately no "check-out before check-in" rule: nothing else in
+  // the app has one, and a flat with check-in at 00:00 would become
+  // unsavable from the phone alone.
   return { ok: true, patch: { minNights: nights, checkInTime, checkOutTime } };
 }

@@ -23,16 +23,16 @@ describe("mobile property settings", () => {
     }
   });
 
-  it("keeps the turnover day possible", () => {
-    // Check-out at 14:00 and check-in at 10:00 would mean the next guest
-    // arrives before the last one leaves.
-    const result = validateMobilePropertySettings({
-      minNights: "3",
-      checkInTime: "10:00",
-      checkOutTime: "14:00",
-    });
-    expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error).toContain("Wechseltag");
+  it("invents no rule the rest of the app does not have", () => {
+    // An earlier version refused check-out after check-in. Nothing else
+    // in the app does, and it made a flat with check-in at 00:00
+    // unsavable from the phone.
+    expect(
+      validateMobilePropertySettings({ minNights: "3", checkInTime: "00:00", checkOutTime: "10:00" }).ok,
+    ).toBe(true);
+    expect(
+      validateMobilePropertySettings({ minNights: "3", checkInTime: "10:00", checkOutTime: "14:00" }).ok,
+    ).toBe(true);
   });
 
   it("trims what a phone keyboard adds", () => {

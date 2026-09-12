@@ -322,6 +322,24 @@ describe("normal owner review response", () => {
   });
 });
 
+describe("link-only view", () => {
+  it("answers whether a link can be sent without decrypting anyone's papers", async () => {
+    // The phone screen only needs the URL and its state. Shipping every
+    // traveller's passport data to answer that is data nobody asked for.
+    const response = await GET(
+      new NextRequest("http://localhost/api/reservations/7/guest-form/share?view=link"),
+      params,
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.submission).toMatchObject({ status: expect.any(String) });
+    expect(body.submission).not.toHaveProperty("travelers");
+    expect(body.submission).not.toHaveProperty("answers");
+    expect(mocks.decryptGuestData).not.toHaveBeenCalled();
+  });
+});
+
 describe("guest-form sharing", () => {
   it("creates a new invitation at the canonical pending state", async () => {
     mocks.submissionFindFirst.mockResolvedValue(null);

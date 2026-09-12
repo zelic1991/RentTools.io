@@ -69,6 +69,7 @@ export function MobileCalendar({ data }: { data: MobileOperationsData }) {
         // Same set the grid strikes through, so the sheet cannot call a
         // buffer day free.
         bufferDates: computed.bufferDates,
+        cleaningDates: data.calendar.cleaningDates,
       })
     : null;
 

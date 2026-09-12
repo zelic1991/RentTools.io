@@ -40,7 +40,7 @@ interface AnswerOut {
 // creating one. Used by reservation-view to know whether to show
 // "Not sent" / "Awaiting" / submitted-answers panel.
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -66,6 +66,27 @@ export async function GET(
       orderBy: { createdAt: "asc" },
     });
     if (!submission) return NextResponse.json({ submission: null });
+
+    // ?view=link — the caller only wants to know whether a link exists
+    // and may still be sent. Answering that does not require decrypting
+    // anyone's passport data, so it does not.
+    if (request.nextUrl.searchParams.get("view") === "link") {
+      const linkToken = decryptOwnerShareToken(submission.tokenCiphertext);
+      return NextResponse.json({
+        submission: {
+          shareUrl: linkToken
+            ? `/g/${linkToken}`
+            : submission.tokenHash
+              ? null
+              : `/g/${submission.shareToken}`,
+          sentAt: submission.createdAt,
+          submittedAt: submission.submittedAt,
+          status: submission.status,
+          expiresAt: submission.expiresAt,
+          revokedAt: submission.revokedAt,
+        },
+      });
+    }
 
     let answers: AnswerOut[] = [];
     try {

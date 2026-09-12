@@ -61,6 +61,12 @@ function clip(from: string, to: string, windowStart: string, windowEnd: string):
   return nightsBetween(start, end) > 0 ? [start, end] : null;
 }
 
+function addOneDay(date: string): string {
+  const next = new Date(`${date}T12:00:00.000Z`);
+  next.setUTCDate(next.getUTCDate() + 1);
+  return next.toISOString().slice(0, 10);
+}
+
 function linkedSourceKey(platform: string | null, uid: string | null): string | null {
   if (!platform || !uid) return null;
   return `${platform.toLowerCase()}|${uid}`;
@@ -98,10 +104,16 @@ function unionNights(ranges: Array<[string, string]>): number {
 export function summarizeMobileReports(input: {
   reservations: MobileReportsReservation[];
   events: MobileReportsEvent[];
+  /** Days the host closed by hand — occupied for the portals, and the
+   *  tile promises to count them. */
+  blockedDates?: Iterable<string>;
   today: string;
-  until: string;
+  /** First day that is no longer bookable, i.e. the window's checkout
+   *  bound. Passing the last bookable *night* here drops that night. */
+  untilCheckout: string;
 }): MobileReportsData {
-  const { reservations, events, today, until } = input;
+  const { reservations, events, blockedDates, today, untilCheckout } = input;
+  const until = untilCheckout;
 
   // A claim renames one imported event, so the event and the reservation
   // are the same stay. An extension is a separate direct stay that only
@@ -125,6 +137,12 @@ export function summarizeMobileReports(input: {
     const key = linkedSourceKey(event.platform, event.uid);
     if (key && claimed.has(key)) continue;
     const range = clip(event.startDate, event.endDate, today, until);
+    if (range) occupied.push(range);
+  }
+
+  for (const blocked of blockedDates ?? []) {
+    const day = String(blocked).slice(0, 10);
+    const range = clip(day, addOneDay(day), today, until);
     if (range) occupied.push(range);
   }
 
