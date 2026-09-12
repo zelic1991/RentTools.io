@@ -4,6 +4,10 @@ import {
   type RevenueBreakdown,
   type StoredGrossAmountSummary,
 } from "@/lib/reservation-revenue";
+import {
+  canAccessMobileSection,
+  type MobileAccessLevel,
+} from "@/lib/mobile-operations-core";
 
 /**
  * The phone view shipped without any reports: every figure lived in the
@@ -140,4 +144,29 @@ export function summarizeMobileReports(input: {
     stored: summarizeStoredGrossAmounts(reservations),
     breakdown: summarizeRevenueBreakdown(reservations),
   };
+}
+
+/** Zero figures for accounts that may not see revenue. */
+export const EMPTY_MOBILE_REPORTS: MobileReportsData = {
+  bookings: 0,
+  totalNights: 0,
+  averageNights: null,
+  upcomingNights: 0,
+  stored: { knownCount: 0, unknownCount: 0, totalsByCurrency: [] },
+  breakdown: { byMonth: [], byChannel: [], averageNightlyCents: [] },
+};
+
+/**
+ * Hiding the tab is not hiding the data. Every mobile screen is rendered
+ * from one payload, and the calendar is a client component — so whatever
+ * the loader attaches ships to the browser and is readable in the page
+ * source, whether or not a nav entry points at it. Accounts without the
+ * reports section therefore get the empty figures, not merely no link.
+ */
+export function mobileReportsForAccess(
+  access: MobileAccessLevel,
+  input: Parameters<typeof summarizeMobileReports>[0],
+): MobileReportsData {
+  if (!canAccessMobileSection(access, "reports")) return EMPTY_MOBILE_REPORTS;
+  return summarizeMobileReports(input);
 }
