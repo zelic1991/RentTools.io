@@ -73,6 +73,24 @@ export async function canManageProperty(
 }
 
 /**
+ * True only for the owner and real managers.
+ *
+ * `canManageProperty` deliberately includes family access: relatives are
+ * meant to add a stay and keep the calendar honest. They are not meant to
+ * reach revenue, guest identity data, or the settings that decide what
+ * the portals may sell — a UI that hides those is a courtesy, not a
+ * boundary, so the routes behind them ask this instead.
+ */
+export async function canAdministerProperty(
+  propertyId: number,
+  userId: number,
+  role: string
+): Promise<boolean> {
+  const access = await getPropertyAccess(propertyId, userId, role);
+  return access === "owner" || access === "manager";
+}
+
+/**
  * True if user can read property data (calendar, reservations, etc).
  * Includes cleaners (who can see assigned properties read-only).
  */
@@ -83,6 +101,39 @@ export async function canReadProperty(
 ): Promise<boolean> {
   const access = await getPropertyAccess(propertyId, userId, role);
   return access !== "none";
+}
+
+/**
+ * Access level per property for a list endpoint, in two queries instead
+ * of one round trip per row. Anything the caller cannot place stays out
+ * of the map, so callers can fail closed.
+ */
+export async function propertyAccessLevels(
+  userId: number,
+  propertyIds: number[],
+): Promise<Map<number, AccessLevel>> {
+  const levels = new Map<number, AccessLevel>();
+  if (propertyIds.length === 0) return levels;
+
+  const owned = await prisma.property.findMany({
+    where: { id: { in: propertyIds }, userId },
+    select: { id: true },
+  });
+  for (const property of owned) levels.set(property.id, "owner");
+
+  const managed = await prisma.propertyManager
+    .findMany({
+      where: { managerId: userId, propertyId: { in: propertyIds } },
+      select: { propertyId: true, accessLevel: true },
+    })
+    .catch(() => [] as Array<{ propertyId: number; accessLevel?: string }>);
+  for (const row of managed) {
+    // Owning it outranks a manager row on the same property.
+    if (levels.get(row.propertyId) === "owner") continue;
+    levels.set(row.propertyId, row.accessLevel === "family" ? "family" : "manager");
+  }
+
+  return levels;
 }
 
 /**

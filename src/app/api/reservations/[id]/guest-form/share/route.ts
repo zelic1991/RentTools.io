@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { canManageProperty } from "@/lib/ownership";
+import { canAdministerProperty } from "@/lib/ownership";
 import {
   decryptGuestData,
   encryptGuestData,
@@ -57,7 +57,7 @@ export async function GET(
       select: { id: true, propertyId: true },
     });
     if (!reservation) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    if (!(await canManageProperty(reservation.propertyId, session.userId, session.role))) {
+    if (!(await canAdministerProperty(reservation.propertyId, session.userId, session.role))) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
@@ -177,7 +177,7 @@ export async function POST(
       },
     });
     if (!reservation) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    if (!(await canManageProperty(reservation.propertyId, session.userId, session.role))) {
+    if (!(await canAdministerProperty(reservation.propertyId, session.userId, session.role))) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
@@ -319,7 +319,7 @@ export async function PATCH(
         bookedGuestCount: true,
       },
     });
-    if (!reservation || !(await canManageProperty(reservation.propertyId, session.userId, session.role))) {
+    if (!reservation || !(await canAdministerProperty(reservation.propertyId, session.userId, session.role))) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
     const submission = await prisma.guestFormSubmission.findFirst({

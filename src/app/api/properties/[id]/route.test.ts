@@ -12,6 +12,9 @@ vi.mock("@/lib/auth", () => ({ getSession: mocks.getSession }));
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
 vi.mock("@/lib/ownership", () => ({
   canManageProperty: mocks.canManageProperty,
+  // House rules are administered, not merely managed — family access is
+  // refused by the real helper.
+  canAdministerProperty: mocks.canManageProperty,
   isPropertyOwner: mocks.isPropertyOwner,
 }));
 vi.mock("@/lib/prisma", () => ({
