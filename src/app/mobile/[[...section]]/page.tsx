@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { CleaningActions } from "@/components/mobile/cleaning-actions";
 import { MobileCalendar } from "@/components/mobile/mobile-calendar";
+import { MobileGuestLink } from "@/components/mobile/mobile-guest-link";
 import { MobilePwaRegister } from "@/components/mobile/mobile-pwa-register";
 import { MobileShell } from "@/components/mobile/mobile-shell";
 import { loadMobileOperations, type MobileOperationsData, type MobileReservationCard } from "@/lib/mobile-operations";
@@ -276,6 +277,12 @@ function GuestsScreen({ data }: { data: MobileOperationsData }) {
               ) : (
                 <p className="mt-4 rounded-xl bg-[var(--zf-surface)] px-4 py-3 text-center text-xs text-[var(--zf-text-muted)] dark:bg-slate-800 dark:text-slate-300">Support-Ansicht ist schreibgeschützt.</p>
               )}
+              <MobileGuestLink
+                reservationId={reservation.id}
+                guestName={reservation.label}
+                bookedGuestCount={reservation.bookedGuestCount}
+                canWrite={data.canWrite}
+              />
             </article>
           ))}
         </div>
