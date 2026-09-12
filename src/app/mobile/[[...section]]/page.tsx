@@ -474,9 +474,9 @@ function ReportsScreen({ data }: { data: MobileOperationsData }) {
           hint={`seit Beginn${reports.averageNights === null ? "" : ` · ⌀ ${reports.averageNights.toLocaleString("de-AT")} Nächte`}`}
         />
         <StatTile
-          label="Belegte Nächte"
+          label="Gebuchte Nächte"
           value={String(reports.upcomingNights)}
-          hint="ab heute · gebucht oder gesperrt"
+          hint="ab heute · ohne eigene Sperren"
         />
         <StatTile
           label="Gespeicherte Beträge"

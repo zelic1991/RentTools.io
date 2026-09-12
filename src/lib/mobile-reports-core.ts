@@ -41,7 +41,9 @@ export interface MobileReportsData {
   bookings: number;
   totalNights: number;
   averageNights: number | null;
-  /** Occupied nights from today to the end of the booking window. */
+  /** Booked nights from today to the end of the booking window. Host
+   *  blocks are not sold nights and are left out, the same way the
+   *  desktop panel leaves them out. */
   upcomingNights: number;
   stored: StoredGrossAmountSummary;
   breakdown: RevenueBreakdown;
@@ -61,10 +63,20 @@ function clip(from: string, to: string, windowStart: string, windowEnd: string):
   return nightsBetween(start, end) > 0 ? [start, end] : null;
 }
 
-function addOneDay(date: string): string {
-  const next = new Date(`${date}T12:00:00.000Z`);
-  next.setUTCDate(next.getUTCDate() + 1);
-  return next.toISOString().slice(0, 10);
+/**
+ * Airbnb and Booking export the host's own blocked days as ordinary
+ * events — the winter closure alone is roughly two hundred of them. They
+ * are occupancy, not business: counting them turned "48 nights ahead" on
+ * the desktop into "246" on the phone for the same flat. The desktop
+ * drops them, so the phone drops them too.
+ */
+export function isHostBlockSummary(summary: string | null | undefined): boolean {
+  const text = summary ?? "";
+  return (
+    text.includes("Not available") ||
+    text.includes("Blocked") ||
+    text.includes("CLOSED")
+  );
 }
 
 function linkedSourceKey(platform: string | null, uid: string | null): string | null {
@@ -104,15 +116,12 @@ function unionNights(ranges: Array<[string, string]>): number {
 export function summarizeMobileReports(input: {
   reservations: MobileReportsReservation[];
   events: MobileReportsEvent[];
-  /** Days the host closed by hand — occupied for the portals, and the
-   *  tile promises to count them. */
-  blockedDates?: Iterable<string>;
   today: string;
   /** First day that is no longer bookable, i.e. the window's checkout
    *  bound. Passing the last bookable *night* here drops that night. */
   untilCheckout: string;
 }): MobileReportsData {
-  const { reservations, events, blockedDates, today, untilCheckout } = input;
+  const { reservations, events, today, untilCheckout } = input;
   const until = untilCheckout;
 
   // A claim renames one imported event, so the event and the reservation
@@ -137,12 +146,6 @@ export function summarizeMobileReports(input: {
     const key = linkedSourceKey(event.platform, event.uid);
     if (key && claimed.has(key)) continue;
     const range = clip(event.startDate, event.endDate, today, until);
-    if (range) occupied.push(range);
-  }
-
-  for (const blocked of blockedDates ?? []) {
-    const day = String(blocked).slice(0, 10);
-    const range = clip(day, addOneDay(day), today, until);
     if (range) occupied.push(range);
   }
 

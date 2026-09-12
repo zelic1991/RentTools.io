@@ -24,6 +24,7 @@ import {
   type MobileSection,
 } from "@/lib/mobile-operations-core";
 import {
+  isHostBlockSummary,
   mobileReportsForAccess,
   type MobileReportsData,
 } from "@/lib/mobile-reports-core";
@@ -384,15 +385,16 @@ export async function loadMobileOperations(options: {
       linkedEventUid: reservation.linkedEventUid,
       linkedEventRole: reservation.linkedEventRole,
     })),
-    events: property.calendarEvents.map((event) => ({
-      platform: event.platform,
-      uid: event.uid,
-      startDate: event.startDate,
-      endDate: event.endDate,
-    })),
+    events: property.calendarEvents
+      .filter((event) => !isHostBlockSummary(event.summary))
+      .map((event) => ({
+        platform: event.platform,
+        uid: event.uid,
+        startDate: event.startDate,
+        endDate: event.endDate,
+      })),
     // visibleUntil is the last bookable NIGHT; clipping against it would
     // drop that night from the count.
-    blockedDates: overrides.filter((row) => row.type === "closed").map((row) => row.date),
     today,
     untilCheckout: window.checkoutUntil,
   });
