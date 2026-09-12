@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   calendarEventDelete: vi.fn(),
   dateOverrideDeleteMany: vi.fn(),
   propertyFindUnique: vi.fn(),
+  propertyAccessLevels: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -22,6 +23,7 @@ vi.mock("@/lib/auth", () => ({
 
 vi.mock("@/lib/ownership", () => ({
   canManageProperty: mocks.canManageProperty,
+  propertyAccessLevels: mocks.propertyAccessLevels,
 }));
 
 vi.mock("@/lib/audit", () => ({
@@ -876,5 +878,54 @@ describe("DELETE /api/reservations/:id — linked calendar source", () => {
 
     expect(response.status).toBe(200);
     expect(mocks.calendarEventDelete).toHaveBeenCalledWith({ where: { id: 41 } });
+  });
+});
+
+describe("GET /api/reservations/[id]", () => {
+  const params = Promise.resolve({ id: "7" });
+  const request = () => new NextRequest("http://localhost/api/reservations/7");
+  const stored = {
+    id: 7,
+    name: "Krajci",
+    platform: "direct",
+    checkIn: new Date("2027-08-18T00:00:00.000Z"),
+    checkOut: new Date("2027-08-27T00:00:00.000Z"),
+    bookedGuestCount: 4,
+    grossAmountCents: 90000,
+    currency: "EUR",
+    propertyId: 1,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.getSession.mockResolvedValue({ userId: 1, role: "user" });
+    mocks.canManageProperty.mockResolvedValue(true);
+    mocks.reservationFindUnique.mockResolvedValue(stored);
+    mocks.propertyAccessLevels.mockResolvedValue(new Map([[1, "manager"]]));
+  });
+
+  it("answers with the one reservation the caller is about to edit", async () => {
+    const { GET } = await import("./route");
+    const response = await GET(request(), { params });
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({ id: 7, bookedGuestCount: 4, grossAmountCents: 90000 });
+    // The point of the route: no second reservation comes along for the ride.
+    expect(mocks.reservationFindMany).not.toHaveBeenCalled();
+  });
+
+  it("keeps the amount from a family account here too", async () => {
+    mocks.propertyAccessLevels.mockResolvedValue(new Map([[1, "family"]]));
+    const { GET } = await import("./route");
+    const body = await (await GET(request(), { params })).json();
+    expect(body.grossAmountCents).toBeNull();
+    expect(body.bookedGuestCount).toBe(4);
+  });
+
+  it("refuses a reservation the caller may not manage", async () => {
+    mocks.canManageProperty.mockResolvedValue(false);
+    const { GET } = await import("./route");
+    const response = await GET(request(), { params });
+    expect(response.status).toBe(404);
   });
 });

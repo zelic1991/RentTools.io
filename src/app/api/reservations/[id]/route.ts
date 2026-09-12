@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
-import { canManageProperty } from "@/lib/ownership";
+import { canManageProperty, propertyAccessLevels } from "@/lib/ownership";
+import { redactReservationsForAccess } from "@/lib/reservation-visibility";
 import { normalizePhone } from "@/lib/sanitize";
 import { parseReservationDate } from "@/lib/reservation-dates";
 import { loadEffectiveLinkedStayRange } from "@/lib/linked-stay";
@@ -39,6 +40,53 @@ async function loadManageableReservation(
   if (!reservation) return null;
   if (!(await canManageProperty(reservation.propertyId, userId, role))) return null;
   return reservation;
+}
+
+/**
+ * One reservation, for a screen that is about to edit it. The phone used
+ * to pull the entire list to prefill two fields — every guest name, every
+ * amount, for one form.
+ */
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { id } = await params;
+    const numId = parseInt(id);
+    if (isNaN(numId)) return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+
+    const owned = await loadManageableReservation(numId, session.userId, session.role);
+    if (!owned) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    const reservation = await prisma.reservation.findUnique({
+      where: { id: numId },
+      select: {
+        id: true,
+        name: true,
+        platform: true,
+        checkIn: true,
+        checkOut: true,
+        bookedGuestCount: true,
+        grossAmountCents: true,
+        currency: true,
+        propertyId: true,
+      },
+    });
+    if (!reservation) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+    // Same rule as the list endpoint: below manager, the takings are not
+    // part of the answer.
+    const levels = await propertyAccessLevels(session.userId, [reservation.propertyId]);
+    const [visible] = redactReservationsForAccess([reservation], levels);
+    return NextResponse.json(visible);
+  } catch (err) {
+    console.error("Route error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function PATCH(
