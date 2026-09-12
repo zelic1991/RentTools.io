@@ -3,7 +3,7 @@ import {
   type PrecheckinStatus,
 } from "@/lib/precheckin";
 
-export type MobileSection = "start" | "calendar" | "guests" | "portals" | "cleaning";
+export type MobileSection = "start" | "calendar" | "guests" | "portals" | "reports" | "cleaning";
 export type MobileAccessLevel = "owner" | "manager" | "family" | "cleaner";
 
 export const MOBILE_SECTIONS: readonly MobileSection[] = [
@@ -11,6 +11,7 @@ export const MOBILE_SECTIONS: readonly MobileSection[] = [
   "calendar",
   "guests",
   "portals",
+  "reports",
   "cleaning",
 ];
 
@@ -154,6 +155,8 @@ export function canAccessMobileSection(
 ): boolean {
   if (access === "owner") return true;
   if (access === "manager") return MOBILE_SECTIONS.includes(section);
+  // Reports carry revenue: owner and manager only. Family sees the stay
+  // itself, never the money.
   if (access === "family") return ["start", "calendar", "guests", "cleaning"].includes(section);
   return section === "cleaning";
 }
