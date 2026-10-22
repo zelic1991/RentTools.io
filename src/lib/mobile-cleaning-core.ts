@@ -1,3 +1,4 @@
+import { resolveCopy, type CopyMap, type Locale } from "@/lib/i18n/translations";
 import {
   canonicalCleaningStatus,
   type CleaningStatus,
@@ -29,6 +30,15 @@ export interface CleanerCleaningAction {
   tone: "primary" | "success" | "danger";
 }
 
+const ASSIGNEE_COPY: CopyMap<{ assigned: string; unassigned: string }> = {
+  en: { assigned: "Assigned", unassigned: "Not assigned" },
+  ru: { assigned: "Назначено", unassigned: "Не назначено" },
+  de: { assigned: "Zugewiesen", unassigned: "Nicht zugewiesen" },
+  fr: { assigned: "Attribué", unassigned: "Non attribué" },
+  es: { assigned: "Asignado", unassigned: "Sin asignar" },
+  hr: { assigned: "Dodijeljeno", unassigned: "Nije dodijeljeno" },
+};
+
 /** Pure projection used by the server loader and focused authority tests. */
 export function buildMobileCleaningTasks(options: {
   records: MobileCleaningRecordInput[];
@@ -36,7 +46,10 @@ export function buildMobileCleaningTasks(options: {
   assignees: Array<{ id: number; username: string }>;
   access: "owner" | "manager" | "family" | "cleaner";
   viewerUserId: number;
+  /** Language of the assignee placeholders; German when omitted. */
+  locale?: Locale;
 }): MobileCleaningTask[] {
+  const copy = resolveCopy(ASSIGNEE_COPY, options.locale ?? "de");
   const properties = new Map(options.properties.map((property) => [property.id, property.name]));
   const assignees = new Map(options.assignees.map((user) => [user.id, user.username]));
 
@@ -59,8 +72,8 @@ export function buildMobileCleaningTasks(options: {
       notes: record.notes,
       assignedCleanerId: record.assignedCleanerId,
       assigneeName: record.assignedCleanerId
-        ? assignees.get(record.assignedCleanerId) ?? "Zugewiesen"
-        : "Nicht zugewiesen",
+        ? assignees.get(record.assignedCleanerId) ?? copy.assigned
+        : copy.unassigned,
     }))
     .sort((a, b) => a.date.localeCompare(b.date) || a.propertyName.localeCompare(b.propertyName));
 }

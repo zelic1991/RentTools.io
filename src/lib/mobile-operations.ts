@@ -29,6 +29,17 @@ import {
   type MobileReportsData,
 } from "@/lib/mobile-reports-core";
 import type { OperationalReminderDto } from "@/lib/operational-reminders";
+import type { Locale } from "@/lib/i18n/translations";
+
+/** Stands in for a guest name the session may not read. */
+const REDACTED_RESERVATION: Record<Locale, string> = {
+  en: "Reservation",
+  ru: "Бронирование",
+  de: "Reservierung",
+  fr: "Réservation",
+  es: "Reserva",
+  hr: "Rezervacija",
+};
 
 interface MobileCalendarReservation {
   id: number;
@@ -185,7 +196,10 @@ function reservationInput(row: {
 
 export async function loadMobileOperations(options: {
   section: MobileSection;
+  /** Language of the derived labels; German when omitted. */
+  locale?: Locale;
 }): Promise<MobileOperationsData> {
+  const locale = options.locale ?? "de";
   const session = await getSession();
   if (!session) redirect(`/login?next=/mobile${options.section === "start" ? "" : `/${options.section}`}`);
   if (session.role === "cleaner") redirect("/dashboard");
@@ -296,12 +310,12 @@ export async function loadMobileOperations(options: {
     const source = byId.get(input.id)!;
     return {
       ...input,
-      label: canReadPii ? source.name : "Reservierung",
+      label: canReadPii ? source.name : REDACTED_RESERVATION[locale],
       guestCount: canReadPii ? reservationGuestCount(input) : null,
       sourceLabel: canReadPii
-        ? safePlatformLabel(input.platform)
-        : redactedPlatformLabel(input.platform),
-      guestState: deriveMobileGuestState(input),
+        ? safePlatformLabel(input.platform, locale)
+        : redactedPlatformLabel(input.platform, locale),
+      guestState: deriveMobileGuestState(input, locale),
     };
   };
   const cards = inputs.map(toCard);
@@ -316,6 +330,7 @@ export async function loadMobileOperations(options: {
     today,
     feedSlug: property.feedSlug,
     feedToken: property.feedToken,
+    locale,
   });
   const window = getOwnerCalendarWindow({
     bookingWindowDays: property.bookingWindow,
@@ -329,7 +344,7 @@ export async function loadMobileOperations(options: {
   );
   const calendarReservations: MobileCalendarReservation[] = property.reservations.map((reservation) => ({
     id: reservation.id,
-    name: canReadPii ? reservation.name : redactedPlatformLabel(reservation.platform),
+    name: canReadPii ? reservation.name : redactedPlatformLabel(reservation.platform, locale),
     checkIn: reservation.checkIn.toISOString(),
     checkOut: reservation.checkOut.toISOString(),
     platform: calendarPlatform(reservation.platform),
@@ -357,7 +372,7 @@ export async function loadMobileOperations(options: {
   const calendarEvents: MobileCalendarEvent[] = property.calendarEvents.map((event) => ({
     platform: calendarPlatform(event.platform),
     uid: eventUidMap.get(`${event.platform}|${event.uid}`)!,
-    summary: redactedPlatformLabel(event.platform),
+    summary: redactedPlatformLabel(event.platform, locale),
     startDate: event.startDate,
     endDate: event.endDate,
   }));

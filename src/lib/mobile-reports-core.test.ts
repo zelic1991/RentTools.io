@@ -182,8 +182,8 @@ describe("who the figures are computed for", () => {
     ...WINDOW,
   };
 
-  it("gives owner and manager the real numbers", () => {
-    for (const access of ["owner", "manager"] as const) {
+  it("gives owner, manager and family the real numbers", () => {
+    for (const access of ["owner", "manager", "family"] as const) {
       const result = mobileReportsForAccess(access, input);
       expect(result.stored.totalsByCurrency, access).toEqual([
         { currency: "EUR", amountCents: 98765 },
@@ -192,8 +192,8 @@ describe("who the figures are computed for", () => {
     }
   });
 
-  it("attaches no amount at all for family and cleaner", () => {
-    for (const access of ["family", "cleaner"] as const) {
+  it("attaches no amount at all for a cleaner", () => {
+    for (const access of ["cleaner"] as const) {
       const result = mobileReportsForAccess(access, input);
       expect(JSON.stringify(result), access).not.toContain("98765");
       expect(result.stored.totalsByCurrency, access).toEqual([]);

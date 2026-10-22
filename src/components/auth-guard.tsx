@@ -2,6 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n/context";
+import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
+
+const LOADING_COPY: CopyMap<string> = {
+  en: "Loading...",
+  ru: "Загрузка...",
+  de: "Wird geladen...",
+  fr: "Chargement...",
+  es: "Cargando...",
+  hr: "Učitavanje...",
+};
 
 interface User {
   userId: number;
@@ -15,6 +26,7 @@ interface AuthGuardProps {
 
 export function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
+  const { locale } = useI18n();
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
 
@@ -45,7 +57,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
   if (checking) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-sm text-muted-foreground">Loading...</div>
+        <div className="text-sm text-muted-foreground">{resolveCopy(LOADING_COPY, locale)}</div>
       </div>
     );
   }

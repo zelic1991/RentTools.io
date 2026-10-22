@@ -3,6 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { hrPlural, type Locale } from "@/lib/i18n/translations";
 import {
   listAccessiblePropertyIds,
   listManageablePropertyIds,
@@ -28,7 +29,16 @@ export interface MobileCleaningData {
   tasks: MobileCleaningTask[];
 }
 
-export async function loadMobileCleaning(): Promise<MobileCleaningData> {
+const PROPERTY_COUNT: Record<Locale, (n: number) => string> = {
+  en: (n) => `${n} properties`,
+  ru: (n) => `Объектов: ${n}`,
+  de: (n) => `${n} Objekte`,
+  fr: (n) => `${n} logements`,
+  es: (n) => `${n} alojamientos`,
+  hr: (n) => `${n} ${hrPlural(n, "objekt", "objekta", "objekata")}`,
+};
+
+export async function loadMobileCleaning(locale: Locale = "de"): Promise<MobileCleaningData> {
   const session = await getSession();
   if (!session) redirect("/login?next=/mobile/cleaning");
 
@@ -75,6 +85,7 @@ export async function loadMobileCleaning(): Promise<MobileCleaningData> {
     assignees,
     access,
     viewerUserId: session.userId,
+    locale,
   });
 
   return {
@@ -83,7 +94,7 @@ export async function loadMobileCleaning(): Promise<MobileCleaningData> {
     canWrite: access === "cleaner" && !session.impersonatorId,
     selectedProperty: {
       id: properties.length === 1 ? properties[0].id : 0,
-      name: properties.length === 1 ? properties[0].name : `${properties.length} Objekte`,
+      name: properties.length === 1 ? properties[0].name : PROPERTY_COUNT[locale](properties.length),
     },
     tasks,
   };
