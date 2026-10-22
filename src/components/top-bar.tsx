@@ -7,6 +7,7 @@ import { useI18n } from "@/lib/i18n/context";
 import { hrPlural, resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import { SUPPORTED_LOCALES } from "@/lib/i18n/alternates";
 import type { Property } from "@/lib/types";
+import { displayGuestCount } from "@/lib/guest-count";
 
 interface CopyShape {
   tabDashboard: string;
@@ -497,7 +498,7 @@ export function TopBar({
                   {properties.map(p => {
                     const resCount = p.reservations.length;
                     const guestCount = p.reservations.reduce(
-                      (sum, r) => sum + (r._count?.guests ?? 0),
+                      (sum, r) => sum + displayGuestCount(r),
                       0
                     );
                     const countLabel = c.countLabel(resCount, guestCount);

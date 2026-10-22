@@ -9,6 +9,7 @@ import { OperationalRemindersPanel } from "@/components/operational-reminders-pa
 import { useI18n } from "@/lib/i18n/context";
 import { hrPlural, resolveCopy, type Locale, type CopyMap } from "@/lib/i18n/translations";
 import type { Property, CalendarLink, DateOverride } from "@/lib/types";
+import { displayGuestCount } from "@/lib/guest-count";
 
 interface CopyShape {
   dateLocale: string;
@@ -33,7 +34,7 @@ interface CopyShape {
   searchPlaceholder: string;
   foundLabel: string;
   currentlyStaying: string;
-  daysShort: string;
+  nightsShort: string;
   guestShort: string;
   untilNightsLeft: (date: string, nights: number) => string;
   inDays: (date: string, days: number) => string;
@@ -64,7 +65,7 @@ const COPY: CopyMap<CopyShape> = {
     searchPlaceholder: "Search by guest name...",
     foundLabel: "found",
     currentlyStaying: "Currently staying",
-    daysShort: "d",
+    nightsShort: "n",
     guestShort: "g",
     untilNightsLeft: (date, nights) =>
       `until ${date} · ${nights} ${nights === 1 ? "night" : "nights"} left`,
@@ -95,7 +96,7 @@ const COPY: CopyMap<CopyShape> = {
     searchPlaceholder: "Поиск по имени гостя...",
     foundLabel: "найдено",
     currentlyStaying: "Сейчас в гостях",
-    daysShort: "д",
+    nightsShort: "н",
     guestShort: "г",
     untilNightsLeft: (date, nights) =>
       `до ${date} · ${nights} ${nights === 1 ? "ночь" : nights < 5 ? "ночи" : "ноч."}`,
@@ -125,7 +126,7 @@ const COPY: CopyMap<CopyShape> = {
     searchPlaceholder: "Nach Gastnamen suchen...",
     foundLabel: "gefunden",
     currentlyStaying: "Aktuell im Haus",
-    daysShort: "T",
+    nightsShort: "N",
     guestShort: "G",
     untilNightsLeft: (date, nights) =>
       `bis ${date} · noch ${nights} ${nights === 1 ? "Nacht" : "Nächte"}`,
@@ -155,7 +156,7 @@ const COPY: CopyMap<CopyShape> = {
     searchPlaceholder: "Rechercher par nom de voyageur…",
     foundLabel: "trouvés",
     currentlyStaying: "Sur place",
-    daysShort: "j",
+    nightsShort: "n",
     guestShort: "v",
     untilNightsLeft: (date, nights) =>
       `jusqu’au ${date} · ${nights} ${nights === 1 ? "nuit" : "nuits"} restantes`,
@@ -185,7 +186,7 @@ const COPY: CopyMap<CopyShape> = {
     searchPlaceholder: "Buscar por nombre del huésped…",
     foundLabel: "encontradas",
     currentlyStaying: "Alojados ahora",
-    daysShort: "d",
+    nightsShort: "n",
     guestShort: "h",
     untilNightsLeft: (date, nights) =>
       `hasta ${date} · ${nights} ${nights === 1 ? "noche" : "noches"} restantes`,
@@ -216,7 +217,7 @@ const COPY: CopyMap<CopyShape> = {
     searchPlaceholder: "Traži po imenu gosta...",
     foundLabel: "pronađeno",
     currentlyStaying: "Trenutno u kući",
-    daysShort: "d",
+    nightsShort: "n",
     guestShort: "g",
     untilNightsLeft: (date, nights) =>
       `do ${date} · još ${nights} ${hrPlural(nights, "noć", "noći", "noći")}`,
@@ -997,10 +998,12 @@ export function Dashboard({
   const formatDate = (d: string) =>
     new Date(d).toLocaleDateString(c.dateLocale, { day: "2-digit", month: "short" });
 
-  const dayCount = (checkIn: string, checkOut: string) => {
-    const d1 = new Date(checkIn);
-    const d2 = new Date(checkOut);
-    return Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  // Hosts count a stay in nights (checkout day excluded). Compare calendar
+  // dates only so 14:00 check-in / 10:00 check-out times don't skew it.
+  const nightCount = (checkIn: string, checkOut: string) => {
+    const d1 = Date.parse(checkIn.slice(0, 10));
+    const d2 = Date.parse(checkOut.slice(0, 10));
+    return Math.max(0, Math.round((d2 - d1) / (1000 * 60 * 60 * 24)));
   };
 
   const title = selectedProperty ? selectedProperty.name : t("dashboard.title");
@@ -1585,7 +1588,7 @@ export function Dashboard({
                       isLast={i === active.length - 1 && next7.length === 0 && later.length === 0 && (!showPast || past.length === 0)}
                       hideProperty={false}
                       formatDate={formatDate}
-                      dayCount={dayCount}
+                      nightCount={nightCount}
                       locale={locale}
                       onClick={() => handleRowClick(res.propertyId, res.id)}
                       muted={false}
@@ -1620,7 +1623,7 @@ export function Dashboard({
                       isLast={i === next7.length - 1 && later.length === 0 && (!showPast || past.length === 0)}
                       hideProperty={false}
                       formatDate={formatDate}
-                      dayCount={dayCount}
+                      nightCount={nightCount}
                       locale={locale}
                       onClick={() => handleRowClick(res.propertyId, res.id)}
                       muted={false}
@@ -1638,7 +1641,7 @@ export function Dashboard({
                       isLast={i === later.length - 1 && (!showPast || past.length === 0)}
                       hideProperty={false}
                       formatDate={formatDate}
-                      dayCount={dayCount}
+                      nightCount={nightCount}
                       locale={locale}
                       onClick={() => handleRowClick(res.propertyId, res.id)}
                       muted={false}
@@ -1675,7 +1678,7 @@ export function Dashboard({
                       isLast={i === past.length - 1}
                       hideProperty={false}
                       formatDate={formatDate}
-                      dayCount={dayCount}
+                      nightCount={nightCount}
                       locale={locale}
                       onClick={() => handleRowClick(res.propertyId, res.id)}
                       muted={true}
@@ -1693,7 +1696,7 @@ export function Dashboard({
                   isLast={i === displayReservations.length - 1}
                   hideProperty={Boolean(selectedProperty)}
                   formatDate={formatDate}
-                  dayCount={dayCount}
+                  nightCount={nightCount}
                   locale={locale}
                   onClick={() => handleRowClick(res.propertyId, res.id)}
                   muted={false}
@@ -1758,18 +1761,19 @@ interface ReservationRowProps {
     checkOut: string;
     propertyName: string;
     propertyId: number;
+    bookedGuestCount?: number | null;
     _count?: { guests: number };
   };
   isLast: boolean;
   hideProperty: boolean;
   formatDate: (d: string) => string;
-  dayCount: (a: string, b: string) => number;
+  nightCount: (a: string, b: string) => number;
   locale: string;
   onClick: () => void;
   muted: boolean;
 }
 
-function ReservationRow({ res, isLast, hideProperty, formatDate, dayCount, locale, onClick, muted }: ReservationRowProps) {
+function ReservationRow({ res, isLast, hideProperty, formatDate, nightCount, locale, onClick, muted }: ReservationRowProps) {
   const c = resolveCopy(COPY, locale as Locale);
   return (
     <div
@@ -1803,7 +1807,7 @@ function ReservationRow({ res, isLast, hideProperty, formatDate, dayCount, local
             {formatDate(res.checkIn)} — {formatDate(res.checkOut)}
           </span>
           <span aria-hidden>·</span>
-          <span>{dayCount(res.checkIn, res.checkOut)}{c.daysShort}</span>
+          <span>{nightCount(res.checkIn, res.checkOut)}{c.nightsShort}</span>
         </div>
       </div>
 
@@ -1824,11 +1828,11 @@ function ReservationRow({ res, isLast, hideProperty, formatDate, dayCount, local
       </span>
 
       <span className="hidden shrink-0 w-10 text-right text-xs text-[var(--ink-4)] sm:inline">
-        {dayCount(res.checkIn, res.checkOut)}{c.daysShort}
+        {nightCount(res.checkIn, res.checkOut)}{c.nightsShort}
       </span>
 
       <span className="hidden shrink-0 w-10 text-right text-xs text-[var(--ink-4)] sm:inline">
-        {res._count?.guests || 0}
+        {displayGuestCount(res)}
         <span className="ml-0.5 text-[var(--ink-4)]">{c.guestShort}</span>
       </span>
 
