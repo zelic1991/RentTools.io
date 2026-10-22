@@ -39,6 +39,11 @@ interface CopyShape {
   secCalendars: string;
   secStayRules: string;
   secAccess: string;
+  customPlatform: string;
+  testSummary: (upcoming: number, total: number) => string;
+  syncLog: (count: number) => string;
+  guestFormTitle: string;
+  guestFormDesc: string;
 }
 
 const COPY: CopyMap<CopyShape> = {
@@ -70,6 +75,12 @@ const COPY: CopyMap<CopyShape> = {
       `Delete property "${name}"? This removes all reservations and related data. This cannot be undone.`,
     deleteProperty: "Delete property",
     dateLocale: "en-GB",
+    customPlatform: "Custom platform",
+    testSummary: (u, t) => `${u} upcoming · ${t} total events`,
+    syncLog: (n) => `Sync Log (${n})`,
+    guestFormTitle: "Pre-arrival guest form",
+    guestFormDesc:
+      "Build the questions guests answer before arrival — passport details, arrival time, anything you need.",
     secCalendars: "Calendars",
     secStayRules: "Stay rules",
     secAccess: "Access & sharing",
@@ -104,6 +115,12 @@ const COPY: CopyMap<CopyShape> = {
       `Удалить объект «${name}»? Это удалит все бронирования и связанные данные. Действие необратимо.`,
     deleteProperty: "Удалить объект",
     dateLocale: "ru-RU",
+    customPlatform: "Своя платформа",
+    testSummary: (u, t) => `${u} предстоящих · всего событий: ${t}`,
+    syncLog: (n) => `Журнал синхронизации (${n})`,
+    guestFormTitle: "Анкета гостя перед заездом",
+    guestFormDesc:
+      "Составьте вопросы, на которые гости отвечают до заезда: паспортные данные, время прибытия и всё, что вам нужно.",
     secCalendars: "Календари",
     secStayRules: "Правила проживания",
     secAccess: "Доступ и совместная работа",
@@ -138,6 +155,12 @@ const COPY: CopyMap<CopyShape> = {
       `Unterkunft „${name}" löschen? Damit werden alle Buchungen und zugehörigen Daten gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.`,
     deleteProperty: "Unterkunft löschen",
     dateLocale: "de-DE",
+    customPlatform: "Eigene Plattform",
+    testSummary: (u, t) => `${u} bevorstehend · ${t} Ereignisse insgesamt`,
+    syncLog: (n) => `Sync-Protokoll (${n})`,
+    guestFormTitle: "Gästeformular vor der Anreise",
+    guestFormDesc:
+      "Legen Sie die Fragen fest, die Gäste vor der Anreise beantworten — Passdaten, Ankunftszeit und alles, was Sie sonst benötigen.",
     secCalendars: "Kalender",
     secStayRules: "Aufenthaltsregeln",
     secAccess: "Zugriff & Freigabe",
@@ -172,6 +195,12 @@ const COPY: CopyMap<CopyShape> = {
       `Supprimer le logement « ${name} » ? Cela effacera toutes les réservations et données associées. Action irréversible.`,
     deleteProperty: "Supprimer le logement",
     dateLocale: "fr-FR",
+    customPlatform: "Plateforme personnalisée",
+    testSummary: (u, t) => `${u} à venir · ${t} événements au total`,
+    syncLog: (n) => `Journal de synchronisation (${n})`,
+    guestFormTitle: "Formulaire voyageur avant l’arrivée",
+    guestFormDesc:
+      "Définissez les questions auxquelles les voyageurs répondent avant leur arrivée — données du passeport, heure d’arrivée, tout ce dont vous avez besoin.",
     secCalendars: "Calendriers",
     secStayRules: "Règles de séjour",
     secAccess: "Accès et partage",
@@ -206,6 +235,12 @@ const COPY: CopyMap<CopyShape> = {
       `¿Eliminar el alojamiento «${name}»? Se borrarán todas las reservas y datos relacionados. La acción no se puede deshacer.`,
     deleteProperty: "Eliminar alojamiento",
     dateLocale: "es-ES",
+    customPlatform: "Plataforma personalizada",
+    testSummary: (u, t) => `${u} próximos · ${t} eventos en total`,
+    syncLog: (n) => `Registro de sincronización (${n})`,
+    guestFormTitle: "Formulario para huéspedes previo a la llegada",
+    guestFormDesc:
+      "Defina las preguntas que los huéspedes responden antes de llegar: datos del pasaporte, hora de llegada y todo lo que necesite.",
     secCalendars: "Calendarios",
     secStayRules: "Reglas de estancia",
     secAccess: "Acceso y uso compartido",
@@ -240,6 +275,12 @@ const COPY: CopyMap<CopyShape> = {
       `Obrisati nekretninu „${name}”? Time se uklanjaju sve rezervacije i povezani podaci. To se ne može poništiti.`,
     deleteProperty: "Obriši nekretninu",
     dateLocale: "hr-HR",
+    customPlatform: "Vlastita platforma",
+    testSummary: (u, t) => `${u} nadolazećih · ukupno događaja: ${t}`,
+    syncLog: (n) => `Zapisnik sinkronizacije (${n})`,
+    guestFormTitle: "Obrazac za goste prije dolaska",
+    guestFormDesc:
+      "Sastavite pitanja na koja gosti odgovaraju prije dolaska — podatke iz putovnice, vrijeme dolaska i sve ostalo što vam treba.",
     secCalendars: "Kalendari",
     secStayRules: "Pravila boravka",
     secAccess: "Pristup i dijeljenje",
@@ -529,7 +570,7 @@ export function SyncSettings({ propertyId, propertyName, properties, minNights, 
     ...customDrafts.map((d) => ({
       rowId: d.rowId,
       platform: d.platform,
-      label: d.displayName || "Custom platform",
+      label: d.displayName || c.customPlatform,
       color: d.color,
       placeholder: "https://…",
       isPreset: false,
@@ -843,7 +884,7 @@ export function SyncSettings({ propertyId, propertyName, properties, minNights, 
                 {result && (
                   <div className={`rounded-md px-3 py-2 text-xs ${result.success ? "bg-emerald-500/10 text-emerald-500" : "bg-rose-500/10 text-rose-500"}`}>
                     {result.success ? (
-                      <span>{result.futureEvents} upcoming · {result.totalEvents} total events</span>
+                      <span>{c.testSummary(result.futureEvents ?? 0, result.totalEvents ?? 0)}</span>
                     ) : (
                       <span>{result.error}</span>
                     )}
@@ -1139,7 +1180,7 @@ export function SyncSettings({ propertyId, propertyName, properties, minNights, 
             onClick={() => setShowLogs(!showLogs)}
             className="flex w-full items-center justify-between px-4 py-3 text-xs font-medium text-[var(--ink-3)] hover:text-[var(--ink)]"
           >
-            <span>Sync Log ({logs.length})</span>
+            <span>{c.syncLog(logs.length)}</span>
             <svg className={`h-4 w-4 transition-transform ${showLogs ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
             </svg>
@@ -1149,7 +1190,7 @@ export function SyncSettings({ propertyId, propertyName, properties, minNights, 
               {logs.map((log) => (
                 <div key={log.id} className="flex gap-2">
                   <span className="shrink-0 text-[var(--ink-4)]">
-                    {new Date(log.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+                    {new Date(log.createdAt).toLocaleTimeString(c.dateLocale, { hour: "2-digit", minute: "2-digit" })}
                   </span>
                   <span className={
                     log.level === "error" ? "text-rose-500"
@@ -1183,10 +1224,9 @@ export function SyncSettings({ propertyId, propertyName, properties, minNights, 
           </svg>
         </div>
         <div className="min-w-0 flex-1">
-          <h3 className="text-sm font-semibold text-[var(--ink)]">Pre-arrival guest form</h3>
+          <h3 className="text-sm font-semibold text-[var(--ink)]">{c.guestFormTitle}</h3>
           <p className="mt-0.5 text-xs text-[var(--ink-3)]">
-            Build the questions guests answer before arrival — passport details,
-            arrival time, anything you need.
+            {c.guestFormDesc}
           </p>
         </div>
         <svg className="h-4 w-4 shrink-0 text-[var(--ink-4)] transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
