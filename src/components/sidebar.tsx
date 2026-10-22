@@ -8,6 +8,7 @@ import { useI18n } from "@/lib/i18n/context";
 import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import { SUPPORTED_LOCALES } from "@/lib/i18n/alternates";
 import type { Property, Reservation } from "@/lib/types";
+import { displayGuestCount } from "@/lib/guest-count";
 
 interface CopyShape {
   dateLocale: string;
@@ -262,8 +263,8 @@ export function Sidebar({
                             </div>
                             <div className="text-xs text-[#7d8590]">
                               {formatDate(res.checkIn)} — {formatDate(res.checkOut)}
-                              {res._count && res._count.guests > 0 && (
-                                <span> · {res._count.guests}</span>
+                              {displayGuestCount(res) > 0 && (
+                                <span> · {displayGuestCount(res)}</span>
                               )}
                             </div>
                           </div>
