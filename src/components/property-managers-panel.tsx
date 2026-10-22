@@ -6,15 +6,90 @@ import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 
 interface CopyShape {
   dateLocale: string;
+  accessLevel: string;
+  accessFamily: string;
+  accessManager: string;
+  copyLinkPrompt: string;
+  failedToLoad: string;
+  failedToGenerate: string;
+  failedToRevoke: string;
+  failedToRemove: string;
+  userFallback: (id: number) => string;
 }
 
 const COPY: CopyMap<CopyShape> = {
-  en: { dateLocale: "en-GB" },
-  ru: { dateLocale: "ru-RU" },
-  de: { dateLocale: "de-DE" },
-  fr: { dateLocale: "fr-FR" },
-  es: { dateLocale: "es-ES" },
-  hr: { dateLocale: "hr-HR" },
+  en: {
+    dateLocale: "en-GB",
+    accessLevel: "Access",
+    accessFamily: "Family (basic)",
+    accessManager: "Manager (full)",
+    copyLinkPrompt: "Copy link",
+    failedToLoad: "Failed to load",
+    failedToGenerate: "Failed to generate",
+    failedToRevoke: "Failed to revoke",
+    failedToRemove: "Failed to remove",
+    userFallback: (id) => `user ${id}`,
+  },
+  ru: {
+    dateLocale: "ru-RU",
+    accessLevel: "Доступ",
+    accessFamily: "Семья (базовый)",
+    accessManager: "Менеджер (полный)",
+    copyLinkPrompt: "Скопируйте ссылку",
+    failedToLoad: "Не удалось загрузить",
+    failedToGenerate: "Не удалось создать",
+    failedToRevoke: "Не удалось отозвать",
+    failedToRemove: "Не удалось удалить",
+    userFallback: (id) => `пользователь ${id}`,
+  },
+  de: {
+    dateLocale: "de-DE",
+    accessLevel: "Zugang",
+    accessFamily: "Familie (einfach)",
+    accessManager: "Manager (vollständig)",
+    copyLinkPrompt: "Link kopieren",
+    failedToLoad: "Laden fehlgeschlagen",
+    failedToGenerate: "Erstellen fehlgeschlagen",
+    failedToRevoke: "Widerrufen fehlgeschlagen",
+    failedToRemove: "Entfernen fehlgeschlagen",
+    userFallback: (id) => `Benutzer ${id}`,
+  },
+  fr: {
+    dateLocale: "fr-FR",
+    accessLevel: "Accès",
+    accessFamily: "Famille (basique)",
+    accessManager: "Gestionnaire (complet)",
+    copyLinkPrompt: "Copiez le lien",
+    failedToLoad: "Échec du chargement",
+    failedToGenerate: "Échec de la création",
+    failedToRevoke: "Échec de la révocation",
+    failedToRemove: "Échec de la suppression",
+    userFallback: (id) => `utilisateur ${id}`,
+  },
+  es: {
+    dateLocale: "es-ES",
+    accessLevel: "Acceso",
+    accessFamily: "Familia (básico)",
+    accessManager: "Gestor (completo)",
+    copyLinkPrompt: "Copie el enlace",
+    failedToLoad: "Error al cargar",
+    failedToGenerate: "Error al generar",
+    failedToRevoke: "Error al revocar",
+    failedToRemove: "Error al quitar",
+    userFallback: (id) => `usuario ${id}`,
+  },
+  hr: {
+    dateLocale: "hr-HR",
+    accessLevel: "Pristup",
+    accessFamily: "Obitelj (osnovni)",
+    accessManager: "Upravitelj (potpuni)",
+    copyLinkPrompt: "Kopirajte link",
+    failedToLoad: "Učitavanje nije uspjelo",
+    failedToGenerate: "Stvaranje nije uspjelo",
+    failedToRevoke: "Opoziv nije uspio",
+    failedToRemove: "Uklanjanje nije uspjelo",
+    userFallback: (id) => `korisnik ${id}`,
+  },
 };
 
 interface Manager {
@@ -103,11 +178,11 @@ export function PropertyManagersPanel({ propertyId, ownerUserId }: PropertyManag
       }
       setForbidden(false);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load");
+      setError(e instanceof Error ? e.message : c.failedToLoad);
     } finally {
       setLoading(false);
     }
-  }, [propertyId]);
+  }, [propertyId, c.failedToLoad]);
 
   useEffect(() => {
     fetch("/api/auth/session")
@@ -138,7 +213,7 @@ export function PropertyManagersPanel({ propertyId, ownerUserId }: PropertyManag
       }
       await fetchData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to generate");
+      setError(e instanceof Error ? e.message : c.failedToGenerate);
     } finally {
       setSubmitting(false);
     }
@@ -159,7 +234,7 @@ export function PropertyManagersPanel({ propertyId, ownerUserId }: PropertyManag
       }
       await fetchData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to revoke");
+      setError(e instanceof Error ? e.message : c.failedToRevoke);
     }
   };
 
@@ -178,7 +253,7 @@ export function PropertyManagersPanel({ propertyId, ownerUserId }: PropertyManag
       }
       await fetchData();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to remove");
+      setError(e instanceof Error ? e.message : c.failedToRemove);
     }
   };
 
@@ -194,7 +269,7 @@ export function PropertyManagersPanel({ propertyId, ownerUserId }: PropertyManag
       setTimeout(() => setCopiedToken(null), 2000);
     } catch {
       // fallback: select-and-copy via prompt
-      window.prompt("Copy link", inviteUrl(token));
+      window.prompt(c.copyLinkPrompt, inviteUrl(token));
     }
   };
 
@@ -215,10 +290,10 @@ export function PropertyManagersPanel({ propertyId, ownerUserId }: PropertyManag
         <p className="text-xs text-[var(--ink-3)]">{t("managers.desc")}</p>
       </div>
       <label className="flex items-center gap-2 text-xs text-[var(--ink-3)]">
-        <span>Zugang</span>
+        <span>{c.accessLevel}</span>
         <select value={inviteAccessLevel} onChange={(event) => setInviteAccessLevel(event.target.value as "manager" | "family")} className="rounded border border-[var(--line)] bg-[var(--bg)] px-2 py-1 text-xs text-[var(--ink)]">
-          <option value="family">Familie (einfach)</option>
-          <option value="manager">Manager (vollständig)</option>
+          <option value="family">{c.accessFamily}</option>
+          <option value="manager">{c.accessManager}</option>
         </select>
       </label>
 
@@ -231,7 +306,7 @@ export function PropertyManagersPanel({ propertyId, ownerUserId }: PropertyManag
             </div>
             <div className="min-w-0">
               <div className="text-sm text-[var(--ink)] truncate">
-                {owner ? identityLabel(owner) : `user ${ownerUserId}`}
+                {owner ? identityLabel(owner) : c.userFallback(ownerUserId)}
                 {isOwner && <span className="ml-1.5 text-[10px] text-[var(--ink-4)]">({t("managers.you")})</span>}
               </div>
               <div className="text-[11px] uppercase tracking-wide text-[var(--ink-4)]">{t("managers.owner")}</div>

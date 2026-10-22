@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GuestCards } from "@/components/guest-cards";
 import { useI18n } from "@/lib/i18n/context";
-import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
+import { hrPlural, resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import type { Guest, Reservation } from "@/lib/types";
 import {
   reservationNights,
@@ -23,9 +23,9 @@ import {
   getOwnerCalendarWindow,
 } from "@/lib/owner-calendar-window";
 
-// Pre-arrival discovery hint — localized in all 5 supported locales.
-// The rest of this component is still English-only; see GitHub issue
-// for the full reservation-view localization pass.
+// Pre-arrival discovery hint — localized in every supported locale.
+// The rest of the component's own copy lives in COPY below; shared
+// labels (Save, Cancel, Copy…) come from the global translations.
 interface HintCopy {
   title: string;
   before: string;
@@ -81,6 +81,702 @@ const HINT_COPY: CopyMap<HintCopy> = {
     link: "stranici obrasca prije dolaska",
     after:
       ". Nakon postavljanja ovdje se za svaku rezervaciju pojavi link za dijeljenje.",
+  },
+};
+
+/** Russian picks the noun form by the same 1 / 2-4 / 5+ ends-in-digit
+ *  rule (teens excepted) as Croatian, so the helper fits both. */
+const ruPlural = hrPlural;
+
+interface ReservationCopy {
+  dateLocale: string;
+  direct: string;
+  statusRevoked: string;
+  statusEvisitorConfirmed: string;
+  statusEvisitorReady: string;
+  statusOwnerApproved: string;
+  statusOwnerReview: string;
+  statusGuestComplete: string;
+  statusGuestStarted: string;
+  statusAwaitingGuest: string;
+  submittedAgo: (days: number) => string;
+  linkGeneratedAgo: (days: number) => string;
+  noAnswer: string;
+  yes: string;
+  no: string;
+  deleteConfirm: (name: string) => string;
+  deleteReservation: string;
+  grossAmountInvalid: string;
+  storedGrossAmount: string;
+  unknown: string;
+  currency: string;
+  grossAmountHint: string;
+  stayLength: (nights: number, days: number) => string;
+  guestsCount: (n: number) => string;
+  preArrivalForm: string;
+  shareHint: string;
+  confirmedTravelers: string;
+  saved: string;
+  enterRange: string;
+  requiredBeforeLink: string;
+  generating: string;
+  linkCopied: string;
+  tryAgain: string;
+  copyLinkAgain: string;
+  copyFormLink: string;
+  startOwnerReview: string;
+  approveCheckedData: string;
+  prepareHandoff: string;
+  opening: string;
+  openHandoff: string;
+  confirmManualEntry: string;
+  revokeLink: string;
+  messenger: string;
+  messengerHint: string;
+  copyGroupName: string;
+  saveName: string;
+  resetToAuto: string;
+  openTelegramGroup: string;
+  openWhatsAppGroup: string;
+  editLinks: string;
+  addGroupLinks: string;
+  blankRemovesLink: string;
+  privacyNote: string;
+  noPassportData: string;
+  networkError: string;
+  extractedAll: (ok: number, total: number) => string;
+  extractedPartial: (ok: number, total: number, failed: number) => string;
+  dismissSummary: string;
+  generateMessageTitle: string;
+  generateMessage: string;
+  exportCsvTitle: string;
+  exportCsv: string;
+  closePreview: string;
+  preArrivalAnswers: string;
+  registrationReview: string;
+  travelersCount: (n: number) => string;
+  lead: string;
+  born: string;
+  gender: string;
+  birthPlace: string;
+  citizenship: string;
+  residence: string;
+  document: string;
+  taxSuggestion: string;
+  reviewRequired: string;
+  manualReviewRequired: string;
+  borderEntry: string;
+  maskedNote: string;
+  lastChanged: (date: string) => string;
+  handoffTitle: string;
+  handoffDesc: string;
+  close: string;
+  stay: string;
+  arrival: string;
+  guests: string;
+}
+
+const COPY: CopyMap<ReservationCopy> = {
+  en: {
+    dateLocale: "en-GB",
+    direct: "Direct",
+    statusRevoked: "Link revoked",
+    statusEvisitorConfirmed: "Manual eVisitor entry confirmed",
+    statusEvisitorReady: "Ready for manual eVisitor entry",
+    statusOwnerApproved: "Guest data checked and approved",
+    statusOwnerReview: "Owner review in progress",
+    statusGuestComplete: "Guest complete — owner review not started",
+    statusGuestStarted: "Guest started — data incomplete",
+    statusAwaitingGuest: "Awaiting guest completion",
+    submittedAgo: (d) =>
+      d === 0 ? "Submitted today" : `Submitted ${d} day${d === 1 ? "" : "s"} ago`,
+    linkGeneratedAgo: (d) =>
+      d === 0
+        ? "Link generated today, awaiting reply"
+        : `Link generated ${d} day${d === 1 ? "" : "s"} ago, awaiting reply`,
+    noAnswer: "No answer",
+    yes: "Yes",
+    no: "No",
+    deleteConfirm: (name) =>
+      `Delete reservation "${name}"? This removes the reservation and any guests / passport docs attached to it. If it was claimed from a synced booking, that synced event is removed too.`,
+    deleteReservation: "Delete reservation",
+    grossAmountInvalid:
+      "Enter a non-negative gross amount with at most two decimals and a valid ISO currency.",
+    storedGrossAmount: "Stored gross amount",
+    unknown: "Unknown",
+    currency: "Currency",
+    grossAmountHint:
+      "Optional owner-entered amount. Leave blank when unknown; no price is inferred.",
+    stayLength: (n, d) =>
+      `${n} ${n === 1 ? "night" : "nights"} · ${d} ${d === 1 ? "day" : "days"}`,
+    guestsCount: (n) => `${n} guest${n !== 1 ? "s" : ""}`,
+    preArrivalForm: "Pre-arrival form",
+    shareHint: "Copy the link, then share it with your guest via WhatsApp, SMS, or email.",
+    confirmedTravelers: "Confirmed travelers",
+    saved: "Saved",
+    enterRange: "Enter 1–50",
+    requiredBeforeLink: "Required before link generation",
+    generating: "Generating…",
+    linkCopied: "Link copied",
+    tryAgain: "Try again",
+    copyLinkAgain: "Copy link again",
+    copyFormLink: "Copy form link",
+    startOwnerReview: "Start owner review",
+    approveCheckedData: "Approve checked data",
+    prepareHandoff: "Prepare manual eVisitor handoff",
+    opening: "Opening…",
+    openHandoff: "Open manual handoff",
+    confirmManualEntry: "Confirm manually entered",
+    revokeLink: "Revoke link",
+    messenger: "Messenger",
+    messengerHint:
+      "Save the guest’s phone for a personal chat, or paste a group’s link to jump back in one click.",
+    copyGroupName: "Copy group name",
+    saveName: "Save name",
+    resetToAuto: "Reset to auto",
+    openTelegramGroup: "Open Telegram group",
+    openWhatsAppGroup: "Open WhatsApp group",
+    editLinks: "Edit links",
+    addGroupLinks: "Add group links",
+    blankRemovesLink: "Leave a field blank to remove the saved link.",
+    privacyNote:
+      "Passport documents are private to your account. RentTools support and administrators cannot view the passport details you upload here.",
+    noPassportData: "No passport data found",
+    networkError: "Network error",
+    extractedAll: (ok, total) => `Extracted ${ok}/${total} passports successfully`,
+    extractedPartial: (ok, total, failed) => `${ok}/${total} extracted, ${failed} failed`,
+    dismissSummary: "Dismiss extraction summary",
+    generateMessageTitle: "Generate a message from a saved template",
+    generateMessage: "Generate message",
+    exportCsvTitle: "Export all guest data to CSV",
+    exportCsv: "Export CSV",
+    closePreview: "Close template preview",
+    preArrivalAnswers: "Pre-arrival answers",
+    registrationReview: "Guest registration review",
+    travelersCount: (n) => `${n} traveler${n === 1 ? "" : "s"}`,
+    lead: "lead",
+    born: "Born",
+    gender: "Gender",
+    birthPlace: "Birth place",
+    citizenship: "Citizenship",
+    residence: "Residence",
+    document: "Document",
+    taxSuggestion: "Tax suggestion",
+    reviewRequired: "Review required",
+    manualReviewRequired: "Manual review required",
+    borderEntry: "Border entry",
+    maskedNote:
+      "Document numbers remain masked in this review. Full numbers are loaded only from the protected manual handoff. No action here submits anything to eVisitor.",
+    lastChanged: (date) => ` Last changed ${date}.`,
+    handoffTitle: "Manual eVisitor handoff",
+    handoffDesc:
+      "Protected no-store view. Copy these values manually; RentTools does not contact eVisitor.",
+    close: "Close",
+    stay: "Stay",
+    arrival: "Arrival",
+    guests: "Guests",
+  },
+  ru: {
+    dateLocale: "ru-RU",
+    direct: "Напрямую",
+    statusRevoked: "Ссылка отозвана",
+    statusEvisitorConfirmed: "Ручной ввод в eVisitor подтверждён",
+    statusEvisitorReady: "Готово к ручному вводу в eVisitor",
+    statusOwnerApproved: "Данные гостей проверены и одобрены",
+    statusOwnerReview: "Идёт проверка владельцем",
+    statusGuestComplete: "Гость заполнил форму — проверка владельцем не начата",
+    statusGuestStarted: "Гость начал заполнение — данные неполные",
+    statusAwaitingGuest: "Ожидается заполнение гостем",
+    submittedAgo: (d) =>
+      d === 0
+        ? "Отправлено сегодня"
+        : `Отправлено ${d} ${ruPlural(d, "день", "дня", "дней")} назад`,
+    linkGeneratedAgo: (d) =>
+      d === 0
+        ? "Ссылка создана сегодня, ожидается ответ"
+        : `Ссылка создана ${d} ${ruPlural(d, "день", "дня", "дней")} назад, ожидается ответ`,
+    noAnswer: "Нет ответа",
+    yes: "Да",
+    no: "Нет",
+    deleteConfirm: (name) =>
+      `Удалить бронирование «${name}»? Будут удалены бронирование и все прикреплённые к нему гости и паспортные документы. Если оно было взято из синхронизированной брони, это синхронизированное событие тоже будет удалено.`,
+    deleteReservation: "Удалить бронирование",
+    grossAmountInvalid:
+      "Введите неотрицательную сумму брутто (не более двух знаков после запятой) и корректный код валюты ISO.",
+    storedGrossAmount: "Сохранённая сумма брутто",
+    unknown: "Неизвестно",
+    currency: "Валюта",
+    grossAmountHint:
+      "Необязательная сумма, которую вводит владелец. Оставьте поле пустым, если сумма неизвестна; цена не вычисляется автоматически.",
+    stayLength: (n, d) =>
+      `${n} ${ruPlural(n, "ночь", "ночи", "ночей")} · ${d} ${ruPlural(d, "день", "дня", "дней")}`,
+    guestsCount: (n) => `${n} ${ruPlural(n, "гость", "гостя", "гостей")}`,
+    preArrivalForm: "Форма перед заездом",
+    shareHint: "Скопируйте ссылку и отправьте её гостю через WhatsApp, SMS или email.",
+    confirmedTravelers: "Подтверждённое число гостей",
+    saved: "Сохранено",
+    enterRange: "Введите 1–50",
+    requiredBeforeLink: "Нужно указать до создания ссылки",
+    generating: "Создание…",
+    linkCopied: "Ссылка скопирована",
+    tryAgain: "Повторить",
+    copyLinkAgain: "Скопировать ссылку ещё раз",
+    copyFormLink: "Скопировать ссылку на форму",
+    startOwnerReview: "Начать проверку",
+    approveCheckedData: "Одобрить проверенные данные",
+    prepareHandoff: "Подготовить данные для ручного ввода в eVisitor",
+    opening: "Открытие…",
+    openHandoff: "Открыть данные для ручного ввода",
+    confirmManualEntry: "Подтвердить ручной ввод",
+    revokeLink: "Отозвать ссылку",
+    messenger: "Мессенджер",
+    messengerHint:
+      "Сохраните телефон гостя для личного чата или вставьте ссылку на группу, чтобы возвращаться в неё одним нажатием.",
+    copyGroupName: "Скопировать название группы",
+    saveName: "Сохранить название",
+    resetToAuto: "Вернуть автоназвание",
+    openTelegramGroup: "Открыть группу в Telegram",
+    openWhatsAppGroup: "Открыть группу в WhatsApp",
+    editLinks: "Изменить ссылки",
+    addGroupLinks: "Добавить ссылки на группы",
+    blankRemovesLink: "Оставьте поле пустым, чтобы удалить сохранённую ссылку.",
+    privacyNote:
+      "Паспортные документы доступны только вашему аккаунту. Поддержка и администраторы RentTools не могут просматривать загруженные здесь паспортные данные.",
+    noPassportData: "Паспортные данные не найдены",
+    networkError: "Ошибка сети",
+    extractedAll: (ok, total) => `Успешно извлечено паспортов: ${ok}/${total}`,
+    extractedPartial: (ok, total, failed) => `Извлечено ${ok}/${total}, с ошибкой: ${failed}`,
+    dismissSummary: "Скрыть итоги извлечения",
+    generateMessageTitle: "Создать сообщение из сохранённого шаблона",
+    generateMessage: "Создать сообщение",
+    exportCsvTitle: "Экспортировать все данные гостей в CSV",
+    exportCsv: "Экспорт CSV",
+    closePreview: "Закрыть предпросмотр шаблона",
+    preArrivalAnswers: "Ответы перед заездом",
+    registrationReview: "Проверка регистрации гостей",
+    travelersCount: (n) => `${n} ${ruPlural(n, "гость", "гостя", "гостей")}`,
+    lead: "основной гость",
+    born: "Дата рождения",
+    gender: "Пол",
+    birthPlace: "Место рождения",
+    citizenship: "Гражданство",
+    residence: "Место жительства",
+    document: "Документ",
+    taxSuggestion: "Предлагаемая категория сбора",
+    reviewRequired: "Требуется проверка",
+    manualReviewRequired: "Требуется ручная проверка",
+    borderEntry: "Въезд в страну",
+    maskedNote:
+      "Номера документов в этой проверке скрыты. Полные номера загружаются только в защищённом окне для ручного ввода. Отсюда ничего не отправляется в eVisitor.",
+    lastChanged: (date) => ` Последнее изменение: ${date}.`,
+    handoffTitle: "Данные для ручного ввода в eVisitor",
+    handoffDesc:
+      "Защищённый просмотр без кэширования. Перенесите эти значения вручную; RentTools не связывается с eVisitor.",
+    close: "Закрыть",
+    stay: "Проживание",
+    arrival: "Прибытие",
+    guests: "Гости",
+  },
+  de: {
+    dateLocale: "de-DE",
+    direct: "Direkt",
+    statusRevoked: "Link widerrufen",
+    statusEvisitorConfirmed: "Manuelle eVisitor-Eingabe bestätigt",
+    statusEvisitorReady: "Bereit für die manuelle eVisitor-Eingabe",
+    statusOwnerApproved: "Gästedaten geprüft und freigegeben",
+    statusOwnerReview: "Prüfung durch den Eigentümer läuft",
+    statusGuestComplete: "Gast fertig — Prüfung durch den Eigentümer noch nicht begonnen",
+    statusGuestStarted: "Gast hat begonnen — Daten unvollständig",
+    statusAwaitingGuest: "Warten auf die Angaben des Gastes",
+    submittedAgo: (d) =>
+      d === 0 ? "Heute übermittelt" : `Vor ${d} ${d === 1 ? "Tag" : "Tagen"} übermittelt`,
+    linkGeneratedAgo: (d) =>
+      d === 0
+        ? "Link heute erstellt, Antwort ausstehend"
+        : `Link vor ${d} ${d === 1 ? "Tag" : "Tagen"} erstellt, Antwort ausstehend`,
+    noAnswer: "Keine Antwort",
+    yes: "Ja",
+    no: "Nein",
+    deleteConfirm: (name) =>
+      `Reservierung „${name}“ löschen? Damit werden die Reservierung und alle zugehörigen Gäste und Passdokumente entfernt. Wurde sie aus einer synchronisierten Buchung übernommen, wird auch dieses synchronisierte Ereignis entfernt.`,
+    deleteReservation: "Reservierung löschen",
+    grossAmountInvalid:
+      "Geben Sie einen nicht negativen Bruttobetrag mit höchstens zwei Nachkommastellen und eine gültige ISO-Währung ein.",
+    storedGrossAmount: "Gespeicherter Bruttobetrag",
+    unknown: "Unbekannt",
+    currency: "Währung",
+    grossAmountHint:
+      "Optionaler, vom Eigentümer eingegebener Betrag. Lassen Sie das Feld leer, wenn er unbekannt ist; es wird kein Preis abgeleitet.",
+    stayLength: (n, d) =>
+      `${n} ${n === 1 ? "Nacht" : "Nächte"} · ${d} ${d === 1 ? "Tag" : "Tage"}`,
+    guestsCount: (n) => `${n} ${n === 1 ? "Gast" : "Gäste"}`,
+    preArrivalForm: "Anreiseformular",
+    shareHint:
+      "Kopieren Sie den Link und teilen Sie ihn per WhatsApp, SMS oder E-Mail mit Ihrem Gast.",
+    confirmedTravelers: "Bestätigte Reisende",
+    saved: "Gespeichert",
+    enterRange: "1–50 eingeben",
+    requiredBeforeLink: "Vor dem Erstellen des Links erforderlich",
+    generating: "Wird erstellt…",
+    linkCopied: "Link kopiert",
+    tryAgain: "Erneut versuchen",
+    copyLinkAgain: "Link erneut kopieren",
+    copyFormLink: "Formular-Link kopieren",
+    startOwnerReview: "Prüfung starten",
+    approveCheckedData: "Geprüfte Daten freigeben",
+    prepareHandoff: "Manuelle eVisitor-Übergabe vorbereiten",
+    opening: "Wird geöffnet…",
+    openHandoff: "Manuelle Übergabe öffnen",
+    confirmManualEntry: "Manuelle Eingabe bestätigen",
+    revokeLink: "Link widerrufen",
+    messenger: "Messenger",
+    messengerHint:
+      "Speichern Sie die Telefonnummer des Gastes für einen persönlichen Chat, oder fügen Sie den Link einer Gruppe ein, um mit einem Klick zurückzukehren.",
+    copyGroupName: "Gruppennamen kopieren",
+    saveName: "Namen speichern",
+    resetToAuto: "Automatischen Namen wiederherstellen",
+    openTelegramGroup: "Telegram-Gruppe öffnen",
+    openWhatsAppGroup: "WhatsApp-Gruppe öffnen",
+    editLinks: "Links bearbeiten",
+    addGroupLinks: "Gruppen-Links hinzufügen",
+    blankRemovesLink: "Lassen Sie ein Feld leer, um den gespeicherten Link zu entfernen.",
+    privacyNote:
+      "Passdokumente sind nur für Ihr Konto sichtbar. Support und Administratoren von RentTools können die hier hochgeladenen Passdaten nicht einsehen.",
+    noPassportData: "Keine Passdaten gefunden",
+    networkError: "Netzwerkfehler",
+    extractedAll: (ok, total) => `${ok}/${total} Pässe erfolgreich ausgelesen`,
+    extractedPartial: (ok, total, failed) =>
+      `${ok}/${total} ausgelesen, ${failed} fehlgeschlagen`,
+    dismissSummary: "Zusammenfassung schließen",
+    generateMessageTitle: "Nachricht aus einer gespeicherten Vorlage erstellen",
+    generateMessage: "Nachricht erstellen",
+    exportCsvTitle: "Alle Gästedaten als CSV exportieren",
+    exportCsv: "CSV exportieren",
+    closePreview: "Vorlagenvorschau schließen",
+    preArrivalAnswers: "Antworten vor der Anreise",
+    registrationReview: "Prüfung der Gästeanmeldung",
+    travelersCount: (n) => `${n} ${n === 1 ? "Reisender" : "Reisende"}`,
+    lead: "Hauptgast",
+    born: "Geboren",
+    gender: "Geschlecht",
+    birthPlace: "Geburtsort",
+    citizenship: "Staatsangehörigkeit",
+    residence: "Wohnsitz",
+    document: "Dokument",
+    taxSuggestion: "Vorgeschlagene Abgabenkategorie",
+    reviewRequired: "Prüfung erforderlich",
+    manualReviewRequired: "Manuelle Prüfung erforderlich",
+    borderEntry: "Einreise",
+    maskedNote:
+      "Dokumentnummern bleiben in dieser Prüfung maskiert. Vollständige Nummern werden nur in der geschützten manuellen Übergabe geladen. Von hier aus wird nichts an eVisitor übermittelt.",
+    lastChanged: (date) => ` Zuletzt geändert: ${date}.`,
+    handoffTitle: "Manuelle eVisitor-Übergabe",
+    handoffDesc:
+      "Geschützte Ansicht ohne Zwischenspeicherung. Übertragen Sie diese Werte manuell; RentTools kontaktiert eVisitor nicht.",
+    close: "Schließen",
+    stay: "Aufenthalt",
+    arrival: "Ankunft",
+    guests: "Gäste",
+  },
+  fr: {
+    dateLocale: "fr-FR",
+    direct: "Direct",
+    statusRevoked: "Lien révoqué",
+    statusEvisitorConfirmed: "Saisie manuelle dans eVisitor confirmée",
+    statusEvisitorReady: "Prêt pour la saisie manuelle dans eVisitor",
+    statusOwnerApproved: "Données des voyageurs vérifiées et approuvées",
+    statusOwnerReview: "Vérification par le propriétaire en cours",
+    statusGuestComplete: "Rempli par le voyageur — vérification par le propriétaire non commencée",
+    statusGuestStarted: "Commencé par le voyageur — données incomplètes",
+    statusAwaitingGuest: "En attente du voyageur",
+    submittedAgo: (d) =>
+      d === 0 ? "Envoyé aujourd’hui" : `Envoyé il y a ${d} ${d === 1 ? "jour" : "jours"}`,
+    linkGeneratedAgo: (d) =>
+      d === 0
+        ? "Lien créé aujourd’hui, en attente de réponse"
+        : `Lien créé il y a ${d} ${d === 1 ? "jour" : "jours"}, en attente de réponse`,
+    noAnswer: "Pas de réponse",
+    yes: "Oui",
+    no: "Non",
+    deleteConfirm: (name) =>
+      `Supprimer la réservation « ${name} » ? Cela supprime la réservation ainsi que les voyageurs et documents de passeport associés. Si elle provient d’une réservation synchronisée, cet événement synchronisé est également supprimé.`,
+    deleteReservation: "Supprimer la réservation",
+    grossAmountInvalid:
+      "Saisissez un montant brut positif ou nul, avec au plus deux décimales, et une devise ISO valide.",
+    storedGrossAmount: "Montant brut enregistré",
+    unknown: "Inconnu",
+    currency: "Devise",
+    grossAmountHint:
+      "Montant facultatif saisi par le propriétaire. Laissez vide s’il est inconnu ; aucun prix n’est déduit.",
+    stayLength: (n, d) =>
+      `${n} ${n === 1 ? "nuit" : "nuits"} · ${d} ${d === 1 ? "jour" : "jours"}`,
+    guestsCount: (n) => `${n} ${n === 1 ? "voyageur" : "voyageurs"}`,
+    preArrivalForm: "Formulaire de pré-arrivée",
+    shareHint: "Copiez le lien, puis partagez-le avec votre voyageur par WhatsApp, SMS ou e-mail.",
+    confirmedTravelers: "Voyageurs confirmés",
+    saved: "Enregistré",
+    enterRange: "Saisissez 1–50",
+    requiredBeforeLink: "Requis avant de créer le lien",
+    generating: "Création…",
+    linkCopied: "Lien copié",
+    tryAgain: "Réessayer",
+    copyLinkAgain: "Copier à nouveau le lien",
+    copyFormLink: "Copier le lien du formulaire",
+    startOwnerReview: "Commencer la vérification",
+    approveCheckedData: "Approuver les données vérifiées",
+    prepareHandoff: "Préparer la saisie manuelle dans eVisitor",
+    opening: "Ouverture…",
+    openHandoff: "Ouvrir les données de saisie manuelle",
+    confirmManualEntry: "Confirmer la saisie manuelle",
+    revokeLink: "Révoquer le lien",
+    messenger: "Messagerie",
+    messengerHint:
+      "Enregistrez le téléphone du voyageur pour une discussion privée, ou collez le lien d’un groupe pour y revenir en un clic.",
+    copyGroupName: "Copier le nom du groupe",
+    saveName: "Enregistrer le nom",
+    resetToAuto: "Rétablir le nom automatique",
+    openTelegramGroup: "Ouvrir le groupe Telegram",
+    openWhatsAppGroup: "Ouvrir le groupe WhatsApp",
+    editLinks: "Modifier les liens",
+    addGroupLinks: "Ajouter des liens de groupe",
+    blankRemovesLink: "Laissez un champ vide pour supprimer le lien enregistré.",
+    privacyNote:
+      "Les documents de passeport sont réservés à votre compte. Le support et les administrateurs de RentTools ne peuvent pas voir les données de passeport que vous téléversez ici.",
+    noPassportData: "Aucune donnée de passeport trouvée",
+    networkError: "Erreur réseau",
+    extractedAll: (ok, total) => `${ok}/${total} passeports extraits avec succès`,
+    extractedPartial: (ok, total, failed) => `${ok}/${total} extraits, ${failed} en échec`,
+    dismissSummary: "Fermer le résumé d’extraction",
+    generateMessageTitle: "Générer un message à partir d’un modèle enregistré",
+    generateMessage: "Générer un message",
+    exportCsvTitle: "Exporter toutes les données des voyageurs en CSV",
+    exportCsv: "Exporter en CSV",
+    closePreview: "Fermer l’aperçu du modèle",
+    preArrivalAnswers: "Réponses avant l’arrivée",
+    registrationReview: "Vérification de l’enregistrement des voyageurs",
+    travelersCount: (n) => `${n} ${n === 1 ? "voyageur" : "voyageurs"}`,
+    lead: "principal",
+    born: "Naissance",
+    gender: "Sexe",
+    birthPlace: "Lieu de naissance",
+    citizenship: "Nationalité",
+    residence: "Résidence",
+    document: "Document",
+    taxSuggestion: "Catégorie de taxe suggérée",
+    reviewRequired: "Vérification requise",
+    manualReviewRequired: "Vérification manuelle requise",
+    borderEntry: "Entrée sur le territoire",
+    maskedNote:
+      "Les numéros de document restent masqués dans cette vérification. Les numéros complets ne sont chargés que dans la vue protégée de saisie manuelle. Rien n’est envoyé à eVisitor depuis cette page.",
+    lastChanged: (date) => ` Dernière modification : ${date}.`,
+    handoffTitle: "Saisie manuelle dans eVisitor",
+    handoffDesc:
+      "Vue protégée, non mise en cache. Recopiez ces valeurs manuellement ; RentTools ne contacte pas eVisitor.",
+    close: "Fermer",
+    stay: "Séjour",
+    arrival: "Arrivée",
+    guests: "Voyageurs",
+  },
+  es: {
+    dateLocale: "es-ES",
+    direct: "Directa",
+    statusRevoked: "Enlace revocado",
+    statusEvisitorConfirmed: "Registro manual en eVisitor confirmado",
+    statusEvisitorReady: "Listo para el registro manual en eVisitor",
+    statusOwnerApproved: "Datos de los huéspedes revisados y aprobados",
+    statusOwnerReview: "Revisión del propietario en curso",
+    statusGuestComplete: "Completado por el huésped — revisión del propietario sin iniciar",
+    statusGuestStarted: "Iniciado por el huésped — datos incompletos",
+    statusAwaitingGuest: "Esperando a que el huésped lo complete",
+    submittedAgo: (d) =>
+      d === 0 ? "Enviado hoy" : `Enviado hace ${d} ${d === 1 ? "día" : "días"}`,
+    linkGeneratedAgo: (d) =>
+      d === 0
+        ? "Enlace generado hoy, esperando respuesta"
+        : `Enlace generado hace ${d} ${d === 1 ? "día" : "días"}, esperando respuesta`,
+    noAnswer: "Sin respuesta",
+    yes: "Sí",
+    no: "No",
+    deleteConfirm: (name) =>
+      `¿Eliminar la reserva «${name}»? Se eliminarán la reserva y los huéspedes y documentos de pasaporte asociados. Si se reclamó desde una reserva sincronizada, también se eliminará ese evento sincronizado.`,
+    deleteReservation: "Eliminar reserva",
+    grossAmountInvalid:
+      "Introduzca un importe bruto no negativo con dos decimales como máximo y una moneda ISO válida.",
+    storedGrossAmount: "Importe bruto guardado",
+    unknown: "Desconocido",
+    currency: "Moneda",
+    grossAmountHint:
+      "Importe opcional introducido por el propietario. Déjelo en blanco si no lo conoce; no se deduce ningún precio.",
+    stayLength: (n, d) =>
+      `${n} ${n === 1 ? "noche" : "noches"} · ${d} ${d === 1 ? "día" : "días"}`,
+    guestsCount: (n) => `${n} ${n === 1 ? "huésped" : "huéspedes"}`,
+    preArrivalForm: "Formulario previo a la llegada",
+    shareHint:
+      "Copie el enlace y compártalo con su huésped por WhatsApp, SMS o correo electrónico.",
+    confirmedTravelers: "Viajeros confirmados",
+    saved: "Guardado",
+    enterRange: "Introduzca 1–50",
+    requiredBeforeLink: "Obligatorio antes de generar el enlace",
+    generating: "Generando…",
+    linkCopied: "Enlace copiado",
+    tryAgain: "Reintentar",
+    copyLinkAgain: "Copiar el enlace de nuevo",
+    copyFormLink: "Copiar enlace del formulario",
+    startOwnerReview: "Iniciar revisión",
+    approveCheckedData: "Aprobar datos revisados",
+    prepareHandoff: "Preparar el registro manual en eVisitor",
+    opening: "Abriendo…",
+    openHandoff: "Abrir datos para el registro manual",
+    confirmManualEntry: "Confirmar registro manual",
+    revokeLink: "Revocar enlace",
+    messenger: "Mensajería",
+    messengerHint:
+      "Guarde el teléfono del huésped para un chat personal, o pegue el enlace de un grupo para volver a él con un clic.",
+    copyGroupName: "Copiar nombre del grupo",
+    saveName: "Guardar nombre",
+    resetToAuto: "Restablecer nombre automático",
+    openTelegramGroup: "Abrir grupo de Telegram",
+    openWhatsAppGroup: "Abrir grupo de WhatsApp",
+    editLinks: "Editar enlaces",
+    addGroupLinks: "Añadir enlaces de grupo",
+    blankRemovesLink: "Deje un campo en blanco para eliminar el enlace guardado.",
+    privacyNote:
+      "Los documentos de pasaporte son privados de su cuenta. El soporte y los administradores de RentTools no pueden ver los datos de pasaporte que suba aquí.",
+    noPassportData: "No se encontraron datos de pasaporte",
+    networkError: "Error de red",
+    extractedAll: (ok, total) => `${ok}/${total} pasaportes extraídos correctamente`,
+    extractedPartial: (ok, total, failed) => `${ok}/${total} extraídos, ${failed} con error`,
+    dismissSummary: "Cerrar resumen de extracción",
+    generateMessageTitle: "Generar un mensaje a partir de una plantilla guardada",
+    generateMessage: "Generar mensaje",
+    exportCsvTitle: "Exportar todos los datos de los huéspedes a CSV",
+    exportCsv: "Exportar CSV",
+    closePreview: "Cerrar vista previa de la plantilla",
+    preArrivalAnswers: "Respuestas previas a la llegada",
+    registrationReview: "Revisión del registro de huéspedes",
+    travelersCount: (n) => `${n} ${n === 1 ? "viajero" : "viajeros"}`,
+    lead: "titular",
+    born: "Nacimiento",
+    gender: "Sexo",
+    birthPlace: "Lugar de nacimiento",
+    citizenship: "Nacionalidad",
+    residence: "Residencia",
+    document: "Documento",
+    taxSuggestion: "Categoría de tasa sugerida",
+    reviewRequired: "Requiere revisión",
+    manualReviewRequired: "Requiere revisión manual",
+    borderEntry: "Entrada en el país",
+    maskedNote:
+      "Los números de documento permanecen ocultos en esta revisión. Los números completos solo se cargan en la vista protegida para el registro manual. Desde aquí no se envía nada a eVisitor.",
+    lastChanged: (date) => ` Último cambio: ${date}.`,
+    handoffTitle: "Registro manual en eVisitor",
+    handoffDesc:
+      "Vista protegida sin caché. Copie estos valores manualmente; RentTools no contacta con eVisitor.",
+    close: "Cerrar",
+    stay: "Estancia",
+    arrival: "Llegada",
+    guests: "Huéspedes",
+  },
+  hr: {
+    dateLocale: "hr-HR",
+    direct: "Izravno",
+    statusRevoked: "Link opozvan",
+    statusEvisitorConfirmed: "Ručni unos u eVisitor potvrđen",
+    statusEvisitorReady: "Spremno za ručni unos u eVisitor",
+    statusOwnerApproved: "Podaci gostiju provjereni i odobreni",
+    statusOwnerReview: "Provjera vlasnika u tijeku",
+    statusGuestComplete: "Gost je ispunio obrazac — provjera vlasnika nije započela",
+    statusGuestStarted: "Gost je počeo ispunjavati — podaci su nepotpuni",
+    statusAwaitingGuest: "Čeka se da gost ispuni obrazac",
+    submittedAgo: (d) =>
+      d === 0
+        ? "Poslano danas"
+        : `Poslano prije ${d} ${hrPlural(d, "dan", "dana", "dana")}`,
+    linkGeneratedAgo: (d) =>
+      d === 0
+        ? "Link stvoren danas, čeka se odgovor"
+        : `Link stvoren prije ${d} ${hrPlural(d, "dan", "dana", "dana")}, čeka se odgovor`,
+    noAnswer: "Nema odgovora",
+    yes: "Da",
+    no: "Ne",
+    deleteConfirm: (name) =>
+      `Obrisati rezervaciju „${name}”? Time se uklanjaju rezervacija i svi pripadajući gosti i dokumenti putovnica. Ako je preuzeta iz sinkronizirane rezervacije, uklanja se i taj sinkronizirani događaj.`,
+    deleteReservation: "Obriši rezervaciju",
+    grossAmountInvalid:
+      "Unesite nenegativan bruto iznos s najviše dvije decimale i valjanu ISO valutu.",
+    storedGrossAmount: "Spremljeni bruto iznos",
+    unknown: "Nepoznato",
+    currency: "Valuta",
+    grossAmountHint:
+      "Neobavezan iznos koji unosi vlasnik. Ostavite prazno ako nije poznat; cijena se ne izračunava automatski.",
+    stayLength: (n, d) =>
+      `${n} ${hrPlural(n, "noćenje", "noćenja", "noćenja")} · ${d} ${hrPlural(d, "dan", "dana", "dana")}`,
+    guestsCount: (n) => `${n} ${hrPlural(n, "gost", "gosta", "gostiju")}`,
+    preArrivalForm: "Obrazac prije dolaska",
+    shareHint: "Kopirajte link i pošaljite ga gostu putem WhatsAppa, SMS-a ili e-pošte.",
+    confirmedTravelers: "Potvrđeni broj putnika",
+    saved: "Spremljeno",
+    enterRange: "Unesite 1–50",
+    requiredBeforeLink: "Obavezno prije stvaranja linka",
+    generating: "Stvaranje…",
+    linkCopied: "Link kopiran",
+    tryAgain: "Pokušajte ponovno",
+    copyLinkAgain: "Ponovno kopiraj link",
+    copyFormLink: "Kopiraj link obrasca",
+    startOwnerReview: "Započni provjeru",
+    approveCheckedData: "Odobri provjerene podatke",
+    prepareHandoff: "Pripremi podatke za ručni unos u eVisitor",
+    opening: "Otvaranje…",
+    openHandoff: "Otvori podatke za ručni unos",
+    confirmManualEntry: "Potvrdi ručni unos",
+    revokeLink: "Opozovi link",
+    messenger: "Poruke",
+    messengerHint:
+      "Spremite gostov broj telefona za osobni razgovor ili zalijepite link grupe da joj se vratite jednim klikom.",
+    copyGroupName: "Kopiraj naziv grupe",
+    saveName: "Spremi naziv",
+    resetToAuto: "Vrati automatski naziv",
+    openTelegramGroup: "Otvori Telegram grupu",
+    openWhatsAppGroup: "Otvori WhatsApp grupu",
+    editLinks: "Uredi linkove",
+    addGroupLinks: "Dodaj linkove grupa",
+    blankRemovesLink: "Ostavite polje prazno da biste uklonili spremljeni link.",
+    privacyNote:
+      "Dokumenti putovnica vidljivi su samo vašem računu. Podrška i administratori RentToolsa ne mogu vidjeti podatke iz putovnica koje ovdje učitate.",
+    noPassportData: "Nisu pronađeni podaci iz putovnice",
+    networkError: "Mrežna pogreška",
+    extractedAll: (ok, total) => `Uspješno izdvojeno putovnica: ${ok}/${total}`,
+    extractedPartial: (ok, total, failed) => `Izdvojeno ${ok}/${total}, neuspješno: ${failed}`,
+    dismissSummary: "Zatvori sažetak izdvajanja",
+    generateMessageTitle: "Sastavi poruku iz spremljenog predloška",
+    generateMessage: "Sastavi poruku",
+    exportCsvTitle: "Izvezi sve podatke gostiju u CSV",
+    exportCsv: "Izvezi CSV",
+    closePreview: "Zatvori pregled predloška",
+    preArrivalAnswers: "Odgovori prije dolaska",
+    registrationReview: "Provjera prijave gostiju",
+    travelersCount: (n) => `${n} ${hrPlural(n, "putnik", "putnika", "putnika")}`,
+    lead: "nositelj rezervacije",
+    born: "Datum rođenja",
+    gender: "Spol",
+    birthPlace: "Mjesto rođenja",
+    citizenship: "Državljanstvo",
+    residence: "Prebivalište",
+    document: "Dokument",
+    taxSuggestion: "Prijedlog kategorije pristojbe",
+    reviewRequired: "Potrebna provjera",
+    manualReviewRequired: "Potrebna ručna provjera",
+    borderEntry: "Ulazak u zemlju",
+    maskedNote:
+      "Brojevi dokumenata u ovoj provjeri ostaju skriveni. Puni brojevi učitavaju se samo u zaštićenom prikazu za ručni unos. Odavde se ništa ne šalje u eVisitor.",
+    lastChanged: (date) => ` Zadnja promjena: ${date}.`,
+    handoffTitle: "Podaci za ručni unos u eVisitor",
+    handoffDesc:
+      "Zaštićeni prikaz koji se ne sprema u predmemoriju. Ove vrijednosti prepišite ručno; RentTools ne komunicira s eVisitorom.",
+    close: "Zatvori",
+    stay: "Boravak",
+    arrival: "Dolazak",
+    guests: "Gosti",
   },
 };
 
@@ -302,6 +998,7 @@ export function ReservationView({
   // unified encrypted pre-check-in form does not depend on this feature.
   const legacyPassportOcrEnabled = process.env.NEXT_PUBLIC_LEGACY_PASSPORT_OCR_ENABLED === "true";
   const hint = resolveCopy(HINT_COPY, locale);
+  const c = resolveCopy(COPY, locale);
   const ownerCalendarWindow = useMemo(
     () => getOwnerCalendarWindow({
       bookingWindowDays: bookingWindow || 365,
@@ -609,14 +1306,14 @@ export function ReservationView({
 
   const guestFormStatusLabel = (): string | null => {
     if (!guestFormSubmission) return null;
-    if (guestFormSubmission.status === "REVOKED") return "Link revoked";
-    if (guestFormSubmission.status === "EVISITOR_CONFIRMED_MANUAL") return "Manual eVisitor entry confirmed";
-    if (guestFormSubmission.status === "EVISITOR_READY") return "Ready for manual eVisitor entry";
-    if (guestFormSubmission.status === "OWNER_APPROVED") return "Guest data checked and approved";
-    if (guestFormSubmission.status === "OWNER_REVIEW" || guestFormSubmission.status === "OWNER_REVIEW_REQUIRED") return "Owner review in progress";
-    if (guestFormSubmission.status === "GUEST_COMPLETE" || guestFormSubmission.status === "COMPLETE") return "Guest complete — owner review not started";
-    if (guestFormSubmission.status === "IN_PROGRESS") return "Guest started — data incomplete";
-    if (guestFormSubmission.status === "PENDING" || guestFormSubmission.status === "INVITED" || guestFormSubmission.status === "NOT_INVITED") return "Awaiting guest completion";
+    if (guestFormSubmission.status === "REVOKED") return c.statusRevoked;
+    if (guestFormSubmission.status === "EVISITOR_CONFIRMED_MANUAL") return c.statusEvisitorConfirmed;
+    if (guestFormSubmission.status === "EVISITOR_READY") return c.statusEvisitorReady;
+    if (guestFormSubmission.status === "OWNER_APPROVED") return c.statusOwnerApproved;
+    if (guestFormSubmission.status === "OWNER_REVIEW" || guestFormSubmission.status === "OWNER_REVIEW_REQUIRED") return c.statusOwnerReview;
+    if (guestFormSubmission.status === "GUEST_COMPLETE" || guestFormSubmission.status === "COMPLETE") return c.statusGuestComplete;
+    if (guestFormSubmission.status === "IN_PROGRESS") return c.statusGuestStarted;
+    if (guestFormSubmission.status === "PENDING" || guestFormSubmission.status === "INVITED" || guestFormSubmission.status === "NOT_INVITED") return c.statusAwaitingGuest;
     if (guestFormSubmission.submittedAt) {
       const days = Math.max(
         0,
@@ -625,9 +1322,7 @@ export function ReservationView({
             (1000 * 60 * 60 * 24)
         )
       );
-      return days === 0
-        ? "Submitted today"
-        : `Submitted ${days} day${days === 1 ? "" : "s"} ago`;
+      return c.submittedAgo(days);
     }
     // Avoid the word "Sent" — RentTools doesn't send the link, the host
     // does. We only know when the share token was minted (i.e. when the
@@ -639,9 +1334,7 @@ export function ReservationView({
           (1000 * 60 * 60 * 24)
       )
     );
-    return days === 0
-      ? "Link generated today, awaiting reply"
-      : `Link generated ${days} day${days === 1 ? "" : "s"} ago, awaiting reply`;
+    return c.linkGeneratedAgo(days);
   };
 
   const updateGuestFormStatus = async (
@@ -687,10 +1380,10 @@ export function ReservationView({
 
   const renderGuestFormAnswerValue = (a: { type: string; value: unknown }) => {
     if (a.value === null || a.value === undefined || a.value === "") {
-      return <span className="text-muted-foreground italic">No answer</span>;
+      return <span className="text-muted-foreground italic">{c.noAnswer}</span>;
     }
     if (Array.isArray(a.value)) return a.value.join(", ");
-    if (a.type === "yes-no") return a.value === "yes" ? "Yes" : "No";
+    if (a.type === "yes-no") return a.value === "yes" ? c.yes : c.no;
     return String(a.value);
   };
 
@@ -807,11 +1500,11 @@ export function ReservationView({
           fileResults.push({ name: safeFileLabel, status: "success" });
         } else {
           addLog(`[${i + 1}/${files.length}] No passport data found`, "error");
-          fileResults.push({ name: safeFileLabel, status: "failed", reason: "No passport data found" });
+          fileResults.push({ name: safeFileLabel, status: "failed", reason: c.noPassportData });
         }
       } catch {
         addLog(`[${i + 1}/${files.length}] Network error processing secure document`, "error");
-        fileResults.push({ name: safeFileLabel, status: "failed", reason: "Network error" });
+        fileResults.push({ name: safeFileLabel, status: "failed", reason: c.networkError });
       }
     }
 
@@ -973,9 +1666,7 @@ export function ReservationView({
             platform: sourcePlatformLabel,
           }),
         )
-      : window.confirm(
-          `Delete reservation "${reservation.name}"? This removes the reservation and any guests / passport docs attached to it. If it was claimed from a synced booking, that synced event is removed too.`,
-        );
+      : window.confirm(c.deleteConfirm(reservation.name));
     if (!confirmed) return;
 
     setDeletePending(true);
@@ -1044,9 +1735,7 @@ export function ReservationView({
     const parsedGrossAmount = parseGrossAmountText(editGrossAmount);
     const normalizedCurrency = normalizeCurrencyCode(editCurrency);
     if (!parsedGrossAmount.ok || !normalizedCurrency) {
-      setEditError(
-        "Enter a non-negative gross amount with at most two decimals and a valid ISO currency.",
-      );
+      setEditError(c.grossAmountInvalid);
       return;
     }
 
@@ -1086,7 +1775,7 @@ export function ReservationView({
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("en-GB", {
+    return new Date(dateStr).toLocaleDateString(c.dateLocale, {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -1235,13 +1924,13 @@ export function ReservationView({
 
               <div className="grid grid-cols-[minmax(0,1fr)_6rem] gap-3">
                 <label className="block min-w-0 space-y-1.5" htmlFor={`reservation-gross-amount-${reservation.id}`}>
-                  <span className="text-sm font-medium">Stored gross amount</span>
+                  <span className="text-sm font-medium">{c.storedGrossAmount}</span>
                   <input
                     id={`reservation-gross-amount-${reservation.id}`}
                     type="text"
                     inputMode="decimal"
                     value={editGrossAmount}
-                    placeholder="Unknown"
+                    placeholder={c.unknown}
                     onChange={(event) => {
                       setEditGrossAmount(event.target.value);
                       setEditError(null);
@@ -1251,7 +1940,7 @@ export function ReservationView({
                   />
                 </label>
                 <label className="block min-w-0 space-y-1.5" htmlFor={`reservation-currency-${reservation.id}`}>
-                  <span className="text-sm font-medium">Currency</span>
+                  <span className="text-sm font-medium">{c.currency}</span>
                   <input
                     id={`reservation-currency-${reservation.id}`}
                     type="text"
@@ -1267,7 +1956,7 @@ export function ReservationView({
                 </label>
               </div>
               <p className="text-xs leading-relaxed text-muted-foreground">
-                Optional owner-entered amount. Leave blank when unknown; no price is inferred.
+                {c.grossAmountHint}
               </p>
 
               {reservation.linkedEventUid && (
@@ -1326,8 +2015,8 @@ export function ReservationView({
                   onClick={() => void handleDeleteReservation()}
                   disabled={deletePending}
                   aria-busy={deletePending}
-                  aria-label={isDirectExtension ? tr("reservation.cancelExtension") : "Delete reservation"}
-                  title={isDirectExtension ? tr("reservation.cancelExtension") : "Delete reservation"}
+                  aria-label={isDirectExtension ? tr("reservation.cancelExtension") : c.deleteReservation}
+                  title={isDirectExtension ? tr("reservation.cancelExtension") : c.deleteReservation}
                   className={`inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/50 disabled:cursor-wait disabled:opacity-60 ${
                     isDirectExtension
                       ? "border border-rose-500/30 text-xs font-medium text-rose-600 hover:bg-rose-500/10 dark:text-rose-400"
@@ -1353,7 +2042,9 @@ export function ReservationView({
                       ? "bg-[var(--m-accent)]/10 text-[var(--m-accent)]"
                       : "bg-slate-500/10 text-slate-600 dark:text-slate-300"
                 }`}>
-                  {platformShortLabel(reservation.platform)}
+                  {reservation.platform === "direct" || reservation.platform === "custom"
+                    ? c.direct
+                    : platformShortLabel(reservation.platform)}
                 </span>
                 {isDirectExtension && (
                   <span className="rounded-md border border-sky-500/25 bg-sky-500/10 px-2 py-0.5 text-xs font-medium text-sky-700 dark:text-sky-300">
@@ -1364,7 +2055,7 @@ export function ReservationView({
                   {formatDate(reservation.checkIn)} — {formatDate(reservation.checkOut)}
                 </span>
                 <Badge variant="outline" className="rounded-md text-xs">
-                  {stayNights()} {stayNights() === 1 ? "night" : "nights"} · {stayDays()} {stayDays() === 1 ? "day" : "days"}
+                  {c.stayLength(stayNights(), stayDays())}
                 </Badge>
                 <Button
                   ref={editDatesTriggerRef}
@@ -1380,7 +2071,7 @@ export function ReservationView({
                 </Button>
                 {guests.length > 0 && (
                   <Badge variant="secondary" className="rounded-md text-xs">
-                    {guests.length} guest{guests.length !== 1 && "s"}
+                    {c.guestsCount(guests.length)}
                   </Badge>
                 )}
               </div>
@@ -1415,14 +2106,13 @@ export function ReservationView({
       {hasGuestForm && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-card/40 px-4 py-3">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium">Pre-arrival form</p>
+            <p className="text-sm font-medium">{c.preArrivalForm}</p>
             <p className="text-xs text-muted-foreground">
-              {guestFormStatusLabel() ??
-                "Copy the link, then share it with your guest via WhatsApp, SMS, or email."}
+              {guestFormStatusLabel() ?? c.shareHint}
             </p>
           </div>
           <label className="w-full text-xs text-muted-foreground">
-            Confirmed travelers
+            {c.confirmedTravelers}
             <input
               type="number"
               min={1}
@@ -1434,10 +2124,10 @@ export function ReservationView({
               }}
               onBlur={handleBookedGuestCountBlur}
               className="mt-1 h-9 w-28 rounded-md border border-border/60 bg-background px-2 text-sm text-foreground"
-              aria-label="Confirmed travelers"
+              aria-label={c.confirmedTravelers}
             />
             <span className="ml-2">
-              {bookedGuestCountState === "saving" ? "Saving…" : bookedGuestCountState === "saved" ? "Saved" : bookedGuestCountState === "error" ? "Enter 1–50" : "Required before link generation"}
+              {bookedGuestCountState === "saving" ? tr("reservation.saving") : bookedGuestCountState === "saved" ? c.saved : bookedGuestCountState === "error" ? c.enterRange : c.requiredBeforeLink}
             </span>
           </label>
           <Button
@@ -1449,14 +2139,14 @@ export function ReservationView({
             className="rounded-lg text-xs"
           >
             {guestFormGenerating
-              ? "Generating…"
+              ? c.generating
               : guestFormCopyState === "copied"
-                ? "Link copied"
+                ? c.linkCopied
                 : guestFormCopyState === "error"
-                  ? "Try again"
+                  ? c.tryAgain
                   : guestFormSubmission
-                    ? "Copy link again"
-                    : "Copy form link"}
+                    ? c.copyLinkAgain
+                    : c.copyFormLink}
           </Button>
           {(guestFormSubmission?.status === "GUEST_COMPLETE" ||
             guestFormSubmission?.status === "COMPLETE") && (
@@ -1466,7 +2156,7 @@ export function ReservationView({
               onClick={() => updateGuestFormStatus("start-review")}
               className="rounded-lg text-xs"
             >
-              Start owner review
+              {c.startOwnerReview}
             </Button>
           )}
           {(guestFormSubmission?.status === "OWNER_REVIEW" ||
@@ -1477,7 +2167,7 @@ export function ReservationView({
               onClick={() => updateGuestFormStatus("approve")}
               className="rounded-lg text-xs"
             >
-              Approve checked data
+              {c.approveCheckedData}
             </Button>
           )}
           {guestFormSubmission?.status === "OWNER_APPROVED" && (
@@ -1487,7 +2177,7 @@ export function ReservationView({
               onClick={() => updateGuestFormStatus("mark-evisitor-ready")}
               className="rounded-lg text-xs"
             >
-              Prepare manual eVisitor handoff
+              {c.prepareHandoff}
             </Button>
           )}
           {(guestFormSubmission?.status === "EVISITOR_READY" ||
@@ -1500,7 +2190,7 @@ export function ReservationView({
               disabled={manualEVisitorLoading}
               className="rounded-lg text-xs"
             >
-              {manualEVisitorLoading ? "Opening…" : "Open manual handoff"}
+              {manualEVisitorLoading ? c.opening : c.openHandoff}
             </Button>
           )}
           {guestFormSubmission?.status === "EVISITOR_READY" && (
@@ -1510,7 +2200,7 @@ export function ReservationView({
               onClick={() => updateGuestFormStatus("confirm-evisitor-manual")}
               className="rounded-lg text-xs"
             >
-              Confirm manually entered
+              {c.confirmManualEntry}
             </Button>
           )}
           {guestFormSubmission && guestFormSubmission.status !== "REVOKED" && (
@@ -1521,7 +2211,7 @@ export function ReservationView({
               onClick={() => updateGuestFormStatus("revoke")}
               className="rounded-lg text-xs text-rose-300"
             >
-              Revoke link
+              {c.revokeLink}
             </Button>
           )}
         </div>
@@ -1557,9 +2247,9 @@ export function ReservationView({
       <div className="space-y-2 rounded-xl border border-border/60 bg-card/40 px-4 py-3">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
-            <p className="text-sm font-medium">Messenger</p>
+            <p className="text-sm font-medium">{c.messenger}</p>
             <p className="text-xs text-muted-foreground">
-              Save the guest&rsquo;s phone for a personal chat, or paste a group&rsquo;s link to jump back in one click.
+              {c.messengerHint}
             </p>
           </div>
           <Button
@@ -1569,7 +2259,7 @@ export function ReservationView({
             onClick={handleCopyGroupName}
             className="rounded-lg text-xs"
           >
-            {groupNameCopyState === "copied" ? "Copied!" : "Copy group name"}
+            {groupNameCopyState === "copied" ? tr("common.copied") : c.copyGroupName}
           </Button>
         </div>
 
@@ -1591,9 +2281,9 @@ export function ReservationView({
               }`}
             >
               {reservationPhoneState === "saving"
-                ? "Saving…"
+                ? tr("reservation.saving")
                 : reservationPhoneState === "saved"
-                  ? "Saved"
+                  ? c.saved
                   : reservationPhoneState === "error"
                     ? tr("guest.phoneInvalid")
                     : ""}
@@ -1681,7 +2371,7 @@ export function ReservationView({
               disabled={savingGroupName}
               className="rounded-lg text-xs"
             >
-              {savingGroupName ? "Saving…" : "Save name"}
+              {savingGroupName ? tr("reservation.saving") : c.saveName}
             </Button>
           )}
           {groupNameOverride === null && reservation.groupName && (
@@ -1690,7 +2380,7 @@ export function ReservationView({
               onClick={() => { setGroupNameOverride(""); }}
               className="text-[11px] text-muted-foreground transition-colors hover:text-foreground"
             >
-              Reset to auto
+              {c.resetToAuto}
             </button>
           )}
         </div>
@@ -1707,7 +2397,7 @@ export function ReservationView({
                 <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
                   <path d="M11.94.5C5.62.5.5 5.62.5 11.94s5.12 11.44 11.44 11.44 11.44-5.12 11.44-11.44S18.26.5 11.94.5zm5.31 7.86l-1.78 8.4c-.13.6-.49.74-.99.46l-2.74-2.02-1.32 1.27c-.15.15-.27.27-.55.27l.2-2.79 5.07-4.58c.22-.2-.05-.31-.34-.11l-6.27 3.95-2.7-.84c-.59-.18-.6-.59.12-.87l10.55-4.07c.49-.18.92.12.75.93z" />
                 </svg>
-                Open Telegram group
+                {c.openTelegramGroup}
               </a>
             )}
             {reservation.waGroupUrl && (
@@ -1720,7 +2410,7 @@ export function ReservationView({
                 <svg viewBox="0 0 24 24" className="h-3 w-3" fill="currentColor" aria-hidden="true">
                   <path d="M20.52 3.48A11.78 11.78 0 0012.05 0C5.5 0 .2 5.3.2 11.85c0 2.09.55 4.13 1.6 5.93L0 24l6.39-1.67a11.85 11.85 0 005.66 1.44h.01c6.55 0 11.85-5.3 11.85-11.85 0-3.16-1.23-6.13-3.39-8.44zM12.06 21.7h-.01a9.84 9.84 0 01-5.02-1.37l-.36-.21-3.79.99 1.01-3.69-.23-.38a9.83 9.83 0 01-1.5-5.19c0-5.44 4.42-9.86 9.87-9.86 2.63 0 5.11 1.03 6.97 2.89a9.79 9.79 0 012.89 6.97c-.01 5.45-4.43 9.85-9.83 9.85zm5.4-7.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.66.15-.2.3-.76.96-.93 1.16-.17.2-.34.22-.64.07-.3-.15-1.25-.46-2.38-1.46a8.92 8.92 0 01-1.65-2.05c-.17-.3-.02-.46.13-.61.13-.13.3-.34.45-.51.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.66-1.6-.91-2.18-.24-.58-.49-.5-.66-.51-.17-.01-.37-.01-.57-.01-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48 0 1.46 1.06 2.87 1.21 3.07.15.2 2.09 3.19 5.07 4.47.71.3 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.08 1.75-.71 2-1.4.25-.69.25-1.27.17-1.4-.07-.13-.27-.2-.57-.35z" />
                 </svg>
-                Open WhatsApp group
+                {c.openWhatsAppGroup}
               </a>
             )}
             <button
@@ -1733,7 +2423,7 @@ export function ReservationView({
               }}
               className="text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
-              {reservation.tgGroupUrl || reservation.waGroupUrl ? "Edit links" : "Add group links"}
+              {reservation.tgGroupUrl || reservation.waGroupUrl ? c.editLinks : c.addGroupLinks}
             </button>
           </div>
         ) : (
@@ -1759,7 +2449,7 @@ export function ReservationView({
               />
             </label>
             <p className="text-[11px] text-muted-foreground">
-              Leave a field blank to remove the saved link.
+              {c.blankRemovesLink}
             </p>
             {groupUrlsError && (
               <p className="text-[11px] text-rose-500">{groupUrlsError}</p>
@@ -1772,7 +2462,7 @@ export function ReservationView({
                 disabled={savingGroupUrls}
                 className="rounded-lg text-xs"
               >
-                {savingGroupUrls ? "Saving…" : "Save"}
+                {savingGroupUrls ? tr("reservation.saving") : tr("common.save")}
               </Button>
               <Button
                 type="button"
@@ -1781,7 +2471,7 @@ export function ReservationView({
                 onClick={() => setEditingGroupUrls(false)}
                 className="rounded-lg text-xs"
               >
-                Cancel
+                {tr("common.cancel")}
               </Button>
             </div>
           </div>
@@ -1812,7 +2502,7 @@ export function ReservationView({
             </svg>
           </div>
           <p className="text-sm font-medium">
-            {isDragActive ? "Drop here..." : "Drop passport documents"}
+            {isDragActive ? tr("reservation.dropHere") : tr("reservation.dropPassport")}
           </p>
           <p className="mt-0.5 text-xs text-muted-foreground/70">JPG, PNG, PDF</p>
         </div>
@@ -1826,8 +2516,7 @@ export function ReservationView({
           <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
         </svg>
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Passport documents are private to your account. RentTools support and
-          administrators cannot view the passport details you upload here.
+          {c.privacyNote}
         </p>
       </div>
 
@@ -1854,7 +2543,7 @@ export function ReservationView({
           </div>
           <div className="flex shrink-0 gap-2 ml-3">
             <Button variant="ghost" size="sm" className="h-7 rounded-lg text-[11px]" onClick={() => setFiles([])}>
-              Clear
+              {tr("reservation.clear")}
             </Button>
             <Button onClick={extractData} disabled={loading} size="sm" className="h-7 rounded-lg text-[11px]">
               {loading ? (
@@ -1863,10 +2552,10 @@ export function ReservationView({
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  Extracting...
+                  {tr("reservation.extracting")}
                 </span>
               ) : (
-                `Extract (${files.length})`
+                `${tr("reservation.extract")} (${files.length})`
               )}
             </Button>
           </div>
@@ -1892,13 +2581,17 @@ export function ReservationView({
           <div className="flex items-center justify-between">
             <span className="font-medium">
               {extractionResult.successful === extractionResult.total
-                ? `Extracted ${extractionResult.successful}/${extractionResult.total} passports successfully`
-                : `${extractionResult.successful}/${extractionResult.total} extracted, ${extractionResult.total - extractionResult.successful} failed`}
+                ? c.extractedAll(extractionResult.successful, extractionResult.total)
+                : c.extractedPartial(
+                    extractionResult.successful,
+                    extractionResult.total,
+                    extractionResult.total - extractionResult.successful,
+                  )}
             </span>
             <button
               onClick={() => setExtractionResult(null)}
               className="text-muted-foreground/40 hover:text-[var(--ink)]"
-              aria-label="Dismiss extraction summary"
+              aria-label={c.dismissSummary}
             >
               <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1930,12 +2623,12 @@ export function ReservationView({
               <button
                 onClick={() => setTemplatePickerOpen((v) => !v)}
                 className="flex items-center gap-1.5 rounded-md border border-border/30 bg-card/30 px-3 py-1.5 text-xs font-medium text-[var(--ink-3)] transition-all hover:border-border/60 hover:bg-card/60 hover:text-[var(--ink)]"
-                title="Generate a message from a saved template"
+                title={c.generateMessageTitle}
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 12c0 4.97-4.03 9-9 9-1.41 0-2.74-.32-3.92-.9L3 21l.9-5.08A8.96 8.96 0 013 12c0-4.97 4.03-9 9-9s9 4.03 9 9z" />
                 </svg>
-                Generate message
+                {c.generateMessage}
                 <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
                 </svg>
@@ -1972,12 +2665,12 @@ export function ReservationView({
             <button
               onClick={exportGuestsCsv}
               className="flex items-center gap-1.5 rounded-md border border-border/30 bg-card/30 px-3 py-1.5 text-xs font-medium text-[var(--ink-3)] transition-all hover:border-border/60 hover:bg-card/60 hover:text-[var(--ink)]"
-              title="Export all guest data to CSV"
+              title={c.exportCsvTitle}
             >
               <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
-              Export CSV
+              {c.exportCsv}
             </button>
           )}
         </div>
@@ -2002,12 +2695,12 @@ export function ReservationView({
                     : "bg-[var(--m-accent)] text-white hover:bg-[var(--m-accent-2)]"
                 }`}
               >
-                {copyState === "copied" ? "Copied!" : "Copy"}
+                {copyState === "copied" ? tr("common.copied") : tr("common.copy")}
               </button>
               <button
                 onClick={() => setActiveTemplate(null)}
                 className="rounded-md p-1 text-muted-foreground/60 hover:bg-muted/40 hover:text-foreground"
-                aria-label="Close template preview"
+                aria-label={c.closePreview}
               >
                 <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -2045,7 +2738,7 @@ export function ReservationView({
           history. */}
       {guestFormSubmission?.submittedAt && guestFormSubmission.answers.length > 0 && (
         <div className="rounded-xl border border-border/60 bg-card/40 p-4">
-          <h3 className="text-sm font-semibold">Pre-arrival answers</h3>
+          <h3 className="text-sm font-semibold">{c.preArrivalAnswers}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             {guestFormStatusLabel()}
           </p>
@@ -2066,9 +2759,9 @@ export function ReservationView({
 
       {guestFormSubmission && guestFormSubmission.travelers.length > 0 && (
         <div className="rounded-xl border border-border/60 bg-card/40 p-4">
-          <h3 className="text-sm font-semibold">Guest registration review</h3>
+          <h3 className="text-sm font-semibold">{c.registrationReview}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            {guestFormSubmission.travelerCount} traveler{guestFormSubmission.travelerCount === 1 ? "" : "s"} · {guestFormStatusLabel()}
+            {c.travelersCount(guestFormSubmission.travelerCount)} · {guestFormStatusLabel()}
           </p>
           {guestFormSubmission.warnings.length > 0 && (
             <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-amber-300">
@@ -2080,26 +2773,26 @@ export function ReservationView({
               <details key={traveler.clientId} className="rounded-md border border-border/40 bg-background/40 p-3">
                 <summary className="cursor-pointer list-none">
                 <p className="text-sm font-medium">
-                  {traveler.firstName} {traveler.lastName}{traveler.isLead ? " · lead" : ""}
+                  {traveler.firstName} {traveler.lastName}{traveler.isLead ? ` · ${c.lead}` : ""}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {traveler.documentType} {traveler.documentNumberMasked}
                 </p>
                 </summary>
                 <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-xs">
-                  <dt className="text-muted-foreground">Born</dt><dd>{traveler.dateOfBirth}</dd>
-                  <dt className="text-muted-foreground">Birth place</dt><dd>{traveler.birthPlace}, {traveler.birthCountry}</dd>
-                  <dt className="text-muted-foreground">Citizenship</dt><dd>{traveler.citizenshipCountry}</dd>
-                  <dt className="text-muted-foreground">Residence</dt><dd>{traveler.residenceAddress}, {traveler.residencePlace}, {traveler.residenceCountry}</dd>
-                  <dt className="text-muted-foreground">Document</dt><dd>{traveler.documentType} {traveler.documentNumberMasked}</dd>
-                  <dt className="text-muted-foreground">Tax suggestion</dt><dd>{traveler.taxCategorySuggestion ?? "Review required"}</dd>
-                  {traveler.borderEntryDate && <><dt className="text-muted-foreground">Border entry</dt><dd>{traveler.borderEntryDate} · {traveler.borderEntryPlace} · {traveler.borderEntryPoint}</dd></>}
+                  <dt className="text-muted-foreground">{c.born}</dt><dd>{traveler.dateOfBirth}</dd>
+                  <dt className="text-muted-foreground">{c.birthPlace}</dt><dd>{traveler.birthPlace}, {traveler.birthCountry}</dd>
+                  <dt className="text-muted-foreground">{c.citizenship}</dt><dd>{traveler.citizenshipCountry}</dd>
+                  <dt className="text-muted-foreground">{c.residence}</dt><dd>{traveler.residenceAddress}, {traveler.residencePlace}, {traveler.residenceCountry}</dd>
+                  <dt className="text-muted-foreground">{c.document}</dt><dd>{traveler.documentType} {traveler.documentNumberMasked}</dd>
+                  <dt className="text-muted-foreground">{c.taxSuggestion}</dt><dd>{traveler.taxCategorySuggestion ?? c.reviewRequired}</dd>
+                  {traveler.borderEntryDate && <><dt className="text-muted-foreground">{c.borderEntry}</dt><dd>{traveler.borderEntryDate} · {traveler.borderEntryPlace} · {traveler.borderEntryPoint}</dd></>}
                 </dl>
               </details>
             ))}
           </div>
           <p className="mt-3 text-[11px] text-muted-foreground">
-            Document numbers remain masked in this review. Full numbers are loaded only from the protected manual handoff. No action here submits anything to eVisitor.{guestFormSubmission.lastChangedAt ? ` Last changed ${new Date(guestFormSubmission.lastChangedAt).toLocaleString()}.` : ""}
+            {c.maskedNote}{guestFormSubmission.lastChangedAt ? c.lastChanged(new Date(guestFormSubmission.lastChangedAt).toLocaleString(c.dateLocale)) : ""}
           </p>
         </div>
       )}
@@ -2108,9 +2801,9 @@ export function ReservationView({
         <section className="rounded-xl border border-amber-400/40 bg-amber-500/5 p-4">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h3 className="text-sm font-semibold">Manual eVisitor handoff</h3>
+              <h3 className="text-sm font-semibold">{c.handoffTitle}</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Protected no-store view. Copy these values manually; RentTools does not contact eVisitor.
+                {c.handoffDesc}
               </p>
             </div>
             <Button
@@ -2119,27 +2812,27 @@ export function ReservationView({
               variant="outline"
               onClick={() => setManualEVisitorHandoff(null)}
             >
-              Close
+              {c.close}
             </Button>
           </div>
           <dl className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
-            <div><dt className="text-muted-foreground">Stay</dt><dd>{manualEVisitorHandoff.stay.checkIn} – {manualEVisitorHandoff.stay.checkOut}</dd></div>
-            <div><dt className="text-muted-foreground">Arrival</dt><dd>{manualEVisitorHandoff.stay.expectedArrivalTime}</dd></div>
-            <div><dt className="text-muted-foreground">Guests</dt><dd>{manualEVisitorHandoff.stay.bookedGuestCount}</dd></div>
+            <div><dt className="text-muted-foreground">{c.stay}</dt><dd>{manualEVisitorHandoff.stay.checkIn} – {manualEVisitorHandoff.stay.checkOut}</dd></div>
+            <div><dt className="text-muted-foreground">{c.arrival}</dt><dd>{manualEVisitorHandoff.stay.expectedArrivalTime}</dd></div>
+            <div><dt className="text-muted-foreground">{c.guests}</dt><dd>{manualEVisitorHandoff.stay.bookedGuestCount}</dd></div>
           </dl>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {manualEVisitorHandoff.travelers.map((traveler, index) => (
               <div key={`${traveler.documentNumber}-${index}`} className="rounded-md border border-border/40 bg-background/50 p-3 text-xs">
-                <p className="font-medium">{traveler.firstName} {traveler.lastName}{traveler.isLead ? " · lead" : ""}</p>
+                <p className="font-medium">{traveler.firstName} {traveler.lastName}{traveler.isLead ? ` · ${c.lead}` : ""}</p>
                 <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
-                  <dt className="text-muted-foreground">Born</dt><dd>{traveler.dateOfBirth}</dd>
-                  <dt className="text-muted-foreground">Gender</dt><dd>{traveler.gender}</dd>
-                  <dt className="text-muted-foreground">Birth place</dt><dd>{traveler.birthPlace}, {traveler.birthCountry}</dd>
-                  <dt className="text-muted-foreground">Citizenship</dt><dd>{traveler.citizenshipCountry}</dd>
-                  <dt className="text-muted-foreground">Residence</dt><dd>{traveler.residenceAddress}, {traveler.residencePlace}, {traveler.residenceCountry}</dd>
-                  <dt className="text-muted-foreground">Document</dt><dd className="font-mono font-semibold">{traveler.documentType} {traveler.documentNumber}</dd>
-                  <dt className="text-muted-foreground">Tax suggestion</dt><dd>{traveler.taxCategorySuggestion ?? "Manual review required"}</dd>
-                  {traveler.borderEntryDate && <><dt className="text-muted-foreground">Border entry</dt><dd>{traveler.borderEntryDate} · {traveler.borderEntryPlace} · {traveler.borderEntryPoint}</dd></>}
+                  <dt className="text-muted-foreground">{c.born}</dt><dd>{traveler.dateOfBirth}</dd>
+                  <dt className="text-muted-foreground">{c.gender}</dt><dd>{traveler.gender}</dd>
+                  <dt className="text-muted-foreground">{c.birthPlace}</dt><dd>{traveler.birthPlace}, {traveler.birthCountry}</dd>
+                  <dt className="text-muted-foreground">{c.citizenship}</dt><dd>{traveler.citizenshipCountry}</dd>
+                  <dt className="text-muted-foreground">{c.residence}</dt><dd>{traveler.residenceAddress}, {traveler.residencePlace}, {traveler.residenceCountry}</dd>
+                  <dt className="text-muted-foreground">{c.document}</dt><dd className="font-mono font-semibold">{traveler.documentType} {traveler.documentNumber}</dd>
+                  <dt className="text-muted-foreground">{c.taxSuggestion}</dt><dd>{traveler.taxCategorySuggestion ?? c.manualReviewRequired}</dd>
+                  {traveler.borderEntryDate && <><dt className="text-muted-foreground">{c.borderEntry}</dt><dd>{traveler.borderEntryDate} · {traveler.borderEntryPlace} · {traveler.borderEntryPoint}</dd></>}
                 </dl>
               </div>
             ))}
@@ -2152,13 +2845,13 @@ export function ReservationView({
         <div className="rounded-xl border border-[var(--line)] bg-[var(--bg)]">
           <div className="flex items-center justify-between border-b border-border/30 px-4 py-2.5">
             <span className="text-xs font-medium text-[var(--ink-3)]">
-              Extraction Log
+              {tr("reservation.extractionLog")}
             </span>
             <button
               onClick={() => setLogs([])}
               className="text-xs text-[var(--ink-4)] hover:text-[var(--ink)]"
             >
-              Clear
+              {tr("reservation.clear")}
             </button>
           </div>
           <div ref={logRef} className="overflow-y-auto p-4 font-[family-name:var(--font-mono)] text-xs leading-relaxed" style={{ maxHeight: 200 }}>

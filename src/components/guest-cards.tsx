@@ -2,21 +2,189 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import { resolveCopy, type CopyMap } from "@/lib/i18n/translations";
+import { hrPlural, resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import type { Guest } from "@/lib/types";
+
+/** Russian picks the noun form by the same 1 / 2-4 / 5+ ends-in-digit
+ *  rule (teens excepted) as Croatian, so the helper fits both. */
+const ruPlural = hrPlural;
 
 interface CopyShape {
   saving: string;
   saved: string;
+  copy: string;
+  copied: string;
+  save: string;
+  cancel: string;
+  editGuest: string;
+  deleteGuest: string;
+  confirmDelete: string;
+  ageShort: (age: number) => string;
+  firstName: string;
+  lastName: string;
+  country: string;
+  expiryDate: string;
+  yearsOld: string;
+  hasVisa: string;
+  yes: string;
+  no: string;
+  visaHeader: string;
+  name: string;
+  dragToMove: string;
+  guestsHeader: (adults: number, children: number) => string;
 }
 
 const COPY: CopyMap<CopyShape> = {
-  en: { saving: "Saving…", saved: "Saved" },
-  ru: { saving: "Сохранение…", saved: "Сохранено" },
-  de: { saving: "Wird gespeichert…", saved: "Gespeichert" },
-  fr: { saving: "Enregistrement…", saved: "Enregistré" },
-  es: { saving: "Guardando…", saved: "Guardado" },
-  hr: { saving: "Spremanje…", saved: "Spremljeno" },
+  en: {
+    saving: "Saving…",
+    saved: "Saved",
+    copy: "copy",
+    copied: "copied",
+    save: "save",
+    cancel: "cancel",
+    editGuest: "Edit guest",
+    deleteGuest: "Delete guest",
+    confirmDelete: "Delete this guest? This cannot be undone.",
+    ageShort: (age) => `${age}y`,
+    firstName: "First name",
+    lastName: "Last name",
+    country: "Country",
+    expiryDate: "Expiry date",
+    yearsOld: "Years old",
+    hasVisa: "Has visa",
+    yes: "Yes",
+    no: "No",
+    visaHeader: "Visa",
+    name: "Name",
+    dragToMove: "drag to move",
+    guestsHeader: (a, ch) =>
+      `Guests (${a} adult${a !== 1 ? "s" : ""}${ch > 0 ? `, ${ch} child${ch !== 1 ? "ren" : ""}` : ""})`,
+  },
+  ru: {
+    saving: "Сохранение…",
+    saved: "Сохранено",
+    copy: "копировать",
+    copied: "скопировано",
+    save: "сохранить",
+    cancel: "отмена",
+    editGuest: "Редактировать гостя",
+    deleteGuest: "Удалить гостя",
+    confirmDelete: "Удалить этого гостя? Это действие необратимо.",
+    ageShort: (age) => `${age} ${ruPlural(age, "год", "года", "лет")}`,
+    firstName: "Имя",
+    lastName: "Фамилия",
+    country: "Страна",
+    expiryDate: "Срок действия",
+    yearsOld: "Возраст",
+    hasVisa: "Есть виза",
+    yes: "Да",
+    no: "Нет",
+    visaHeader: "Виза",
+    name: "Имя",
+    dragToMove: "перетащите, чтобы переместить",
+    guestsHeader: (a, ch) =>
+      `Гости (${a} ${ruPlural(a, "взрослый", "взрослых", "взрослых")}${ch > 0 ? `, ${ch} ${ruPlural(ch, "ребёнок", "ребёнка", "детей")}` : ""})`,
+  },
+  de: {
+    saving: "Wird gespeichert…",
+    saved: "Gespeichert",
+    copy: "kopieren",
+    copied: "kopiert",
+    save: "speichern",
+    cancel: "abbrechen",
+    editGuest: "Gast bearbeiten",
+    deleteGuest: "Gast löschen",
+    confirmDelete: "Diesen Gast löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+    ageShort: (age) => `${age} J.`,
+    firstName: "Vorname",
+    lastName: "Nachname",
+    country: "Land",
+    expiryDate: "Ablaufdatum",
+    yearsOld: "Alter",
+    hasVisa: "Visum vorhanden",
+    yes: "Ja",
+    no: "Nein",
+    visaHeader: "Visum",
+    name: "Name",
+    dragToMove: "zum Verschieben ziehen",
+    guestsHeader: (a, ch) =>
+      `Gäste (${a} ${a === 1 ? "Erwachsener" : "Erwachsene"}${ch > 0 ? `, ${ch} ${ch === 1 ? "Kind" : "Kinder"}` : ""})`,
+  },
+  fr: {
+    saving: "Enregistrement…",
+    saved: "Enregistré",
+    copy: "copier",
+    copied: "copié",
+    save: "enregistrer",
+    cancel: "annuler",
+    editGuest: "Modifier le voyageur",
+    deleteGuest: "Supprimer le voyageur",
+    confirmDelete: "Supprimer ce voyageur ? Action irréversible.",
+    ageShort: (age) => `${age} ans`,
+    firstName: "Prénom",
+    lastName: "Nom",
+    country: "Pays",
+    expiryDate: "Date d’expiration",
+    yearsOld: "Âge",
+    hasVisa: "Visa",
+    yes: "Oui",
+    no: "Non",
+    visaHeader: "Visa",
+    name: "Nom",
+    dragToMove: "glisser pour déplacer",
+    guestsHeader: (a, ch) =>
+      `Voyageurs (${a} ${a === 1 ? "adulte" : "adultes"}${ch > 0 ? `, ${ch} ${ch === 1 ? "enfant" : "enfants"}` : ""})`,
+  },
+  es: {
+    saving: "Guardando…",
+    saved: "Guardado",
+    copy: "copiar",
+    copied: "copiado",
+    save: "guardar",
+    cancel: "cancelar",
+    editGuest: "Editar huésped",
+    deleteGuest: "Eliminar huésped",
+    confirmDelete: "¿Eliminar este huésped? La acción no se puede deshacer.",
+    ageShort: (age) => `${age} a`,
+    firstName: "Nombre",
+    lastName: "Apellidos",
+    country: "País",
+    expiryDate: "Fecha de caducidad",
+    yearsOld: "Edad",
+    hasVisa: "Tiene visado",
+    yes: "Sí",
+    no: "No",
+    visaHeader: "Visado",
+    name: "Nombre",
+    dragToMove: "arrastre para mover",
+    guestsHeader: (a, ch) =>
+      `Huéspedes (${a} ${a === 1 ? "adulto" : "adultos"}${ch > 0 ? `, ${ch} ${ch === 1 ? "niño" : "niños"}` : ""})`,
+  },
+  hr: {
+    saving: "Spremanje…",
+    saved: "Spremljeno",
+    copy: "kopiraj",
+    copied: "kopirano",
+    save: "spremi",
+    cancel: "odustani",
+    editGuest: "Uredi gosta",
+    deleteGuest: "Obriši gosta",
+    confirmDelete: "Obrisati ovog gosta? To se ne može poništiti.",
+    ageShort: (age) => `${age} ${hrPlural(age, "godina", "godine", "godina")}`,
+    firstName: "Ime",
+    lastName: "Prezime",
+    country: "Država",
+    expiryDate: "Datum isteka",
+    yearsOld: "Dob (godine)",
+    hasVisa: "Ima vizu",
+    yes: "Da",
+    no: "Ne",
+    visaHeader: "Viza",
+    name: "Ime",
+    dragToMove: "povucite za premještanje",
+    guestsHeader: (a, ch) =>
+      `Gosti (${a} ${hrPlural(a, "odrasla osoba", "odrasle osobe", "odraslih osoba")}${ch > 0 ? `, ${ch} ${hrPlural(ch, "dijete", "djece", "djece")}` : ""})`,
+  },
 };
 
 // Age computed dynamically from DOB so it doesn't go stale across years.
@@ -81,6 +249,8 @@ function CopyField({
   value: string;
   fieldKey: string;
 }) {
+  const { locale } = useI18n();
+  const t = resolveCopy(COPY, locale);
   const [justCopied, setJustCopied] = useState(false);
   const [highlighted, setHighlighted] = useState(false);
 
@@ -114,7 +284,7 @@ function CopyField({
         <span className={`text-[11px] transition-all ${
           justCopied ? "text-emerald-500" : highlighted ? "text-[var(--ink)]/40" : "text-muted-foreground/0 group-hover/field:text-muted-foreground/30"
         }`}>
-          {justCopied ? "copied" : "copy"}
+          {justCopied ? t.copied : t.copy}
         </span>
       </div>
     </div>
@@ -370,7 +540,7 @@ function GuestCard({
       <div className="flex items-center justify-between border-b border-border/20 px-3 py-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="truncate text-sm font-semibold text-[var(--ink)]">{guest.fullName}</span>
-          <span className="shrink-0 text-xs text-[var(--ink-3)]">{effectiveAge(guest)}y</span>
+          <span className="shrink-0 text-xs text-[var(--ink-3)]">{t.ageShort(effectiveAge(guest))}</span>
         </div>
         <div className="flex items-center gap-1">
           {editing ? (
@@ -380,14 +550,14 @@ function GuestCard({
                 disabled={saving}
                 className="rounded-md px-2 py-0.5 text-[11px] font-medium text-emerald-500 transition-all hover:bg-emerald-500/15 disabled:opacity-40"
               >
-                {saving ? "saving…" : "save"}
+                {saving ? t.saving : t.save}
               </button>
               <button
                 onClick={cancelEdit}
                 disabled={saving}
                 className="rounded-md px-2 py-0.5 text-[11px] font-medium text-muted-foreground/60 transition-all hover:bg-white/5 hover:text-[var(--ink)] disabled:opacity-40"
               >
-                cancel
+                {t.cancel}
               </button>
             </>
           ) : (
@@ -395,14 +565,16 @@ function GuestCard({
               <button
                 onClick={startEdit}
                 className="rounded-md p-1 text-muted-foreground/30 transition-all hover:bg-white/5 hover:text-[var(--ink)]"
-                title="Edit guest"
+                title={t.editGuest}
               >
                 <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
                 </svg>
               </button>
               <button
-                onClick={() => { if (confirm("Delete this guest? This cannot be undone.")) onDelete(guest.id); }}
+                onClick={() => { if (confirm(t.confirmDelete)) onDelete(guest.id); }}
+                title={t.deleteGuest}
+                aria-label={t.deleteGuest}
                 className="rounded-md p-1 text-muted-foreground/25 transition-all hover:bg-destructive/15 hover:text-destructive"
               >
                 <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -494,56 +666,56 @@ function GuestCard({
           <>
             <div className="p-1.5">
               <div className="mb-0.5 px-2 pt-1 text-[11px] font-semibold uppercase tracking-widest text-primary/60">
-                Identity
+                {tr("guest.identity")}
               </div>
-              <EditField label="Full name" value={draft.fullName} onChange={(v) => setField("fullName", v)} />
-              <EditField label="First name" value={draft.firstName} onChange={(v) => setField("firstName", v)} />
-              <EditField label="Last name" value={draft.lastName} onChange={(v) => setField("lastName", v)} />
-              <EditField label="Country" value={draft.country} onChange={(v) => setField("country", v)} />
-              <EditField label="Citizenship" value={draft.citizenshipCode} onChange={(v) => setField("citizenshipCode", v)} />
-              <EditField label="Date of birth" value={draft.dateOfBirth} onChange={(v) => setField("dateOfBirth", v)} />
+              <EditField label={tr("guest.fullName")} value={draft.fullName} onChange={(v) => setField("fullName", v)} />
+              <EditField label={t.firstName} value={draft.firstName} onChange={(v) => setField("firstName", v)} />
+              <EditField label={t.lastName} value={draft.lastName} onChange={(v) => setField("lastName", v)} />
+              <EditField label={t.country} value={draft.country} onChange={(v) => setField("country", v)} />
+              <EditField label={tr("guest.citizenship")} value={draft.citizenshipCode} onChange={(v) => setField("citizenshipCode", v)} />
+              <EditField label={tr("guest.dateOfBirth")} value={draft.dateOfBirth} onChange={(v) => setField("dateOfBirth", v)} />
               <EditField
-                label="Years old"
+                label={t.yearsOld}
                 value={String(draft.yearsOld)}
                 type="number"
                 onChange={(v) => setField("yearsOld", parseInt(v) || 0)}
               />
               <EditSelect
-                label="Gender"
+                label={tr("guest.gender")}
                 value={draft.gender}
                 onChange={(v) => setField("gender", v)}
                 options={[
                   { value: "", label: "—" },
-                  { value: "M", label: "Male" },
-                  { value: "F", label: "Female" },
+                  { value: "M", label: tr("guest.male") },
+                  { value: "F", label: tr("guest.female") },
                 ]}
               />
             </div>
             <div className="p-1.5">
               <div className="mb-0.5 px-2 pt-1 text-[11px] font-semibold uppercase tracking-widest text-primary/60">
-                Document
+                {tr("guest.document")}
               </div>
-              <EditField label="Passport" value={draft.passportNumber} onChange={(v) => setField("passportNumber", v)} />
-              <EditField label="Issued by" value={draft.issuedBy} onChange={(v) => setField("issuedBy", v)} />
-              <EditField label="Date of issue" value={draft.dateOfIssue} onChange={(v) => setField("dateOfIssue", v)} />
-              <EditField label="Expiry date" value={draft.expiryDate} onChange={(v) => setField("expiryDate", v)} />
+              <EditField label={tr("guest.passport")} value={draft.passportNumber} onChange={(v) => setField("passportNumber", v)} />
+              <EditField label={tr("guest.issuedBy")} value={draft.issuedBy} onChange={(v) => setField("issuedBy", v)} />
+              <EditField label={tr("guest.dateOfIssue")} value={draft.dateOfIssue} onChange={(v) => setField("dateOfIssue", v)} />
+              <EditField label={t.expiryDate} value={draft.expiryDate} onChange={(v) => setField("expiryDate", v)} />
             </div>
             <div className="p-1.5">
               <div className="mb-0.5 px-2 pt-1 text-[11px] font-semibold uppercase tracking-widest text-emerald-500/70">
-                Visa
+                {t.visaHeader}
               </div>
               <EditSelect
-                label="Has visa"
+                label={t.hasVisa}
                 value={draft.hasVisa ? "yes" : "no"}
                 onChange={(v) => setField("hasVisa", v === "yes")}
                 options={[
-                  { value: "no", label: "No" },
-                  { value: "yes", label: "Yes" },
+                  { value: "no", label: t.no },
+                  { value: "yes", label: t.yes },
                 ]}
               />
-              <EditField label="Visa number" value={draft.visaNumber} onChange={(v) => setField("visaNumber", v)} />
-              <EditField label="Visa from" value={draft.visaFrom} onChange={(v) => setField("visaFrom", v)} />
-              <EditField label="Visa to" value={draft.visaTo} onChange={(v) => setField("visaTo", v)} />
+              <EditField label={tr("guest.visaNumber")} value={draft.visaNumber} onChange={(v) => setField("visaNumber", v)} />
+              <EditField label={tr("guest.visaFrom")} value={draft.visaFrom} onChange={(v) => setField("visaFrom", v)} />
+              <EditField label={tr("guest.visaTo")} value={draft.visaTo} onChange={(v) => setField("visaTo", v)} />
             </div>
           </>
         ) : (
@@ -551,46 +723,46 @@ function GuestCard({
             {/* Block 1: Citizenship, DOB, Passport */}
             <div className="p-1.5">
               <div className="mb-0.5 px-2 pt-1 text-[11px] font-semibold uppercase tracking-widest text-primary/60">
-                Identity
+                {tr("guest.identity")}
               </div>
-              <CopyField label="Citizenship" value={guest.citizenshipCode} fieldKey={`${guest.id}-ctz`} />
-              <CopyField label="Date of birth" value={guest.dateOfBirth} fieldKey={`${guest.id}-dob`} />
-              <CopyField label="Passport" value={guest.passportNumber} fieldKey={`${guest.id}-pp`} />
+              <CopyField label={tr("guest.citizenship")} value={guest.citizenshipCode} fieldKey={`${guest.id}-ctz`} />
+              <CopyField label={tr("guest.dateOfBirth")} value={guest.dateOfBirth} fieldKey={`${guest.id}-dob`} />
+              <CopyField label={tr("guest.passport")} value={guest.passportNumber} fieldKey={`${guest.id}-pp`} />
             </div>
 
             {/* Block 2: Issue, Authority, Name, Gender, Stay */}
             <div className="p-1.5">
               <div className="mb-0.5 px-2 pt-1 text-[11px] font-semibold uppercase tracking-widest text-primary/60">
-                Document
+                {tr("guest.document")}
               </div>
-              <CopyField label="Date of issue" value={guest.dateOfIssue} fieldKey={`${guest.id}-doi`} />
-              <CopyField label="Issued by" value={guest.issuedBy} fieldKey={`${guest.id}-ib`} />
-              <CopyField label="Full name" value={`${guest.lastName} ${guest.firstName}`} fieldKey={`${guest.id}-fn`} />
-              <CopyField label="Gender" value={guest.gender === "M" ? "Male" : guest.gender === "F" ? "Female" : guest.gender} fieldKey={`${guest.id}-gen`} />
-              <CopyField label="Arrived on (days)" value={String(stayDays)} fieldKey={`${guest.id}-stay`} />
+              <CopyField label={tr("guest.dateOfIssue")} value={guest.dateOfIssue} fieldKey={`${guest.id}-doi`} />
+              <CopyField label={tr("guest.issuedBy")} value={guest.issuedBy} fieldKey={`${guest.id}-ib`} />
+              <CopyField label={tr("guest.fullName")} value={`${guest.lastName} ${guest.firstName}`} fieldKey={`${guest.id}-fn`} />
+              <CopyField label={tr("guest.gender")} value={guest.gender === "M" ? tr("guest.male") : guest.gender === "F" ? tr("guest.female") : guest.gender} fieldKey={`${guest.id}-gen`} />
+              <CopyField label={tr("guest.arrivedOn")} value={String(stayDays)} fieldKey={`${guest.id}-stay`} />
             </div>
 
             {/* Block 3: Visit info + Visa (if uploaded) */}
             <div className="p-1.5">
               <div className="mb-0.5 px-2 pt-1 text-[11px] font-semibold uppercase tracking-widest text-emerald-500/70">
-                {guest.hasVisa ? "Visa & Visit" : "Visit"}
+                {guest.hasVisa ? tr("guest.visa") : tr("guest.visit")}
               </div>
               {guest.hasVisa && (
                 <>
-                  <CopyField label="Visa number" value={guest.visaNumber} fieldKey={`${guest.id}-vn`} />
-                  <CopyField label="Visa from" value={guest.visaFrom} fieldKey={`${guest.id}-vf`} />
-                  <CopyField label="Visa to" value={guest.visaTo} fieldKey={`${guest.id}-vt`} />
+                  <CopyField label={tr("guest.visaNumber")} value={guest.visaNumber} fieldKey={`${guest.id}-vn`} />
+                  <CopyField label={tr("guest.visaFrom")} value={guest.visaFrom} fieldKey={`${guest.id}-vf`} />
+                  <CopyField label={tr("guest.visaTo")} value={guest.visaTo} fieldKey={`${guest.id}-vt`} />
                 </>
               )}
-              <CopyField label="Visit type" value="Tourist" fieldKey={`${guest.id}-vtype`} />
-              <CopyField label="Guest type" value="Other" fieldKey={`${guest.id}-gtype`} />
+              <CopyField label={tr("guest.visitType")} value={tr("guest.tourist")} fieldKey={`${guest.id}-vtype`} />
+              <CopyField label={tr("guest.guestType")} value={tr("guest.other")} fieldKey={`${guest.id}-gtype`} />
             </div>
 
             {/* Block 4: Children (only if any attached) */}
             {childGuests.length > 0 && (
               <div className="p-1.5">
                 <div className="mb-0.5 px-2 pt-1 text-[11px] font-semibold uppercase tracking-widest text-amber-400/70">
-                  Children ({childGuests.length})
+                  {tr("guest.children")} ({childGuests.length})
                 </div>
                 {childGuests.map((child) => (
                   <div
@@ -602,15 +774,15 @@ function GuestCard({
                     <div className="flex items-center justify-between px-1">
                       <span className="text-[11px] font-medium">{child.fullName}</span>
                       <div className="flex items-center gap-1">
-                        <span className="text-[11px] text-muted-foreground/30">drag to move</span>
+                        <span className="text-[11px] text-muted-foreground/30">{t.dragToMove}</span>
                         <svg className="h-3 w-3 text-muted-foreground/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
                         </svg>
                       </div>
                     </div>
-                    <CopyField label="Name" value={child.fullName} fieldKey={`${child.id}-cfn`} />
-                    <CopyField label="Date of birth" value={child.dateOfBirth} fieldKey={`${child.id}-cdob`} />
-                    <CopyField label="Gender" value={child.gender === "M" ? "Male" : child.gender === "F" ? "Female" : child.gender} fieldKey={`${child.id}-cgen`} />
+                    <CopyField label={t.name} value={child.fullName} fieldKey={`${child.id}-cfn`} />
+                    <CopyField label={tr("guest.dateOfBirth")} value={child.dateOfBirth} fieldKey={`${child.id}-cdob`} />
+                    <CopyField label={tr("guest.gender")} value={child.gender === "M" ? tr("guest.male") : child.gender === "F" ? tr("guest.female") : child.gender} fieldKey={`${child.id}-cgen`} />
                   </div>
                 ))}
               </div>
@@ -656,6 +828,8 @@ export function GuestCards({
   onUpdateParent,
   onUpdateGuest,
 }: GuestCardsProps) {
+  const { t: tr, locale } = useI18n();
+  const t = resolveCopy(COPY, locale);
   const stayDays = (() => {
     const d1 = new Date(checkIn);
     const d2 = new Date(checkOut);
@@ -693,7 +867,7 @@ export function GuestCards({
         <svg className="h-5 w-5 text-muted-foreground/25" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
         </svg>
-        <p className="text-xs text-muted-foreground/40">No guests — drop passports above to extract</p>
+        <p className="text-xs text-muted-foreground/40">{tr("guest.noGuests")}</p>
       </div>
     );
   }
@@ -702,10 +876,9 @@ export function GuestCards({
     <div>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground/60">
-          Guests ({adults.length} adult{adults.length !== 1 ? "s" : ""}
-          {allChildren.length > 0 && `, ${allChildren.length} child${allChildren.length !== 1 ? "ren" : ""}`})
+          {t.guestsHeader(adults.length, allChildren.length)}
         </h2>
-        <span className="text-xs text-muted-foreground/30">Click any value to copy</span>
+        <span className="text-xs text-muted-foreground/30">{tr("guest.clickToCopy")}</span>
       </div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {adults.map((guest) => (
