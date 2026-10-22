@@ -155,10 +155,11 @@ describe("mobile role boundary", () => {
     expect(canAccessMobileSection("manager", "cleaning")).toBe(true);
   });
 
-  it("keeps revenue away from family and cleaner accounts", () => {
+  it("shows revenue to family but keeps it away from cleaners", () => {
     // The mobile reports screen shows stored gross amounts. Family access
-    // exists so relatives can see the stay, not the takings.
-    expect(canAccessMobileSection("family", "reports")).toBe(false);
+    // is for the relatives who run the apartment, so they see them too.
+    expect(canAccessMobileSection("family", "reports")).toBe(true);
+    expect(canAccessMobileSection("family", "portals")).toBe(false);
     expect(canAccessMobileSection("cleaner", "reports")).toBe(false);
     expect(canAccessMobileSection("family", "calendar")).toBe(true);
   });

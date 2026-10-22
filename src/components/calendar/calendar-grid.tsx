@@ -15,6 +15,16 @@ const DIRECT_COPY: CopyMap<{ label: string; connected: (platform: string) => str
   hr: { label: "Izravno", connected: (p) => `Povezano s ${p}`, open: "Otvori radnje produženja" },
 };
 
+/** Buffer chip in the phone calendar (bufferPresentation="blocked"). */
+const BUFFER_COPY: CopyMap<{ label: string; title: string }> = {
+  en: { label: "Buffer", title: "Deliberate buffer day" },
+  ru: { label: "Буфер", title: "Намеренный буферный день" },
+  de: { label: "Puffer", title: "Bewusster Puffertag" },
+  fr: { label: "Tampon", title: "Jour tampon volontaire" },
+  es: { label: "Tampón", title: "Día tampón intencionado" },
+  hr: { label: "Pauza", title: "Namjerni dan pauze" },
+};
+
 function platformName(platform: string): string {
   if (platform === "booking") return "Booking.com";
   if (platform === "airbnb") return "Airbnb";
@@ -141,6 +151,7 @@ export function CalendarGrid({
 }: CalendarGridProps) {
   const { t, locale } = useI18n();
   const directCopy = resolveCopy(DIRECT_COPY, locale);
+  const bufferCopy = resolveCopy(BUFFER_COPY, locale);
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   // Monday-first column index of the 1st: Sun(0) -> 6, Mon(1) -> 0, ... Sat(6) -> 5.
@@ -405,9 +416,9 @@ export function CalendarGrid({
                         </div>
                       )}
                       {isBuffer && !isOpen && !isClosed && (
-                        <div title={bufferPresentation === "blocked" ? "Bewusster Puffertag" : defaultCleanerName ? `${t("calendar.cleaning")} · ${defaultCleanerName}` : undefined} className="rounded px-1 h-5 flex items-center gap-0.5 text-[10px] font-medium text-[var(--cleaning-fg)] bg-[var(--cleaning-bg)] border border-[var(--cleaning-border)]">
+                        <div title={bufferPresentation === "blocked" ? bufferCopy.title : defaultCleanerName ? `${t("calendar.cleaning")} · ${defaultCleanerName}` : undefined} className="rounded px-1 h-5 flex items-center gap-0.5 text-[10px] font-medium text-[var(--cleaning-fg)] bg-[var(--cleaning-bg)] border border-[var(--cleaning-border)]">
                           {bufferPresentation === "cleaning" && <CleaningIcon />}
-                          <span className="truncate max-w-[80px] sm:max-w-none">{bufferPresentation === "blocked" ? "Puffer" : defaultCleanerName ?? t("calendar.cleaning")}</span>
+                          <span className="truncate max-w-[80px] sm:max-w-none">{bufferPresentation === "blocked" ? bufferCopy.label : defaultCleanerName ?? t("calendar.cleaning")}</span>
                         </div>
                       )}
                       {isBuffer && isClosed && (
@@ -477,7 +488,7 @@ export function CalendarGrid({
                       : `${seg.leftPct}%`;
                     const sourcePlatform = seg.linkedEventPlatform || seg.platform;
                     const directTitle = `${directCopy.label}: ${seg.name}. ${directCopy.connected(platformName(sourcePlatform))}. ${seg.startDate} ${checkInTime} → ${seg.endDate} ${checkOutTime}. ${directCopy.open}.`;
-                    const regularTitle = `${seg.name} · ${seg.startDate} ${checkInTime} → ${seg.endDate} ${checkOutTime}${isConflict ? " ⚠ CONFLICT" : ""}`;
+                    const regularTitle = `${seg.name} · ${seg.startDate} ${checkInTime} → ${seg.endDate} ${checkOutTime}${isConflict ? ` ⚠ ${t("calendar.conflict")}` : ""}`;
                     const activateBar = (element: HTMLElement) => {
                       const rect = element.getBoundingClientRect();
                       if (seg.isExtension && seg.reservationId && onOpenExtension) {

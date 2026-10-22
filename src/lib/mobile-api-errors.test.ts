@@ -1,5 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { germanApiError } from "@/lib/mobile-api-errors";
+import { germanApiError, localizedApiError } from "@/lib/mobile-api-errors";
+
+describe("localized api errors", () => {
+  it("answers in the user's language", () => {
+    expect(localizedApiError("Overlapping reservation exists", "hr", "x")).toBe(
+      "Ti su dani već zauzeti drugom rezervacijom.",
+    );
+    expect(localizedApiError("Overlapping reservation exists", "en", "x")).toBe(
+      "These days are already taken by another booking.",
+    );
+    expect(localizedApiError("Overlapping reservation exists", "de", "x")).toBe(
+      germanApiError("Overlapping reservation exists", "x"),
+    );
+  });
+
+  it("passes unknown and prototype-named messages through", () => {
+    expect(localizedApiError("constructor", "fr", "x")).toBe("constructor");
+    expect(localizedApiError(undefined, "ru", "fallback")).toBe("fallback");
+  });
+});
 
 describe("german api errors", () => {
   it("translates the answers a host actually runs into", () => {
