@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { cache } from "react";
 import { prisma } from "@/lib/prisma";
+import { LONG_LIVED_CLAIM, LONG_LIVED_SESSION_SECONDS } from "@/lib/session-refresh";
 
 const SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || "fallback-secret-change-me"
@@ -28,7 +29,12 @@ export async function verifyPassword(
   return bcrypt.compare(password, hash);
 }
 
-export async function createSession(userId: number, username: string, role: string) {
+export async function createSession(
+  userId: number,
+  username: string,
+  role: string,
+  opts: { longLived?: boolean } = {},
+) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { sessionVersion: true, suspendedAt: true },
@@ -37,14 +43,19 @@ export async function createSession(userId: number, username: string, role: stri
     throw new Error("Cannot create a session for a missing or suspended user");
   }
 
+  // Long-lived sessions come only from a redeemed family login link; the
+  // middleware slides them forward while the phone is in use.
+  const maxAge = opts.longLived ? LONG_LIVED_SESSION_SECONDS : 60 * 60 * 24 * 7;
   const token = await new SignJWT({
     userId,
     username,
     role,
     sessionVersion: user.sessionVersion,
+    ...(opts.longLived ? { [LONG_LIVED_CLAIM]: true } : {}),
   })
     .setProtectedHeader({ alg: "HS256" })
-    .setExpirationTime("7d")
+    .setIssuedAt()
+    .setExpirationTime(opts.longLived ? `${LONG_LIVED_SESSION_SECONDS}s` : "7d")
     .sign(SECRET);
 
   const cookieStore = await cookies();
@@ -52,7 +63,7 @@ export async function createSession(userId: number, username: string, role: stri
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    maxAge,
     path: "/",
   });
 

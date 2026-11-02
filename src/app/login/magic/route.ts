@@ -9,7 +9,9 @@ export async function GET(request: NextRequest) {
   try {
     if (!token || token.length > 512) throw new Error("INVALID_MAGIC_LINK");
     const user = await consumeMagicToken(token);
-    await createSession(user.id, user.username, user.role);
+    // A family link is for a relative on their own phone: keep them signed
+    // in (the middleware slides it forward) instead of a 7-day session.
+    await createSession(user.id, user.username, user.role, { longLived: user.linkKind === "family" });
     // Relative Location on purpose: the browser resolves it against the
     // public URL it opened, so no proxy hop can turn it into localhost.
     const res = new NextResponse(null, { status: 307, headers: { Location: "/dashboard" } });

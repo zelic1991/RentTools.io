@@ -54,6 +54,6 @@ export async function consumeMagicToken(token: string) {
       if (consumed.count !== 1) throw new Error("INVALID_MAGIC_LINK");
     }
     await tx.user.update({ where: { id: user.id }, data: { lastLoginAt: now } });
-    return user;
+    return { ...user, linkKind: reusable ? ("family" as const) : ("once" as const) };
   });
 }
