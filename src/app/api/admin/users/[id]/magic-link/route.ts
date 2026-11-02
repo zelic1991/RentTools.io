@@ -43,6 +43,9 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     if (!user) return NextResponse.json({ error: "Unable to revoke links" }, { status: 400 });
     const now = new Date();
     const revoked = await prisma.magicLoginToken.updateMany({ where: { userId: user.id, expiresAt: { gt: now } }, data: { expiresAt: now } });
+    // A redeemed family link leaves a year-long, sliding session behind;
+    // bumping sessionVersion signs those devices out too.
+    await prisma.user.update({ where: { id: user.id }, data: { sessionVersion: { increment: 1 } } });
     await logAudit(session.userId, "delete", "user", user.id, { action: "magic_login_link_revoke", count: revoked.count });
     return NextResponse.json({ revoked: revoked.count });
   } catch (error) {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 import { log } from "@/lib/logger";
 import { redactSensitiveRequestPath } from "@/lib/request-path";
+import { LONG_LIVED_SESSION_SECONDS, refreshLongLivedToken } from "@/lib/session-refresh";
 
 const JWT_SECRET_RAW = process.env.JWT_SECRET || "fallback-secret-change-me";
 const SECRET = new TextEncoder().encode(JWT_SECRET_RAW);
@@ -378,6 +379,23 @@ export async function middleware(request: NextRequest) {
     }
 
     const r = withSecurityHeaders(NextResponse.next({ request: { headers: i18nHeaders } }));
+    // Family-link sessions slide forward while the phone is in use, so a
+    // relative is never signed out after 7 days. Revocation still works:
+    // every request re-checks sessionVersion against the database.
+    try {
+      const refreshed = await refreshLongLivedToken(payload, SECRET);
+      if (refreshed) {
+        r.cookies.set("rent-tool-session", refreshed, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "lax",
+          maxAge: LONG_LIVED_SESSION_SECONDS,
+          path: "/",
+        });
+      }
+    } catch {
+      // A failed refresh only means the current token keeps its own expiry.
+    }
     logRequest(request, r, startedAt, userId);
     return r;
   } catch {
