@@ -13,6 +13,7 @@ import {
   UsersRound,
 } from "lucide-react";
 import { CleaningActions } from "@/components/mobile/cleaning-actions";
+import { ExpiredHoldsPanel } from "@/components/mobile/expired-holds-panel";
 import { MobileCalendar } from "@/components/mobile/mobile-calendar";
 import { MobileGuestLink } from "@/components/mobile/mobile-guest-link";
 import { MobilePropertyTools } from "@/components/mobile/mobile-property-tools";
@@ -951,7 +952,8 @@ function StartScreen({ data, c, fmt, locale }: ScreenProps<MobileOperationsData>
     + data.start.portalProblems
     + configuredBufferLinks
     + data.operationalReminders.length
-    + data.start.bookingDetailsGaps.length;
+    + data.start.bookingDetailsGaps.length
+    + data.start.expiredHolds.length;
   return (
     <div className="space-y-7">
       <section aria-labelledby="today-heading">
@@ -1005,6 +1007,7 @@ function StartScreen({ data, c, fmt, locale }: ScreenProps<MobileOperationsData>
             </div>
           ) : (
             <div className="space-y-3">
+              <ExpiredHoldsPanel propertyId={data.selectedProperty.id} holds={data.start.expiredHolds} />
               <BookingDetailsGaps data={data} c={c} fmt={fmt} locale={locale} />
               <OperationalRemindersPanel
                 propertyId={data.selectedProperty.id}

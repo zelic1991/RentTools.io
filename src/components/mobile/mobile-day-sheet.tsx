@@ -8,6 +8,7 @@ import { useI18n } from "@/lib/i18n/context";
 import { mobileIntlTag } from "@/lib/i18n/mobile-locale";
 import { resolveCopy, type CopyMap, type Locale } from "@/lib/i18n/translations";
 import { parseGrossAmountText } from "@/lib/reservation-revenue";
+import { DEFAULT_PROPERTY_TIME_ZONE } from "@/lib/owner-calendar-window";
 import {
   mobileDayActions,
   type MobileDayAction,
@@ -26,6 +27,17 @@ interface SheetCopy {
   actions: Record<MobileDayAction, string>;
   occupiedVia: (platform: string, from: string, to: string) => string;
   blocked: string;
+  blockedRange: (from: string, lastNight: string, days: number) => string;
+  heldUntil: (date: string) => string;
+  holdExpired: (date: string) => string;
+  claimHeading: string;
+  claimHint: string;
+  claimFailed: string;
+  holdHeading: string;
+  holdLabel: string;
+  holdHint: string;
+  holdClear: string;
+  holdFailed: string;
   forcedOpen: string;
   buffer: string;
   cleaning: string;
@@ -76,8 +88,22 @@ const COPY: CopyMap<SheetCopy> = {
       unblock: "Remove block",
       edit: "Edit booking",
       delete: "Delete booking",
+      claim: "Add name, amount & guests",
+      unblockAll: "Remove whole block",
+      hold: "Hold until…",
     },
     occupiedVia: (p, from, to) => `Occupied via ${p} · ${from}–${to}`,
+    blockedRange: (from, lastNight, days) => `Blocked ${from} – ${lastNight} (${days} days)`,
+    heldUntil: (date) => `Held until ${date}`,
+    holdExpired: (date) => `Hold ended ${date} – lift the block?`,
+    claimHeading: "Booking details",
+    claimHint: "The portal sent only the dates. Name, amount and guests stay in RentTools and count in your lists and reports.",
+    claimFailed: "The booking details could not be saved.",
+    holdHeading: "Hold block",
+    holdLabel: "Hold until (last day)",
+    holdHint: "After this day the start screen reminds you to lift the block. Nothing is lifted on its own.",
+    holdClear: "No end date",
+    holdFailed: "The hold date could not be saved.",
     blocked: "Blocked, not bookable",
     forcedOpen: "Opened manually",
     buffer: "Buffer day from the channel settings",
@@ -127,8 +153,22 @@ const COPY: CopyMap<SheetCopy> = {
       unblock: "Снять блокировку",
       edit: "Изменить бронирование",
       delete: "Удалить бронирование",
+      claim: "Внести имя, сумму и гостей",
+      unblockAll: "Снять весь блок",
+      hold: "Держать до…",
     },
     occupiedVia: (p, from, to) => `Занято через ${p} · ${from}–${to}`,
+    blockedRange: (from, lastNight, days) => `Заблокировано ${from} – ${lastNight} (${days} дн.)`,
+    heldUntil: (date) => `Держится до ${date}`,
+    holdExpired: (date) => `Срок истёк ${date} – снять блок?`,
+    claimHeading: "Данные брони",
+    claimHint: "Портал прислал только даты. Имя, сумма и гости хранятся в RentTools и учитываются в списках и отчётах.",
+    claimFailed: "Не удалось сохранить данные брони.",
+    holdHeading: "Держать блок",
+    holdLabel: "Держать до (последний день)",
+    holdHint: "После этого дня главный экран напомнит снять блок. Сам он не снимается.",
+    holdClear: "Без срока",
+    holdFailed: "Не удалось сохранить срок.",
     blocked: "Заблокировано, бронирование невозможно",
     forcedOpen: "Открыто вручную",
     buffer: "Буферный день из настроек канала",
@@ -178,8 +218,22 @@ const COPY: CopyMap<SheetCopy> = {
       unblock: "Sperre aufheben",
       edit: "Buchung bearbeiten",
       delete: "Buchung löschen",
+      claim: "Name, Betrag & Gäste eintragen",
+      unblockAll: "Ganze Sperre aufheben",
+      hold: "Halten bis …",
     },
     occupiedVia: (p, from, to) => `Belegt über ${p} · ${from}–${to}`,
+    blockedRange: (from, lastNight, days) => `Gesperrt ${from} – ${lastNight} (${days} Tage)`,
+    heldUntil: (date) => `Gehalten bis ${date}`,
+    holdExpired: (date) => `Frist abgelaufen am ${date} – Sperre aufheben?`,
+    claimHeading: "Buchungsdaten",
+    claimHint: "Das Portal schickt nur die Daten. Name, Betrag und Gäste bleiben in RentTools und zählen in Listen und Berichten.",
+    claimFailed: "Die Buchungsdaten konnten nicht gespeichert werden.",
+    holdHeading: "Sperre halten",
+    holdLabel: "Halten bis (letzter Tag)",
+    holdHint: "Danach erinnert die Startseite daran, die Sperre aufzuheben. Von selbst wird nichts aufgehoben.",
+    holdClear: "Ohne Frist",
+    holdFailed: "Die Frist konnte nicht gespeichert werden.",
     blocked: "Gesperrt, nicht buchbar",
     forcedOpen: "Manuell freigegeben",
     buffer: "Puffertag aus den Kanal-Einstellungen",
@@ -229,8 +283,22 @@ const COPY: CopyMap<SheetCopy> = {
       unblock: "Lever le blocage",
       edit: "Modifier la réservation",
       delete: "Supprimer la réservation",
+      claim: "Ajouter nom, montant et voyageurs",
+      unblockAll: "Lever tout le blocage",
+      hold: "Garder jusqu’au…",
     },
     occupiedVia: (p, from, to) => `Occupé via ${p} · ${from}–${to}`,
+    blockedRange: (from, lastNight, days) => `Bloqué ${from} – ${lastNight} (${days} jours)`,
+    heldUntil: (date) => `Gardé jusqu’au ${date}`,
+    holdExpired: (date) => `Délai expiré le ${date} – lever le blocage ?`,
+    claimHeading: "Infos de réservation",
+    claimHint: "Le portail n’envoie que les dates. Nom, montant et voyageurs restent dans RentTools et comptent dans vos listes et rapports.",
+    claimFailed: "Les infos de réservation n’ont pas pu être enregistrées.",
+    holdHeading: "Garder le blocage",
+    holdLabel: "Garder jusqu’au (dernier jour)",
+    holdHint: "Après ce jour, l’accueil vous rappelle de lever le blocage. Rien n’est levé tout seul.",
+    holdClear: "Sans échéance",
+    holdFailed: "L’échéance n’a pas pu être enregistrée.",
     blocked: "Bloqué, non réservable",
     forcedOpen: "Ouvert manuellement",
     buffer: "Jour tampon issu des paramètres du canal",
@@ -280,8 +348,22 @@ const COPY: CopyMap<SheetCopy> = {
       unblock: "Quitar bloqueo",
       edit: "Editar reserva",
       delete: "Eliminar reserva",
+      claim: "Añadir nombre, importe y huéspedes",
+      unblockAll: "Quitar todo el bloqueo",
+      hold: "Mantener hasta…",
     },
     occupiedVia: (p, from, to) => `Ocupado a través de ${p} · ${from}–${to}`,
+    blockedRange: (from, lastNight, days) => `Bloqueado ${from} – ${lastNight} (${days} días)`,
+    heldUntil: (date) => `Mantenido hasta ${date}`,
+    holdExpired: (date) => `Plazo vencido el ${date} – ¿quitar el bloqueo?`,
+    claimHeading: "Datos de la reserva",
+    claimHint: "El portal solo envía las fechas. Nombre, importe y huéspedes quedan en RentTools y cuentan en listas e informes.",
+    claimFailed: "No se pudieron guardar los datos de la reserva.",
+    holdHeading: "Mantener bloqueo",
+    holdLabel: "Mantener hasta (último día)",
+    holdHint: "Después de este día el inicio te recuerda quitar el bloqueo. No se quita solo.",
+    holdClear: "Sin plazo",
+    holdFailed: "No se pudo guardar el plazo.",
     blocked: "Bloqueado, no reservable",
     forcedOpen: "Abierto manualmente",
     buffer: "Día tampón de la configuración del canal",
@@ -331,8 +413,22 @@ const COPY: CopyMap<SheetCopy> = {
       unblock: "Ukloni blokadu",
       edit: "Uredi rezervaciju",
       delete: "Obriši rezervaciju",
+      claim: "Upiši ime, iznos i goste",
+      unblockAll: "Ukloni cijelu blokadu",
+      hold: "Drži do…",
     },
     occupiedVia: (p, from, to) => `Zauzeto preko ${p} · ${from}–${to}`,
+    blockedRange: (from, lastNight, days) => `Blokirano ${from} – ${lastNight} (${days} dana)`,
+    heldUntil: (date) => `Drži se do ${date}`,
+    holdExpired: (date) => `Rok istekao ${date} – ukloniti blokadu?`,
+    claimHeading: "Podaci rezervacije",
+    claimHint: "Portal šalje samo datume. Ime, iznos i gosti ostaju u RentToolsu i računaju se u popisima i izvještajima.",
+    claimFailed: "Podaci rezervacije nisu spremljeni.",
+    holdHeading: "Drži blokadu",
+    holdLabel: "Drži do (zadnji dan)",
+    holdHint: "Nakon tog dana početni zaslon podsjeća da uklonite blokadu. Ništa se ne uklanja samo.",
+    holdClear: "Bez roka",
+    holdFailed: "Rok nije spremljen.",
     blocked: "Blokirano, nije moguće rezervirati",
     forcedOpen: "Ručno otvoreno",
     buffer: "Dan pauze iz postavki kanala",
@@ -415,14 +511,48 @@ function centsToInput(cents: number | null, decimalComma: boolean): string {
   return decimalComma ? fixed.replace(".", ",") : fixed;
 }
 
-function stateLine(state: MobileDayState, copy: SheetCopy): string {
+function shortDay(date: string, locale: Locale): string {
+  return new Intl.DateTimeFormat(mobileIntlTag(locale), {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T12:00:00.000Z`));
+}
+
+function previousDay(date: string): string {
+  const prev = new Date(`${date}T12:00:00.000Z`);
+  prev.setUTCDate(prev.getUTCDate() - 1);
+  return prev.toISOString().slice(0, 10);
+}
+
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T12:00:00Z`) - Date.parse(`${from}T12:00:00Z`)) / 86_400_000);
+}
+
+/** Today on the property's wall clock, YYYY-MM-DD. */
+function propertyToday(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: DEFAULT_PROPERTY_TIME_ZONE }).format(new Date());
+}
+
+function stateLine(state: MobileDayState, copy: SheetCopy, locale: Locale): string {
   switch (state.kind) {
     case "reservation":
       return `${state.reservation.name} · ${state.reservation.checkIn.slice(0, 10)}–${state.reservation.checkOut.slice(0, 10)} · ${platformLabel(state.reservation.platform, copy)}`;
     case "event":
       return copy.occupiedVia(platformLabel(state.platform, copy), state.startDate, state.endDate);
-    case "blocked":
-      return copy.blocked;
+    case "blocked": {
+      const days = daysBetween(state.from, state.to);
+      const range = days > 1
+        ? copy.blockedRange(shortDay(state.from, locale), shortDay(previousDay(state.to), locale), days)
+        : copy.blocked;
+      if (!state.holdUntil) return range;
+      return `${range} · ${
+        state.holdUntil < propertyToday()
+          ? copy.holdExpired(shortDay(state.holdUntil, locale))
+          : copy.heldUntil(shortDay(state.holdUntil, locale))
+      }`;
+    }
     case "forced-open":
       return copy.forcedOpen;
     case "buffer":
@@ -434,7 +564,7 @@ function stateLine(state: MobileDayState, copy: SheetCopy): string {
   }
 }
 
-type Mode = "actions" | "create" | "edit";
+type Mode = "actions" | "create" | "edit" | "claim" | "hold";
 
 export function MobileDaySheet({
   propertyId,
@@ -463,6 +593,9 @@ export function MobileDaySheet({
   const [checkOut, setCheckOut] = useState(booked ? booked.checkOut.slice(0, 10) : nextDay(date));
   const [guests, setGuests] = useState("");
   const [amount, setAmount] = useState("");
+  const [holdDate, setHoldDate] = useState(
+    state.kind === "blocked" && state.holdUntil ? state.holdUntil : "",
+  );
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -555,6 +688,15 @@ export function MobileDaySheet({
    */
   function changeBlock(action: MobileDayAction): void {
     const remove = `/api/date-overrides?propertyId=${propertyId}&date=${date}`;
+    if (action === "unblockAll" && state.kind === "blocked") {
+      void send(
+        "unblockAll",
+        `/api/date-overrides?propertyId=${propertyId}&from=${state.from}&to=${state.to}`,
+        { method: "DELETE" },
+        copy.unblockFailed,
+      );
+      return;
+    }
     if (action === "unblock") {
       void send("unblock", remove, { method: "DELETE" }, copy.unblockFailed);
       return;
@@ -582,9 +724,47 @@ export function MobileDaySheet({
     })();
   }
 
+  function saveHold(holdUntil: string | null): void {
+    if (state.kind !== "blocked") return;
+    void send(
+      "save",
+      "/api/date-overrides",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ propertyId, from: state.from, to: state.to, holdUntil }),
+      },
+      copy.holdFailed,
+    );
+  }
+
   function submit(): void {
     const body = buildBody();
     if (!body) return;
+    if (mode === "claim" && state.kind === "event" && state.sourceUid) {
+      // Same request the desktop calendar sends when a stay is named:
+      // linked to the exact feed event, so the next sync keeps it.
+      void send(
+        "save",
+        "/api/reservations",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...body,
+            checkIn: state.startDate,
+            checkOut: state.endDate,
+            propertyId,
+            platform: state.platform,
+            linkedEventUid: state.sourceUid,
+            linkedEventPlatform: state.platform,
+            linkedEventRole: "claim",
+          }),
+        },
+        copy.claimFailed,
+      );
+      return;
+    }
     if (mode === "create") {
       void send(
         "save",
@@ -653,6 +833,16 @@ export function MobileDaySheet({
       setMode("create");
       return;
     }
+    if (action === "claim" && state.kind === "event") {
+      setCheckIn(state.startDate);
+      setCheckOut(state.endDate);
+      setMode("claim");
+      return;
+    }
+    if (action === "hold") {
+      setMode("hold");
+      return;
+    }
     if (action === "edit") {
       void openEdit();
       return;
@@ -678,10 +868,18 @@ export function MobileDaySheet({
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--zf-brand)]">
-              {mode === "create" ? copy.newDirect : mode === "edit" ? copy.editBooking : copy.day}
+              {mode === "create"
+                ? copy.newDirect
+                : mode === "edit"
+                  ? copy.editBooking
+                  : mode === "claim"
+                    ? copy.claimHeading
+                    : mode === "hold"
+                      ? copy.holdHeading
+                      : copy.day}
             </p>
             <h2 className="mt-1 truncate text-lg font-semibold tracking-tight">{formatDay(date, locale)}</h2>
-            <p className="mt-1 text-sm text-[var(--zf-text-muted)] dark:text-slate-400">{stateLine(state, copy)}</p>
+            <p className="mt-1 text-sm text-[var(--zf-text-muted)] dark:text-slate-400">{stateLine(state, copy, locale)}</p>
           </div>
           <button
             type="button"
@@ -701,7 +899,7 @@ export function MobileDaySheet({
 
         {mode === "actions" ? (
           <div className="space-y-2">
-            {state.kind === "event" && (
+            {state.kind === "event" && actions.length === 0 && (
               <p className="rounded-xl bg-[var(--zf-surface)] px-4 py-3 text-sm text-[var(--zf-text-muted)] dark:bg-slate-800 dark:text-slate-300">
                 {copy.eventNote(platformLabel(state.platform, copy))}
               </p>
@@ -730,7 +928,7 @@ export function MobileDaySheet({
                 className={`flex min-h-14 w-full items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] disabled:opacity-60 ${
                   action === "delete"
                     ? "border border-rose-200 text-rose-700 dark:border-rose-900 dark:text-rose-300"
-                    : action === "create"
+                    : action === "create" || action === "claim"
                       ? "bg-[var(--zf-brand-dark)] text-[var(--zf-on-brand)] dark:bg-white dark:text-slate-950"
                       : "border border-[var(--zf-border)] dark:border-slate-800"
                 }`}
@@ -739,6 +937,38 @@ export function MobileDaySheet({
                 {copy.actions[action]}
               </button>
             ))}
+          </div>
+        ) : mode === "hold" ? (
+          <div className="space-y-3">
+            <label className="block text-sm font-medium">
+              {copy.holdLabel}
+              <input
+                type="date"
+                value={holdDate}
+                onChange={(event) => setHoldDate(event.target.value)}
+                className={FIELD_CLASS}
+              />
+            </label>
+            <p className="text-xs text-[var(--zf-text-muted)] dark:text-slate-400">{copy.holdHint}</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => saveHold(null)}
+                disabled={pending !== null}
+                className="min-h-14 flex-1 rounded-xl border border-[var(--zf-border)] text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] disabled:opacity-60 dark:border-slate-800"
+              >
+                {copy.holdClear}
+              </button>
+              <button
+                type="button"
+                onClick={() => (holdDate ? saveHold(holdDate) : setError(copy.holdFailed))}
+                disabled={pending !== null}
+                className="flex min-h-14 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--zf-brand-dark)] text-sm font-semibold text-[var(--zf-on-brand)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] disabled:opacity-60 dark:bg-white dark:text-slate-950"
+              >
+                {pending === "save" && <Loader2 aria-hidden className="h-4 w-4 animate-spin" />}
+                {copy.save}
+              </button>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">
@@ -757,6 +987,7 @@ export function MobileDaySheet({
                 <input
                   type="date"
                   value={checkIn}
+                  readOnly={mode === "claim"}
                   onChange={(event) => setCheckIn(event.target.value)}
                   className={FIELD_CLASS}
                 />
@@ -766,6 +997,7 @@ export function MobileDaySheet({
                 <input
                   type="date"
                   value={checkOut}
+                  readOnly={mode === "claim"}
                   onChange={(event) => setCheckOut(event.target.value)}
                   className={FIELD_CLASS}
                 />
@@ -796,7 +1028,9 @@ export function MobileDaySheet({
             <p className="text-xs text-[var(--zf-text-muted)] dark:text-slate-400">
               {mode === "edit"
                 ? copy.editHint
-                : copy.createHint}
+                : mode === "claim"
+                  ? copy.claimHint
+                  : copy.createHint}
             </p>
             <div className="flex gap-2">
               <button

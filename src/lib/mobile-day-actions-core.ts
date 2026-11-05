@@ -20,17 +20,22 @@ export interface MobileDayEvent {
   platform: string;
   startDate: string;
   endDate: string;
+  /** The feed UID, given only to people who may name the stay. */
+  sourceUid?: string | null;
 }
 
 export interface MobileDayOverride {
   date: string;
   type: "open" | "closed";
+  /** Last day the host wants to keep a block for someone (YYYY-MM-DD). */
+  holdUntil?: string | null;
 }
 
 export type MobileDayState =
   | { kind: "reservation"; reservation: MobileDayReservation }
-  | { kind: "event"; platform: string; startDate: string; endDate: string }
-  | { kind: "blocked" }
+  | { kind: "event"; platform: string; startDate: string; endDate: string; sourceUid: string | null }
+  /** A run of blocked days around the tapped one, [from, to). */
+  | { kind: "blocked"; from: string; to: string; holdUntil: string | null }
   | { kind: "forced-open" }
   /** A turnover buffer from the channel settings — drawn as unavailable
    *  in the grid, but the app still accepts a direct booking on it. */
@@ -40,10 +45,49 @@ export type MobileDayState =
   | { kind: "cleaning" }
   | { kind: "free" };
 
-export type MobileDayAction = "create" | "block" | "unblock" | "edit" | "delete";
+export type MobileDayAction =
+  | "create"
+  | "block"
+  | "unblock"
+  | "unblockAll"
+  | "hold"
+  | "claim"
+  | "edit"
+  | "delete";
 
 function day(value: string): string {
   return value.slice(0, 10);
+}
+
+function shiftDay(date: string, days: number): string {
+  const value = new Date(`${date}T12:00:00.000Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+}
+
+/**
+ * The run of consecutive blocked days the tapped day belongs to, as
+ * [from, to). A block entered day by day is still one block to the host.
+ */
+export function blockRunAround(
+  date: string,
+  overrides: MobileDayOverride[],
+): { from: string; to: string; holdUntil: string | null } {
+  const closed = new Map(
+    overrides
+      .filter((row) => row.type === "closed")
+      .map((row) => [day(row.date), row.holdUntil ?? null] as const),
+  );
+  let from = date;
+  while (closed.has(shiftDay(from, -1))) from = shiftDay(from, -1);
+  let to = shiftDay(date, 1);
+  while (closed.has(to)) to = shiftDay(to, 1);
+  let holdUntil: string | null = null;
+  for (let d = from; d < to; d = shiftDay(d, 1)) {
+    const hold = closed.get(d) ?? null;
+    if (hold && (!holdUntil || hold > holdUntil)) holdUntil = hold;
+  }
+  return { from, to, holdUntil };
 }
 
 /** Half-open: the checkout day is free again for the next arrival. */
@@ -80,13 +124,16 @@ export function resolveMobileDay(
       platform: event.platform,
       startDate: day(event.startDate),
       endDate: day(event.endDate),
+      sourceUid: event.sourceUid ?? null,
     };
   }
 
   // An explicit override is a decision someone made; a buffer is
   // computed from the channel settings, so the decision wins.
   const override = input.overrides.find((row) => day(row.date) === date);
-  if (override?.type === "closed") return { kind: "blocked" };
+  if (override?.type === "closed") {
+    return { kind: "blocked", ...blockRunAround(date, input.overrides) };
+  }
   if (override?.type === "open") return { kind: "forced-open" };
 
   if (input.cleaningDates) {
@@ -113,10 +160,13 @@ export function mobileDayActions(
       return ["edit", "delete"];
     // Changing a platform booking belongs on that platform; offering it
     // here would promise a write the app cannot make.
+    // Naming it, with amount and party size, stays inside RentTools.
     case "event":
-      return [];
+      return state.sourceUid ? ["claim"] : [];
     case "blocked":
-      return ["unblock", "create"];
+      return shiftDay(state.from, 1) < state.to
+        ? ["unblockAll", "unblock", "hold", "create"]
+        : ["unblock", "hold", "create"];
     // The server accepts a direct booking on a buffer day, so offering it
     // is honest; the sheet explains what the buffer still does.
     case "buffer":

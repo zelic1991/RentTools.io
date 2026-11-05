@@ -112,7 +112,52 @@ export async function POST(request: NextRequest) {
   }
 }
 
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+function isIsoDay(value: unknown): value is string {
+  return typeof value === "string" && ISO_DAY.test(value);
+}
+
+// PATCH /api/date-overrides — set or clear how long a block is held.
+// Body: { propertyId, from, to, holdUntil } with [from, to) and holdUntil
+// a YYYY-MM-DD day or null. Only "closed" days in the range change.
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await getSession();
+    if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const body = await request.json();
+    const { propertyId, from, to, holdUntil } = body ?? {};
+    if (!isIsoDay(from) || !isIsoDay(to) || from >= to || (holdUntil !== null && !isIsoDay(holdUntil))) {
+      return NextResponse.json({ error: "from, to and holdUntil must be YYYY-MM-DD" }, { status: 400 });
+    }
+    const numId = Number(propertyId);
+    if (!(await canManageProperty(numId, session.userId, session.role))) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    const updated = await prisma.dateOverride.updateMany({
+      where: { propertyId: numId, type: "closed", date: { gte: from, lt: to } },
+      data: { holdUntil },
+    });
+    await logAudit(session.userId, "update", "override", numId, {
+      propertyId: numId,
+      from,
+      to,
+      holdUntil,
+      count: updated.count,
+    });
+    return NextResponse.json({ action: "updated", count: updated.count });
+  } catch (err) {
+    console.error("Route error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
 // DELETE /api/date-overrides?propertyId=1&date=2025-04-10
+// DELETE /api/date-overrides?propertyId=1&from=2027-06-14&to=2027-06-24
+//   lifts every block in [from, to) at once. Cleaning and open overrides
+//   in the range stay.
 export async function DELETE(request: NextRequest) {
   try {
     const session = await getSession();
@@ -120,6 +165,28 @@ export async function DELETE(request: NextRequest) {
 
     const propertyId = request.nextUrl.searchParams.get("propertyId");
     const date = request.nextUrl.searchParams.get("date");
+    const from = request.nextUrl.searchParams.get("from");
+    const to = request.nextUrl.searchParams.get("to");
+
+    if (propertyId && !date && (from || to)) {
+      if (!isIsoDay(from) || !isIsoDay(to) || from >= to) {
+        return NextResponse.json({ error: "from and to must be YYYY-MM-DD, from before to" }, { status: 400 });
+      }
+      const numId = Number(propertyId);
+      if (!(await canManageProperty(numId, session.userId, session.role))) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+      const removed = await prisma.dateOverride.deleteMany({
+        where: { propertyId: numId, type: "closed", date: { gte: from, lt: to } },
+      });
+      await logAudit(session.userId, "delete", "override", numId, {
+        propertyId: numId,
+        from,
+        to,
+        count: removed.count,
+      });
+      return NextResponse.json({ action: "removed", from, to, count: removed.count });
+    }
 
     if (!propertyId || !date) {
       return NextResponse.json(
