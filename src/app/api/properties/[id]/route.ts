@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { canAdministerProperty, isPropertyOwner } from "@/lib/ownership";
+import { parseSeasonPatch } from "@/lib/season";
 
 export async function PATCH(
   request: NextRequest,
@@ -31,6 +32,14 @@ export async function PATCH(
     if (body.checkOutTime !== undefined) data.checkOutTime = body.checkOutTime;
     if (body.bookingWindow !== undefined) data.bookingWindow = body.bookingWindow;
     if (body.cleaningEnabled !== undefined) data.cleaningEnabled = !!body.cleaningEnabled;
+    if (body.seasonStartMonth !== undefined || body.seasonEndMonth !== undefined) {
+      const season = parseSeasonPatch(body.seasonStartMonth, body.seasonEndMonth);
+      if (!season) {
+        return NextResponse.json({ error: "Invalid season" }, { status: 400 });
+      }
+      data.seasonStartMonth = season.start;
+      data.seasonEndMonth = season.end;
+    }
 
     const property = await prisma.property.update({
       where: { id: numId },

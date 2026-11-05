@@ -72,6 +72,8 @@ export interface Property {
   checkOutTime: string; // "HH:MM" — guest departure time, e.g. "12:00"
   bookingWindow: number; // days forward from today to consider bookings; beyond this, events are ignored
   cleaningEnabled: boolean; // master toggle for buffer / sameDayCleaning / potentialCleaning / unbookable computation
+  seasonStartMonth?: number | null; // rental season, months 1-12 inclusive; null = all year
+  seasonEndMonth?: number | null;
   feedToken: string | null; // optional token gating the public iCal feed
   createdAt: string;
   reservations: Reservation[];

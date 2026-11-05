@@ -27,11 +27,11 @@ import { PATCH } from "./route";
 
 const context = { params: Promise.resolve({ id: "17" }) };
 
-function request() {
+function request(body: Record<string, unknown> = { name: "Updated Apartment" }) {
   return new NextRequest("http://localhost/api/properties/17", {
     method: "PATCH",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name: "Updated Apartment" }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -85,5 +85,32 @@ describe("PATCH /api/properties/[id] secret projection", () => {
     expect(body).not.toHaveProperty("feedToken");
     expect(mocks.isPropertyOwner).not.toHaveBeenCalled();
     expect(JSON.stringify(body)).not.toContain("durable-feed-secret");
+  });
+});
+
+describe("PATCH /api/properties/[id] rental season", () => {
+  it("stores a May-September season", async () => {
+    const response = await PATCH(request({ seasonStartMonth: 5, seasonEndMonth: 9 }), context);
+    expect(response.status).toBe(200);
+    expect(mocks.propertyUpdate).toHaveBeenCalledWith({
+      where: { id: 17 },
+      data: { seasonStartMonth: 5, seasonEndMonth: 9 },
+    });
+  });
+
+  it("clears the season with two nulls", async () => {
+    await PATCH(request({ seasonStartMonth: null, seasonEndMonth: null }), context);
+    expect(mocks.propertyUpdate).toHaveBeenCalledWith({
+      where: { id: 17 },
+      data: { seasonStartMonth: null, seasonEndMonth: null },
+    });
+  });
+
+  it("rejects half a season or a month out of range", async () => {
+    for (const body of [{ seasonStartMonth: 5 }, { seasonStartMonth: 5, seasonEndMonth: 13 }]) {
+      const response = await PATCH(request(body), context);
+      expect(response.status).toBe(400);
+    }
+    expect(mocks.propertyUpdate).not.toHaveBeenCalled();
   });
 });

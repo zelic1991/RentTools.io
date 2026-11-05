@@ -17,6 +17,7 @@ import { PropertySwitcher } from "@/components/property-switcher";
 import { useI18n } from "@/lib/i18n/context";
 import { hrPlural, resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import type { Property } from "@/lib/types";
+import { currentOrNextSeason, seasonDaysBetween, seasonOf, type Season } from "@/lib/season";
 import {
   summarizeRevenueBreakdown,
   summarizeStoredGrossAmounts,
@@ -39,6 +40,17 @@ interface CopyShape {
   pastWindow: (months: number) => string;
   noProperties: string;
   pastOccupancy: string;
+  seasonBooked: (year: number) => string;
+  seasonBookedSubtitle: (nights: number, days: number) => string;
+  seasonOnly: string;
+  season: string;
+  seasonFrom: string;
+  seasonTo: string;
+  seasonAllYear: string;
+  seasonSave: string;
+  seasonSaved: string;
+  seasonSaveFailed: string;
+  monthNames: string[];
   upcomingNights: string;
   upcomingNightsSubtitle: (months: number) => string;
   bookings: string;
@@ -98,6 +110,17 @@ const COPY: CopyMap<CopyShape> = {
     noDataYet: "no data yet",
     pastWindow: (months) => `last ${months} ${months === 1 ? "month" : "months"}`,
     noProperties: "No properties to report on yet.",
+    seasonBooked: (year) => `Season ${year} booked`,
+    seasonBookedSubtitle: (nights, days) => `${nights} of ${days} season nights`,
+    seasonOnly: "season months only",
+    season: "Rental season",
+    seasonFrom: "From",
+    seasonTo: "To",
+    seasonAllYear: "Open all year",
+    seasonSave: "Save",
+    seasonSaved: "Season saved",
+    seasonSaveFailed: "Could not save the season",
+    monthNames: ["January","February","March","April","May","June","July","August","September","October","November","December"],
     pastOccupancy: "Past occupancy",
     upcomingNights: "Upcoming nights",
     upcomingNightsSubtitle: (months) => `next ${months} mo.`,
@@ -157,6 +180,17 @@ const COPY: CopyMap<CopyShape> = {
     noDataYet: "нет данных",
     pastWindow: (months) => `${months} мес. назад`,
     noProperties: "Нет объектов для отчёта.",
+    seasonBooked: (year) => `Сезон ${year}: забронировано`,
+    seasonBookedSubtitle: (nights, days) => `${nights} из ${days} ночей сезона`,
+    seasonOnly: "только месяцы сезона",
+    season: "Сезон аренды",
+    seasonFrom: "С",
+    seasonTo: "По",
+    seasonAllYear: "Круглый год",
+    seasonSave: "Сохранить",
+    seasonSaved: "Сезон сохранён",
+    seasonSaveFailed: "Не удалось сохранить сезон",
+    monthNames: ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"],
     pastOccupancy: "Заполняемость",
     upcomingNights: "Ночей вперёд",
     upcomingNightsSubtitle: (months) => `на ${months} мес.`,
@@ -216,6 +250,17 @@ const COPY: CopyMap<CopyShape> = {
     noDataYet: "noch keine Daten",
     pastWindow: (months) => `letzte ${months} ${months === 1 ? "Monat" : "Monate"}`,
     noProperties: "Noch keine Unterkünfte für Berichte.",
+    seasonBooked: (year) => `Saison ${year} gebucht`,
+    seasonBookedSubtitle: (nights, days) => `${nights} von ${days} Saisonnächten`,
+    seasonOnly: "nur Saisonmonate",
+    season: "Vermietungssaison",
+    seasonFrom: "Von",
+    seasonTo: "Bis",
+    seasonAllYear: "Ganzjährig",
+    seasonSave: "Speichern",
+    seasonSaved: "Saison gespeichert",
+    seasonSaveFailed: "Saison konnte nicht gespeichert werden",
+    monthNames: ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
     pastOccupancy: "Auslastung (Vergangenheit)",
     upcomingNights: "Anstehende Nächte",
     upcomingNightsSubtitle: (months) => `nächste ${months} Mon.`,
@@ -276,6 +321,17 @@ const COPY: CopyMap<CopyShape> = {
     noDataYet: "pas encore de données",
     pastWindow: (months) => `${months} ${months === 1 ? "dernier mois" : "derniers mois"}`,
     noProperties: "Aucun logement à analyser pour le moment.",
+    seasonBooked: (year) => `Saison ${year} réservée`,
+    seasonBookedSubtitle: (nights, days) => `${nights} nuits sur ${days} en saison`,
+    seasonOnly: "mois de saison seulement",
+    season: "Saison de location",
+    seasonFrom: "Du",
+    seasonTo: "Au",
+    seasonAllYear: "Toute l’année",
+    seasonSave: "Enregistrer",
+    seasonSaved: "Saison enregistrée",
+    seasonSaveFailed: "Impossible d’enregistrer la saison",
+    monthNames: ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"],
     pastOccupancy: "Taux d’occupation passé",
     upcomingNights: "Nuits à venir",
     upcomingNightsSubtitle: (months) => `${months} prochains mois`,
@@ -336,6 +392,17 @@ const COPY: CopyMap<CopyShape> = {
     noDataYet: "aún sin datos",
     pastWindow: (months) => `últimos ${months} ${months === 1 ? "mes" : "meses"}`,
     noProperties: "Aún no hay alojamientos para informar.",
+    seasonBooked: (year) => `Temporada ${year} reservada`,
+    seasonBookedSubtitle: (nights, days) => `${nights} de ${days} noches de temporada`,
+    seasonOnly: "solo meses de temporada",
+    season: "Temporada de alquiler",
+    seasonFrom: "Desde",
+    seasonTo: "Hasta",
+    seasonAllYear: "Todo el año",
+    seasonSave: "Guardar",
+    seasonSaved: "Temporada guardada",
+    seasonSaveFailed: "No se pudo guardar la temporada",
+    monthNames: ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
     pastOccupancy: "Ocupación pasada",
     upcomingNights: "Noches próximas",
     upcomingNightsSubtitle: (months) => `próximos ${months} meses`,
@@ -399,6 +466,17 @@ const COPY: CopyMap<CopyShape> = {
     pastWindow: (months) =>
       `zadnjih ${months} ${hrPlural(months, "mjesec", "mjeseca", "mjeseci")}`,
     noProperties: "Još nema nekretnina za izvještaj.",
+    seasonBooked: (year) => `Sezona ${year} rezervirano`,
+    seasonBookedSubtitle: (nights, days) => `${nights} od ${days} noćenja sezone`,
+    seasonOnly: "samo mjeseci sezone",
+    season: "Sezona najma",
+    seasonFrom: "Od",
+    seasonTo: "Do",
+    seasonAllYear: "Cijelu godinu",
+    seasonSave: "Spremi",
+    seasonSaved: "Sezona spremljena",
+    seasonSaveFailed: "Sezona nije spremljena",
+    monthNames: ["Siječanj","Veljača","Ožujak","Travanj","Svibanj","Lipanj","Srpanj","Kolovoz","Rujan","Listopad","Studeni","Prosinac"],
     pastOccupancy: "Prošla popunjenost",
     upcomingNights: "Nadolazeća noćenja",
     upcomingNightsSubtitle: (months) => `sljedećih ${months} mj.`,
@@ -858,6 +936,10 @@ interface PropertyKpis {
   avgStayNights: number;
   topPlatform: PlatformMeta | null;
   cleaningsUpcoming: number;
+  /** Booked nights / all nights of the running or next season; null without a season. */
+  seasonNights: number;
+  seasonDays: number;
+  seasonYear: number | null;
 }
 
 function computePropertyKpis(
@@ -877,7 +959,10 @@ function computePropertyKpis(
     ? new Date(pastBuckets[0].year, pastBuckets[0].monthIndex, 1)
     : currentMonthStart;
   const pastEnd = currentMonthStart; // exclusive (today's month is "current", not past)
-  const pastDays = Math.round((pastEnd.getTime() - pastStart.getTime()) / 86_400_000);
+  // Months the property is closed are not empty nights: count only days
+  // inside the rental season, for both the nights and the days.
+  const season = seasonOf(prop);
+  const pastDays = seasonDaysBetween(pastStart, pastEnd, season);
 
   let pastNights = 0;
   let upcomingNights = 0;
@@ -886,6 +971,8 @@ function computePropertyKpis(
   let totalNightsAllTime = 0;
   let cleaningsUpcoming = 0;
   const perPlatform = new Map<string, number>();
+  const seasonWindow = currentOrNextSeason(today, season);
+  let seasonNights = 0;
 
   for (const s of stays) {
     if (s.propertyId !== prop.id) continue;
@@ -896,7 +983,13 @@ function computePropertyKpis(
     const pStart = new Date(Math.max(sStart.getTime(), pastStart.getTime()));
     const pStop = new Date(Math.min(sEnd.getTime(), pastEnd.getTime()));
     if (pStop > pStart) {
-      pastNights += Math.round((pStop.getTime() - pStart.getTime()) / 86_400_000);
+      pastNights += seasonDaysBetween(pStart, pStop, season);
+    }
+
+    if (seasonWindow) {
+      const zStart = new Date(Math.max(sStart.getTime(), seasonWindow.from.getTime()));
+      const zStop = new Date(Math.min(sEnd.getTime(), seasonWindow.to.getTime()));
+      seasonNights += seasonDaysBetween(zStart, zStop, season);
     }
 
     // Upcoming portion: clipped to [today, futureEndCap)
@@ -949,7 +1042,92 @@ function computePropertyKpis(
     avgStayNights,
     topPlatform,
     cleaningsUpcoming,
+    seasonNights,
+    seasonDays: seasonWindow ? seasonDaysBetween(seasonWindow.from, seasonWindow.to, season) : 0,
+    seasonYear: seasonWindow?.year ?? null,
   };
+}
+
+function SeasonPicker({
+  propertyId,
+  initial,
+  c,
+  onSaved,
+}: {
+  propertyId: number;
+  initial: Season | null;
+  c: CopyShape;
+  onSaved: (season: Season | null) => void;
+}) {
+  const [start, setStart] = useState(initial ? String(initial.start) : "");
+  const [end, setEnd] = useState(initial ? String(initial.end) : "");
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const allYear = start === "" || end === "";
+  const changed = allYear
+    ? initial !== null
+    : !initial || initial.start !== Number(start) || initial.end !== Number(end);
+
+  async function save() {
+    setState("saving");
+    const season = allYear ? null : { start: Number(start), end: Number(end) };
+    try {
+      const res = await fetch(`/api/properties/${propertyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          seasonStartMonth: season?.start ?? null,
+          seasonEndMonth: season?.end ?? null,
+        }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      onSaved(season);
+      setState("saved");
+    } catch {
+      setState("error");
+    }
+  }
+
+  const select =
+    "mt-1 block w-full rounded-lg border border-[var(--line)] bg-[var(--bg)] px-2 py-1.5 text-sm text-[var(--ink)]";
+  const options = (
+    <>
+      <option value="">{c.seasonAllYear}</option>
+      {c.monthNames.map((name, i) => (
+        <option key={name} value={String(i + 1)}>
+          {name}
+        </option>
+      ))}
+    </>
+  );
+  return (
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--bg-2)] p-4">
+      <h2 className="text-sm font-semibold text-[var(--ink)]">{c.season}</h2>
+      <div className="mt-2 flex flex-wrap items-end gap-3">
+        <label className="min-w-32 flex-1 text-xs text-[var(--ink-3)] sm:flex-none">
+          {c.seasonFrom}
+          <select value={start} onChange={(e) => { setStart(e.target.value); setState("idle"); }} className={select}>
+            {options}
+          </select>
+        </label>
+        <label className="min-w-32 flex-1 text-xs text-[var(--ink-3)] sm:flex-none">
+          {c.seasonTo}
+          <select value={end} onChange={(e) => { setEnd(e.target.value); setState("idle"); }} className={select}>
+            {options}
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={save}
+          disabled={!changed || state === "saving"}
+          className="rounded-lg bg-[var(--m-accent)] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+        >
+          {c.seasonSave}
+        </button>
+        {state === "saved" && <span className="text-xs text-emerald-700 dark:text-emerald-300">{c.seasonSaved}</span>}
+        {state === "error" && <span className="text-xs text-rose-700 dark:text-rose-300">{c.seasonSaveFailed}</span>}
+      </div>
+    </div>
+  );
 }
 
 interface KpiCardProps {
@@ -982,9 +1160,21 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
   const [periodMonths, setPeriodMonths] = useState<PeriodChoice>(DEFAULT_PERIOD);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Season edits made here apply at once, before the dashboard reloads
+  // its property list.
+  const [seasonEdits, setSeasonEdits] = useState<Record<number, Season | null>>({});
   const targetProperties = useMemo(
-    () => (property ? [property] : properties),
-    [property, properties],
+    () =>
+      (property ? [property] : properties).map((p) =>
+        p.id in seasonEdits
+          ? {
+              ...p,
+              seasonStartMonth: seasonEdits[p.id]?.start ?? null,
+              seasonEndMonth: seasonEdits[p.id]?.end ?? null,
+            }
+          : p,
+      ),
+    [property, properties, seasonEdits],
   );
   const isMulti = !property;
   const targetIdsKey = useMemo(
@@ -1067,8 +1257,14 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
     let pastBookings = 0;
     let cleaningsUpcoming = 0;
     let totalNightsAllTime = 0;
+    let seasonNights = 0;
+    let seasonDays = 0;
+    let seasonYear: number | null = null;
     const perPlatform = new Map<string, number>();
     for (const k of propertyKpis) {
+      seasonNights += k.seasonNights;
+      seasonDays += k.seasonDays;
+      if (k.seasonYear !== null) seasonYear = seasonYear === null ? k.seasonYear : Math.min(seasonYear, k.seasonYear);
       pastNights += k.pastNights;
       pastDays += k.pastDays;
       upcomingNights += k.upcomingNights;
@@ -1110,6 +1306,11 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
       cleaningsUpcoming,
       avgStayNights,
       topPlatform,
+      seasonNights,
+      seasonDays,
+      seasonYear,
+      seasonOccupancy: seasonDays > 0 ? Math.round((100 * seasonNights) / seasonDays) : null,
+      hasSeason: propertyKpis.some((k) => seasonOf(k.property) !== null),
     };
   }, [propertyKpis, buckets, c.directLabel]);
 
@@ -1223,12 +1424,20 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
               {/* KPI strip — past-based occupancy is the only honest %;
                   upcoming is shown as raw nights so it doesn't get
                   conflated with "we're 30% full forever" anxiety. */}
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className={`grid grid-cols-2 gap-3 ${aggregate.seasonOccupancy !== null ? "sm:grid-cols-3 lg:grid-cols-5" : "sm:grid-cols-4"}`}>
+                {aggregate.seasonOccupancy !== null && aggregate.seasonYear !== null && (
+                  <KpiCard
+                    label={c.seasonBooked(aggregate.seasonYear)}
+                    value={`${aggregate.seasonOccupancy}%`}
+                    subtitle={c.seasonBookedSubtitle(aggregate.seasonNights, aggregate.seasonDays)}
+                    accent
+                  />
+                )}
                 <KpiCard
                   label={c.pastOccupancy}
                   value={`${aggregate.pastOccupancy}%`}
-                  subtitle={pastWindowLabel}
-                  accent
+                  subtitle={aggregate.hasSeason ? `${pastWindowLabel} · ${c.seasonOnly}` : pastWindowLabel}
+                  accent={aggregate.seasonOccupancy === null}
                 />
                 <KpiCard
                   label={c.upcomingNights}
@@ -1250,6 +1459,16 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
                   subtitle={c.cleaningsAheadSubtitle}
                 />
               </div>
+
+              {property && (
+                <SeasonPicker
+                  key={property.id}
+                  propertyId={property.id}
+                  initial={seasonOf(targetProperties[0])}
+                  c={c}
+                  onSaved={(season) => setSeasonEdits((prev) => ({ ...prev, [property.id]: season }))}
+                />
+              )}
 
               <div className="rounded-xl border border-[var(--line)] bg-[var(--bg-2)] p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
