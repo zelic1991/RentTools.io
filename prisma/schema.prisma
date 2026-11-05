@@ -131,6 +131,10 @@ model Property {
   checkOutTime   String           @default("12:00")
   bookingWindow  Int              @default(365) // days forward from today to accept bookings; beyond this, events are ignored
   cleaningEnabled Boolean         @default(true) // master toggle for buffer / sameDayCleaning / potentialCleaning / unbookable computation; conflict detection still runs
+  // Rental season as calendar months 1-12, inclusive (May-Sep = 5 and 9).
+  // Occupancy counts only days inside it. Both null = open all year.
+  seasonStartMonth Int?
+  seasonEndMonth   Int?
   feedToken      String?          @unique // optional opt-in token gating the public iCal feed; null = public
   feedSlug       String?          @unique // durable URL identifier for the iCal feed; minted at creation, never changes
   createdAt      DateTime         @default(now())

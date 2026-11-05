@@ -1287,6 +1287,9 @@ CREATE INDEX IF NOT EXISTS "MagicLoginToken_userId_expiresAt_idx" ON "MagicLogin
   for (const migration of [
     `ALTER TABLE "MagicLoginToken" ADD COLUMN "kind" TEXT NOT NULL DEFAULT 'once'`,
     `ALTER TABLE "MagicLoginToken" ADD COLUMN "lastUsedAt" DATETIME`,
+    // Rental season (calendar months 1-12) so occupancy ignores closed months.
+    `ALTER TABLE "Property" ADD COLUMN "seasonStartMonth" INTEGER`,
+    `ALTER TABLE "Property" ADD COLUMN "seasonEndMonth" INTEGER`,
   ]) {
     await runAdditiveMigration(migration);
   }
