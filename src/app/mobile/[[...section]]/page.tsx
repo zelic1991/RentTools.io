@@ -30,6 +30,7 @@ import {
 } from "@/lib/mobile-operations-core";
 import { getLocale } from "@/lib/i18n/server";
 import { mobileIntlTag } from "@/lib/i18n/mobile-locale";
+import { propertyDateTimeFormat } from "@/lib/mobile-date-time";
 import { hrPlural, resolveCopy, type CopyMap, type Locale } from "@/lib/i18n/translations";
 
 /** Russian picks the noun form by the same 1 / 2-4 / 5+ ends-in-digit
@@ -824,10 +825,7 @@ function formatters(locale: Locale, copy: PageCopy): Fmt {
     year: "numeric",
     timeZone: "UTC",
   });
-  const dateTime = new Intl.DateTimeFormat(tag, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+  const dateTime = propertyDateTimeFormat(tag);
   return {
     date: (value) => date.format(new Date(`${value}T12:00:00.000Z`)),
     month: (value) => month.format(new Date(`${value}-01T12:00:00.000Z`)),
