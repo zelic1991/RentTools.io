@@ -1,8 +1,10 @@
 // Transactional email via Resend (https://resend.com).
 //
 // Used only for technical mail the product itself needs to function:
-// the signup verification code and the password-reset code. There is
-// no marketing / newsletter path here on purpose.
+// the signup verification code, the password-reset code, and the host's
+// notice that a new portal booking needs its details filled in
+// (booking-details-notify.ts). There is no marketing / newsletter path
+// here on purpose.
 //
 // Configuration (both gitignored, never committed):
 //   RESEND_API_KEY  — the Resend API key

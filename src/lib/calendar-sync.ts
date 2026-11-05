@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { parseICal, type ICalEvent } from "@/lib/ical";
 import { withCalendarSyncGate } from "@/lib/calendar-sync-gate";
 import { fetchIcalText } from "@/lib/ical-fetch";
+import { notifyNewPortalStays } from "@/lib/booking-details-notify";
 
 type CalendarSyncOptions = {
   propertyIds?: number[];
@@ -315,6 +316,23 @@ async function syncAllCalendarsUnlocked(
             "success",
             propertyId
           );
+          // Skip the first fetch of a new link: every stay in it is "new"
+          // then, and the host already knows about those.
+          if (link.lastFetchedAt) {
+            try {
+              const mailed = await notifyNewPortalStays({
+                propertyId,
+                propertyName,
+                events: newEvents.map((e) => ({ ...e, platform: link.platform })),
+                today: new Date().toISOString().substring(0, 10),
+              });
+              if (mailed) {
+                await log(`${propertyName} / ${link.platform}: host emailed about missing booking details`, "info", propertyId);
+              }
+            } catch (err) {
+              console.error("[calendar-sync] new-stay email failed:", err);
+            }
+          }
         }
         if (removedUIDs.length > 0) {
           const parts: string[] = [];
