@@ -1290,6 +1290,8 @@ CREATE INDEX IF NOT EXISTS "MagicLoginToken_userId_expiresAt_idx" ON "MagicLogin
     // Rental season (calendar months 1-12) so occupancy ignores closed months.
     `ALTER TABLE "Property" ADD COLUMN "seasonStartMonth" INTEGER`,
     `ALTER TABLE "Property" ADD COLUMN "seasonEndMonth" INTEGER`,
+    // Held blocks: last day a block is kept for an unconfirmed guest.
+    `ALTER TABLE "DateOverride" ADD COLUMN "holdUntil" TEXT`,
   ]) {
     await runAdditiveMigration(migration);
   }

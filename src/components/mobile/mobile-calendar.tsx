@@ -169,6 +169,7 @@ export function MobileCalendar({ data }: { data: MobileOperationsData }) {
           platform: event.platform,
           startDate: event.startDate,
           endDate: event.endDate,
+          sourceUid: event.sourceUid,
         })),
         overrides: data.calendar.overrides,
         // Same set the grid strikes through, so the sheet cannot call a
@@ -248,6 +249,9 @@ export function MobileCalendar({ data }: { data: MobileOperationsData }) {
               const reservation = data.calendar.property.reservations.find((row) => row.id === id);
               if (reservation) setOpenDate(reservation.checkIn.slice(0, 10));
             }}
+            // A synced stay nobody named yet: open its first day, where the
+            // sheet offers to add name, amount and guests.
+            onClaimBar={canEdit ? (bar) => setOpenDate(bar.startDate) : undefined}
             onCellClick={(dateStr) => setOpenDate(dateStr)}
           />
         </div>

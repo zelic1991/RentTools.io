@@ -1,5 +1,6 @@
 import "server-only";
 import { findBookingDetailsGaps, type BookingDetailsGap } from "@/lib/booking-details-gaps";
+import { findExpiredHolds, type ExpiredHold } from "@/lib/held-blocks";
 
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
@@ -14,6 +15,7 @@ import {
   canAccessMobileSection,
   buildMobilePortalCards,
   deriveMobileGuestState,
+  guestDataDue,
   mobileAvailabilityOverrides,
   redactedPlatformLabel,
   reservationGuestCount,
@@ -56,6 +58,8 @@ interface MobileCalendarReservation {
 interface MobileCalendarEvent {
   platform: string;
   uid: string;
+  /** Real feed UID, only for people who may name the stay; else null. */
+  sourceUid: string | null;
   summary: string;
   startDate: string;
   endDate: string;
@@ -91,6 +95,8 @@ export interface MobileOperationsData {
     portalProblems: number;
     /** Portal bookings still missing name, amount or party size. */
     bookingDetailsGaps: BookingDetailsGap[];
+    /** Blocks whose hold for an unconfirmed guest has run out. */
+    expiredHolds: ExpiredHold[];
   };
   guests: MobileReservationCard[];
   portals: MobilePortalCard[];
@@ -109,7 +115,7 @@ export interface MobileOperationsData {
     links: Array<{ platform: string; bufferBefore: number; bufferAfter: number }>;
     // mobileAvailabilityOverrides drops cleaning rows before they reach
     // the phone: cleaning is scheduling metadata, never availability.
-    overrides: Array<{ date: string; type: "open" | "closed" }>;
+    overrides: Array<{ date: string; type: "open" | "closed"; holdUntil: string | null }>;
     /** Scheduled cleanings. Not availability — but the day sheet must
      *  know they exist before it offers to block the day. */
     cleaningDates: string[];
@@ -277,6 +283,7 @@ export async function loadMobileOperations(options: {
           date: true,
           type: true,
           note: true,
+          holdUntil: true,
           createdAt: true,
         },
         orderBy: { date: "asc" },
@@ -375,6 +382,7 @@ export async function loadMobileOperations(options: {
   const calendarEvents: MobileCalendarEvent[] = property.calendarEvents.map((event) => ({
     platform: calendarPlatform(event.platform),
     uid: eventUidMap.get(`${event.platform}|${event.uid}`)!,
+    sourceUid: canWrite ? event.uid : null,
     summary: redactedPlatformLabel(event.platform, locale),
     startDate: event.startDate,
     endDate: event.endDate,
@@ -386,6 +394,7 @@ export async function loadMobileOperations(options: {
     property.dateOverrides.map((override) => ({
       date: override.date,
       type: override.type as "open" | "closed" | "cleaning",
+      holdUntil: override.holdUntil,
     })),
   );
 
@@ -419,7 +428,7 @@ export async function loadMobileOperations(options: {
 
   const upcomingCards = cards.filter((card) => card.checkOut >= today);
   const openGuestTasks = canReadPii
-    ? upcomingCards.filter((card) => !card.guestState.complete)
+    ? upcomingCards.filter((card) => !card.guestState.complete && guestDataDue(card.checkIn, today))
     : [];
   const ownerReviews = canReadPii
     ? upcomingCards.filter((card) => card.guestState.ownerReviewRequired)
@@ -429,6 +438,16 @@ export async function loadMobileOperations(options: {
         card.guestState.eVisitorStatus === "APPROVED_NOT_READY"
           || card.guestState.eVisitorStatus === "READY_NOT_SUBMITTED"
           || card.guestState.eVisitorStatus === "PRODUCTION_ERROR",
+      )
+    : [];
+  const expiredHolds = canWrite
+    ? findExpiredHolds(
+        property.dateOverrides.map((override) => ({
+          date: override.date,
+          type: override.type,
+          holdUntil: override.holdUntil,
+        })),
+        today,
       )
     : [];
   const bookingDetailsGaps = canWrite
@@ -486,6 +505,7 @@ export async function loadMobileOperations(options: {
       openEVisitor,
       portalProblems: portals.filter((portal) => portal.hasError).length,
       bookingDetailsGaps,
+      expiredHolds,
     },
     guests: canReadPii ? upcomingCards : [],
     portals,

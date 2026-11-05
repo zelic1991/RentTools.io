@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canAccessMobileSection,
+  guestDataDue,
   mobileAvailabilityOverrides,
   deriveMobileGuestState,
   latestSubmissionStatus,
@@ -181,8 +182,8 @@ describe("mobile same-day turnover", () => {
       { date: "2027-05-21", type: "closed" },
       { date: "2027-05-22", type: "open" },
     ])).toEqual([
-      { date: "2027-05-21", type: "closed" },
-      { date: "2027-05-22", type: "open" },
+      { date: "2027-05-21", type: "closed", holdUntil: null },
+      { date: "2027-05-22", type: "open", holdUntil: null },
     ]);
   });
 });
@@ -193,5 +194,17 @@ describe("platform labels", () => {
     expect(safePlatformLabel("laganini-manual")).toBe("Laganini");
     expect(safePlatformLabel("reklama-hr")).toBe("REKLAMA/Ubytování");
     expect(redactedPlatformLabel("guest-Jass-Sidhu")).toBe("Sonstige");
+  });
+});
+
+describe("guestDataDue", () => {
+  it("asks for guest data three weeks before arrival, not months ahead", () => {
+    expect(guestDataDue("2026-11-26", "2026-11-05")).toBe(true);
+    expect(guestDataDue("2026-11-27", "2026-11-05")).toBe(false);
+    expect(guestDataDue("2027-05-10", "2026-11-05")).toBe(false);
+  });
+
+  it("keeps asking while the guest is already in house", () => {
+    expect(guestDataDue("2026-11-01", "2026-11-05")).toBe(true);
   });
 });

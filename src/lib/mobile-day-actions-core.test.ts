@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  blockRunAround,
   mobileDayActions,
   resolveMobileDay,
   type MobileDayState,
@@ -48,13 +49,13 @@ describe("mobile day state", () => {
         ...empty,
         events: [{ platform: "booking", startDate: "2026-09-20", endDate: "2026-09-23" }],
       }),
-    ).toEqual({ kind: "event", platform: "booking", startDate: "2026-09-20", endDate: "2026-09-23" });
+    ).toEqual({ kind: "event", platform: "booking", startDate: "2026-09-20", endDate: "2026-09-23", sourceUid: null });
   });
 
   it("reads both override kinds", () => {
     expect(
       resolveMobileDay("2026-09-12", { ...empty, overrides: [{ date: "2026-09-12", type: "closed" }] }),
-    ).toEqual({ kind: "blocked" });
+    ).toEqual({ kind: "blocked", from: "2026-09-12", to: "2026-09-13", holdUntil: null });
     expect(
       resolveMobileDay("2026-09-12", { ...empty, overrides: [{ date: "2026-09-12", type: "open" }] }),
     ).toEqual({ kind: "forced-open" });
@@ -84,7 +85,7 @@ describe("mobile day state", () => {
     ).toEqual({ kind: "forced-open" });
     expect(
       resolveMobileDay("2026-09-12", { ...buffered, overrides: [{ date: "2026-09-12", type: "closed" }] }),
-    ).toEqual({ kind: "blocked" });
+    ).toEqual({ kind: "blocked", from: "2026-09-12", to: "2026-09-13", holdUntil: null });
   });
 
   it("lets a stay outrank an override, so a block never hides a guest", () => {
@@ -99,13 +100,14 @@ describe("mobile day state", () => {
 
 describe("mobile day actions", () => {
   const free: MobileDayState = { kind: "free" };
-  const blocked: MobileDayState = { kind: "blocked" };
+  const blocked: MobileDayState = { kind: "blocked", from: "2026-09-12", to: "2026-09-13", holdUntil: null };
   const booked: MobileDayState = { kind: "reservation", reservation };
   const event: MobileDayState = {
     kind: "event",
     platform: "airbnb",
     startDate: "2026-09-20",
     endDate: "2026-09-23",
+    sourceUid: null,
   };
 
   it("offers booking and blocking on a free day", () => {
@@ -114,15 +116,24 @@ describe("mobile day actions", () => {
   });
 
   it("offers lifting the block first, because that is why the sheet was opened", () => {
-    expect(mobileDayActions(blocked, true)).toEqual(["unblock", "create"]);
+    expect(mobileDayActions(blocked, true)).toEqual(["unblock", "hold", "create"]);
+  });
+
+  it("offers lifting the whole block when it spans several days", () => {
+    const run: MobileDayState = { kind: "blocked", from: "2027-06-14", to: "2027-06-24", holdUntil: null };
+    expect(mobileDayActions(run, true)).toEqual(["unblockAll", "unblock", "hold", "create"]);
   });
 
   it("edits and deletes an app reservation", () => {
     expect(mobileDayActions(booked, true)).toEqual(["edit", "delete"]);
   });
 
-  it("promises nothing on a platform booking the app cannot write", () => {
+  it("promises nothing on a platform booking it cannot link to", () => {
     expect(mobileDayActions(event, true)).toEqual([]);
+  });
+
+  it("offers to fill in name, amount and guests on a linkable platform booking", () => {
+    expect(mobileDayActions({ ...event, sourceUid: "uid-1" } as MobileDayState, true)).toEqual(["claim"]);
   });
 
   it("never offers to block a cleaning day", () => {
@@ -139,5 +150,34 @@ describe("mobile day actions", () => {
     for (const state of [free, blocked, booked, event]) {
       expect(mobileDayActions(state, false)).toEqual([]);
     }
+  });
+});
+
+describe("blockRunAround", () => {
+  const june = Array.from({ length: 10 }, (_, i) => ({
+    date: `2027-06-${String(14 + i).padStart(2, "0")}`,
+    type: "closed" as const,
+    holdUntil: "2026-11-01",
+  }));
+
+  it("finds the whole run from any day inside it (the 14-23 June hold)", () => {
+    expect(blockRunAround("2027-06-18", june)).toEqual({ from: "2027-06-14", to: "2027-06-24", holdUntil: "2026-11-01" });
+  });
+
+  it("stops at a gap and ignores open overrides", () => {
+    const rows = [
+      { date: "2027-06-01", type: "closed" as const },
+      { date: "2027-06-02", type: "open" as const },
+      { date: "2027-06-03", type: "closed" as const },
+    ];
+    expect(blockRunAround("2027-06-01", rows)).toEqual({ from: "2027-06-01", to: "2027-06-02", holdUntil: null });
+  });
+
+  it("crosses a month boundary", () => {
+    const rows = [
+      { date: "2027-06-30", type: "closed" as const },
+      { date: "2027-07-01", type: "closed" as const },
+    ];
+    expect(blockRunAround("2027-07-01", rows)).toEqual({ from: "2027-06-30", to: "2027-07-02", holdUntil: null });
   });
 });

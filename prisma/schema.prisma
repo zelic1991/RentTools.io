@@ -396,6 +396,9 @@ model DateOverride {
   date       String   // YYYY-MM-DD
   type       String   // "open" or "closed"
   note       String   @default("")
+  // Last day a block is held for someone who has not confirmed yet
+  // (YYYY-MM-DD). After it the phone asks the host to lift the block.
+  holdUntil  String?
   createdAt  DateTime @default(now())
 
   @@unique([propertyId, date])

@@ -292,13 +292,27 @@ export function canAccessMobileSection(
 }
 
 export function mobileAvailabilityOverrides(
-  overrides: Array<{ date: string; type: "open" | "closed" | "cleaning" }>,
-): Array<{ date: string; type: "open" | "closed" }> {
+  overrides: Array<{ date: string; type: "open" | "closed" | "cleaning"; holdUntil?: string | null }>,
+): Array<{ date: string; type: "open" | "closed"; holdUntil: string | null }> {
   return overrides.flatMap((override) =>
     override.type === "cleaning"
       ? []
-      : [{ date: override.date, type: override.type }],
+      : [{ date: override.date, type: override.type, holdUntil: override.holdUntil ?? null }],
   );
+}
+
+/**
+ * How many days before arrival missing guest data becomes an open item.
+ * Bookings months away are not due yet; counting them made "Gästedaten
+ * fehlen: 8" a number nobody acted on any more.
+ */
+export const GUEST_DATA_LEAD_DAYS = 21;
+
+/** Whether a stay's guest data is due: arrival within the lead time, or already in house. */
+export function guestDataDue(checkIn: string, today: string, leadDays = GUEST_DATA_LEAD_DAYS): boolean {
+  const due = new Date(`${today}T12:00:00.000Z`);
+  due.setUTCDate(due.getUTCDate() + leadDays);
+  return checkIn.slice(0, 10) <= due.toISOString().slice(0, 10);
 }
 
 export function safePlatformLabel(platform: string, locale: Locale = "de"): string {
