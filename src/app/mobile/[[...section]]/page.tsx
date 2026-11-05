@@ -18,6 +18,7 @@ import { MobileGuestLink } from "@/components/mobile/mobile-guest-link";
 import { MobilePropertyTools } from "@/components/mobile/mobile-property-tools";
 import { MobilePwaRegister } from "@/components/mobile/mobile-pwa-register";
 import { MobileShell } from "@/components/mobile/mobile-shell";
+import type { BookingDetailsGap } from "@/lib/booking-details-gaps";
 import { loadMobileOperations, type MobileOperationsData, type MobileReservationCard } from "@/lib/mobile-operations";
 import { OperationalRemindersPanel } from "@/components/operational-reminders-panel";
 import { loadMobileCleaning, type MobileCleaningData } from "@/lib/mobile-cleaning";
@@ -52,6 +53,10 @@ interface PageCopy {
   total: (n: number) => string;
   noOpenTasks: string;
   guestDataMissing: string;
+  bookingDetailsMissing: string;
+  bookingDetailsHint: string;
+  missingDetail: Record<"name" | "amount" | "guests", string>;
+  fillIn: string;
   ownerReview: string;
   eVisitorOpen: string;
   bufferActive: string;
@@ -135,6 +140,10 @@ const COPY: CopyMap<PageCopy> = {
     total: (n) => `${n} in total`,
     noOpenTasks: "No open tasks based on the RentTools statuses currently on record.",
     guestDataMissing: "Guest data missing",
+    bookingDetailsMissing: "Booking details missing",
+    bookingDetailsHint: "Booking.com and Airbnb send only dates. Add name, amount and guests so the booking counts in your lists and reports.",
+    missingDetail: { name: "name", amount: "amount", guests: "guests" },
+    fillIn: "Fill in",
     ownerReview: "Owner review",
     eVisitorOpen: "eVisitor open",
     bufferActive: "Buffer days active",
@@ -244,6 +253,10 @@ const COPY: CopyMap<PageCopy> = {
     total: (n) => `Всего: ${n}`,
     noOpenTasks: "Нет открытых задач по статусам, которые сейчас есть в RentTools.",
     guestDataMissing: "Нет данных гостей",
+    bookingDetailsMissing: "Нет данных брони",
+    bookingDetailsHint: "Booking.com и Airbnb передают только даты. Впишите имя, сумму и число гостей, чтобы бронь попала в списки и отчёты.",
+    missingDetail: { name: "имя", amount: "сумма", guests: "гости" },
+    fillIn: "Заполнить",
     ownerReview: "Проверка владельца",
     eVisitorOpen: "eVisitor не завершён",
     bufferActive: "Буферные дни активны",
@@ -353,6 +366,10 @@ const COPY: CopyMap<PageCopy> = {
     total: (n) => `${n} insgesamt`,
     noOpenTasks: "Keine offenen Aufgaben aus den aktuell nachweisbaren RentTools-Statuswerten.",
     guestDataMissing: "Gästedaten fehlen",
+    bookingDetailsMissing: "Buchungsdaten fehlen",
+    bookingDetailsHint: "Booking.com und Airbnb schicken nur die Daten. Tragen Sie Name, Betrag und Gäste ein, damit die Buchung in Listen und Berichten zählt.",
+    missingDetail: { name: "Name", amount: "Betrag", guests: "Gäste" },
+    fillIn: "Eintragen",
     ownerReview: "Owner-Review",
     eVisitorOpen: "eVisitor offen",
     bufferActive: "Puffertage aktiv",
@@ -462,6 +479,10 @@ const COPY: CopyMap<PageCopy> = {
     total: (n) => `${n} au total`,
     noOpenTasks: "Aucune tâche en cours d’après les statuts RentTools actuellement enregistrés.",
     guestDataMissing: "Données voyageurs manquantes",
+    bookingDetailsMissing: "Infos de réservation manquantes",
+    bookingDetailsHint: "Booking.com et Airbnb n’envoient que les dates. Ajoutez le nom, le montant et les voyageurs pour que la réservation compte dans vos listes et rapports.",
+    missingDetail: { name: "nom", amount: "montant", guests: "voyageurs" },
+    fillIn: "Compléter",
     ownerReview: "Vérification du propriétaire",
     eVisitorOpen: "eVisitor en attente",
     bufferActive: "Jours tampons actifs",
@@ -571,6 +592,10 @@ const COPY: CopyMap<PageCopy> = {
     total: (n) => `${n} en total`,
     noOpenTasks: "No hay tareas pendientes según los estados de RentTools registrados actualmente.",
     guestDataMissing: "Faltan datos de huéspedes",
+    bookingDetailsMissing: "Faltan datos de la reserva",
+    bookingDetailsHint: "Booking.com y Airbnb solo envían las fechas. Añada nombre, importe y huéspedes para que la reserva cuente en listas e informes.",
+    missingDetail: { name: "nombre", amount: "importe", guests: "huéspedes" },
+    fillIn: "Completar",
     ownerReview: "Revisión del propietario",
     eVisitorOpen: "eVisitor pendiente",
     bufferActive: "Días tampón activos",
@@ -680,6 +705,10 @@ const COPY: CopyMap<PageCopy> = {
     total: (n) => `Ukupno ${n}`,
     noOpenTasks: "Nema otvorenih zadataka prema statusima koji su trenutačno zabilježeni u RentToolsu.",
     guestDataMissing: "Nedostaju podaci gostiju",
+    bookingDetailsMissing: "Nedostaju podaci rezervacije",
+    bookingDetailsHint: "Booking.com i Airbnb šalju samo datume. Upišite ime, iznos i goste kako bi se rezervacija računala u popisima i izvještajima.",
+    missingDetail: { name: "ime", amount: "iznos", guests: "gosti" },
+    fillIn: "Upiši",
     ownerReview: "Provjera vlasnika",
     eVisitorOpen: "eVisitor otvoren",
     bufferActive: "Aktivni dani pauze",
@@ -871,7 +900,50 @@ function EmptyState({ children }: { children: React.ReactNode }) {
   );
 }
 
-function StartScreen({ data, c, fmt }: ScreenProps<MobileOperationsData>) {
+function bookingGapHref(data: MobileOperationsData, gap: BookingDetailsGap): string {
+  // A stay nobody has named yet only exists as a calendar bar; naming it
+  // happens by tapping that bar in the desktop calendar.
+  return gap.reservationId === null
+    ? `/dashboard?property=${data.selectedProperty.id}&view=calendar`
+    : reservationHref(data, gap.reservationId);
+}
+
+function BookingDetailsGaps({ data, c, fmt, locale }: ScreenProps<MobileOperationsData>) {
+  const gaps = data.start.bookingDetailsGaps;
+  if (gaps.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-900 dark:bg-amber-950/30">
+      <div className="px-1 pb-2">
+        <h3 className="text-sm font-semibold">{c.bookingDetailsMissing}</h3>
+        <p className="mt-0.5 text-xs text-[var(--zf-text-muted)] dark:text-slate-400">{c.bookingDetailsHint}</p>
+      </div>
+      <ul className="space-y-2">
+        {gaps.map((gap) => (
+          <li key={`${gap.kind}-${gap.reservationId ?? gap.startDate}-${gap.platform}`}>
+            <Link
+              href={bookingGapHref(data, gap)}
+              className="flex min-h-14 items-center gap-3 rounded-xl border border-[var(--zf-border)] bg-[var(--zf-bg)] px-3 py-2 shadow-sm outline-none hover:border-[var(--zf-brand-pale)] hover:bg-[var(--zf-brand-soft)] focus-visible:ring-2 focus-visible:ring-[var(--zf-brand)] dark:border-slate-800 dark:bg-slate-900"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold">
+                  {fmt.date(gap.startDate)}–{fmt.date(gap.endDate)} · {safePlatformLabel(gap.platform, locale)}
+                </span>
+                <span className="mt-0.5 block text-xs text-amber-800 dark:text-amber-300">
+                  {gap.missing.map((detail) => c.missingDetail[detail]).join(", ")}
+                </span>
+              </span>
+              <span className="shrink-0 rounded-full bg-[var(--zf-brand-dark)] px-3 py-1 text-xs font-semibold text-[var(--zf-on-brand)] dark:bg-white dark:text-slate-950">
+                {c.fillIn}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function StartScreen({ data, c, fmt, locale }: ScreenProps<MobileOperationsData>) {
   const configuredBufferLinks = data.calendar.links.filter(
     (link) => link.bufferBefore > 0 || link.bufferAfter > 0,
   ).length;
@@ -880,7 +952,8 @@ function StartScreen({ data, c, fmt }: ScreenProps<MobileOperationsData>) {
     + data.start.openEVisitor.length
     + data.start.portalProblems
     + configuredBufferLinks
-    + data.operationalReminders.length;
+    + data.operationalReminders.length
+    + data.start.bookingDetailsGaps.length;
   return (
     <div className="space-y-7">
       <section aria-labelledby="today-heading">
@@ -934,6 +1007,7 @@ function StartScreen({ data, c, fmt }: ScreenProps<MobileOperationsData>) {
             </div>
           ) : (
             <div className="space-y-3">
+              <BookingDetailsGaps data={data} c={c} fmt={fmt} locale={locale} />
               <OperationalRemindersPanel
                 propertyId={data.selectedProperty.id}
                 initialReminders={data.operationalReminders}

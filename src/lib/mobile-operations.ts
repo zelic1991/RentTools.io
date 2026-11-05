@@ -1,4 +1,5 @@
 import "server-only";
+import { findBookingDetailsGaps, type BookingDetailsGap } from "@/lib/booking-details-gaps";
 
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
@@ -88,6 +89,8 @@ export interface MobileOperationsData {
     ownerReviews: MobileReservationCard[];
     openEVisitor: MobileReservationCard[];
     portalProblems: number;
+    /** Portal bookings still missing name, amount or party size. */
+    bookingDetailsGaps: BookingDetailsGap[];
   };
   guests: MobileReservationCard[];
   portals: MobilePortalCard[];
@@ -428,6 +431,23 @@ export async function loadMobileOperations(options: {
           || card.guestState.eVisitorStatus === "PRODUCTION_ERROR",
       )
     : [];
+  const bookingDetailsGaps = canWrite
+    ? findBookingDetailsGaps({
+        events: property.calendarEvents,
+        reservations: property.reservations.map((reservation) => ({
+          id: reservation.id,
+          checkIn: isoDate(reservation.checkIn),
+          checkOut: isoDate(reservation.checkOut),
+          platform: reservation.platform,
+          linkedEventUid: reservation.linkedEventUid,
+          linkedEventPlatform: reservation.linkedEventPlatform,
+          linkedEventRole: reservation.linkedEventRole,
+          bookedGuestCount: reservation.bookedGuestCount,
+          grossAmountCents: reservation.grossAmountCents,
+        })),
+        today,
+      })
+    : [];
   const operationalReminders: OperationalReminderDto[] = property.operationalReminders.map((reminder) => ({
     id: reminder.id,
     propertyId: reminder.propertyId,
@@ -465,6 +485,7 @@ export async function loadMobileOperations(options: {
       ownerReviews,
       openEVisitor,
       portalProblems: portals.filter((portal) => portal.hasError).length,
+      bookingDetailsGaps,
     },
     guests: canReadPii ? upcomingCards : [],
     portals,
