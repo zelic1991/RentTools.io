@@ -1,5 +1,5 @@
 import "server-only";
-import { findBookingDetailsGaps, type BookingDetailsGap } from "@/lib/booking-details-gaps";
+import { findBookingDetailsGaps, isSoldStayEvent, type BookingDetailsGap } from "@/lib/booking-details-gaps";
 import { findExpiredHolds, type ExpiredHold } from "@/lib/held-blocks";
 
 import { redirect } from "next/navigation";
@@ -27,7 +27,6 @@ import {
   type MobileSection,
 } from "@/lib/mobile-operations-core";
 import {
-  isHostBlockSummary,
   mobileReportsForAccess,
   type MobileReportsData,
 } from "@/lib/mobile-reports-core";
@@ -413,7 +412,9 @@ export async function loadMobileOperations(options: {
       linkedEventRole: reservation.linkedEventRole,
     })),
     events: property.calendarEvents
-      .filter((event) => !isHostBlockSummary(event.summary))
+      // Booking.com labels every stay "CLOSED - Not available", so the
+      // plain block test dropped every Booking stay nobody had named yet.
+      .filter((event) => isSoldStayEvent(event))
       .map((event) => ({
         platform: event.platform,
         uid: event.uid,
