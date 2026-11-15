@@ -9,6 +9,7 @@ import {
 } from "@/lib/ownership";
 import { redactReservationsForAccess } from "@/lib/reservation-visibility";
 import { parseReservationDate } from "@/lib/reservation-dates";
+import { findOverlappingReservation } from "@/lib/reservation-overlap";
 import { loadEffectiveLinkedStayRange } from "@/lib/linked-stay";
 import { validateReservationRevenue } from "@/lib/reservation-revenue";
 import {
@@ -345,13 +346,10 @@ export async function POST(request: NextRequest) {
     // Check overlap only after an external-key retry has had a chance to
     // resolve to its existing row. The later CREATE still relies on the DB
     // unique index to close concurrent retry races.
-    const overlap = await prisma.reservation.findFirst({
-      where: {
-        propertyId,
-        checkIn: { lt: checkOutDate },
-        checkOut: { gt: checkInDate },
-      },
-      select: { name: true, checkIn: true, checkOut: true },
+    const overlap = await findOverlappingReservation(prisma, {
+      propertyId,
+      checkIn: checkInDate,
+      checkOut: checkOutDate,
     });
     if (overlap) {
       return NextResponse.json(

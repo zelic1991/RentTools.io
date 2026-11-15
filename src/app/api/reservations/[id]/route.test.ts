@@ -691,11 +691,12 @@ describe("PATCH /api/reservations/:id — date edits", () => {
   });
 
   it("rejects an overlap with another manual reservation before writing", async () => {
-    mocks.reservationFindFirst.mockResolvedValue({
+    mocks.reservationFindMany.mockResolvedValue([{
+      id: 999,
       name: "Existing stay",
       checkIn: new Date("2026-08-18T00:00:00.000Z"),
       checkOut: new Date("2026-08-20T00:00:00.000Z"),
-    });
+    }]);
 
     const response = await PATCH(
       patchRequest({ checkIn: "2026-08-18" }),

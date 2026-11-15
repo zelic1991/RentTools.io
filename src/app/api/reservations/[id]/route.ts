@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { findOverlappingReservation } from "@/lib/reservation-overlap";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
@@ -304,14 +305,11 @@ export async function PATCH(
             { status: 400 },
           );
         }
-        const overlap = await prisma.reservation.findFirst({
-          where: {
-            propertyId: current.propertyId,
-            id: { not: numId },
-            checkIn: { lt: newCheckOut },
-            checkOut: { gt: newCheckIn },
-          },
-          select: { name: true, checkIn: true, checkOut: true },
+        const overlap = await findOverlappingReservation(prisma, {
+          propertyId: current.propertyId,
+          checkIn: newCheckIn,
+          checkOut: newCheckOut,
+          excludeId: numId,
         });
         if (overlap) {
           return NextResponse.json(
