@@ -653,24 +653,43 @@ describe("POST /api/reservations — same-day turnover", () => {
   // count as a conflict. Written after a real 17 Aug 2027 turnover was
   // refused with a 409 — the queries below turned out to be correct, so
   // these tests exist to keep them that way.
-  it("queries local reservations with a half-open range", async () => {
+  it("accepts an arrival on the day another stay leaves", async () => {
+    // Iryna leaves on 4 July; Istvan arrives on 4 July. SQLite compared
+    // the stored "…Z" text with a "+00:00" parameter and refused this.
+    mocks.reservationFindMany.mockResolvedValue([
+      {
+        id: 4,
+        name: "Iryna Schumacher",
+        checkIn: new Date("2027-06-30T00:00:00.000Z"),
+        checkOut: new Date("2027-07-04T00:00:00.000Z"),
+      },
+    ]);
     const response = await POST(postRequest({
-      checkIn: "2026-08-19",
-      checkOut: "2026-08-23",
+      checkIn: "2027-07-04",
+      checkOut: "2027-07-11",
       platform: "direct",
     }));
 
     expect(response.status).toBe(200);
+  });
 
-    const overlapCall = mocks.reservationFindFirst.mock.calls
-      .map((call) => call[0])
-      .find((arg) => arg?.where?.checkIn?.lt !== undefined);
-    expect(overlapCall).toBeDefined();
-    // Strictly less-than / greater-than: an abutting stay must not match.
-    expect(overlapCall.where.checkIn).toHaveProperty("lt");
-    expect(overlapCall.where.checkOut).toHaveProperty("gt");
-    expect(overlapCall.where.checkIn).not.toHaveProperty("lte");
-    expect(overlapCall.where.checkOut).not.toHaveProperty("gte");
+  it("still refuses a stay that shares a night", async () => {
+    mocks.reservationFindMany.mockResolvedValue([
+      {
+        id: 4,
+        name: "Iryna Schumacher",
+        checkIn: new Date("2027-06-30T00:00:00.000Z"),
+        checkOut: new Date("2027-07-05T00:00:00.000Z"),
+      },
+    ]);
+    const response = await POST(postRequest({
+      checkIn: "2027-07-04",
+      checkOut: "2027-07-11",
+      platform: "direct",
+    }));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({ existing: { name: "Iryna Schumacher" } });
   });
 
   it("queries synced events with a half-open range", async () => {
