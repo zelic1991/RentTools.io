@@ -63,6 +63,15 @@ export function isPortalBookingEvent(event: Pick<GapEventInput, "platform" | "su
   return false;
 }
 
+/**
+ * Whether an imported event is a stay that counts as a booked night.
+ * Booking.com and Airbnb use the portal rules above; other feeds keep the
+ * shared block test.
+ */
+export function isSoldStayEvent(event: Pick<GapEventInput, "platform" | "summary">): boolean {
+  return isPortal(event.platform) ? isPortalBookingEvent(event) : !isHostBlockSummary(event.summary);
+}
+
 function claimsEvent(reservation: GapReservationInput, event: GapEventInput): boolean {
   if (reservation.linkedEventUid !== event.uid) return false;
   if (reservation.linkedEventRole === "extension") return false;

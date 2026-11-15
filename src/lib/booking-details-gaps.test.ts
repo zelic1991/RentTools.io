@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   findBookingDetailsGaps,
   isPortalBookingEvent,
+  isSoldStayEvent,
   type GapEventInput,
   type GapReservationInput,
 } from "./booking-details-gaps";
@@ -122,5 +123,21 @@ describe("findBookingDetailsGaps", () => {
       today,
     });
     expect(gaps.map((gap) => gap.startDate)).toEqual(["2027-06-30", "2027-08-01"]);
+  });
+});
+
+describe("isSoldStayEvent", () => {
+  it("counts an unnamed Booking.com stay as booked nights", () => {
+    expect(isSoldStayEvent({ platform: "booking", summary: "CLOSED - Not available" })).toBe(true);
+  });
+
+  it("still drops Airbnb blocks and RentTools buffers", () => {
+    expect(isSoldStayEvent({ platform: "airbnb", summary: "Airbnb (Not available)" })).toBe(false);
+    expect(isSoldStayEvent({ platform: "booking", summary: "Blocked (cleaning)" })).toBe(false);
+  });
+
+  it("keeps the shared block test for other feeds", () => {
+    expect(isSoldStayEvent({ platform: "vrbo", summary: "Reserved" })).toBe(true);
+    expect(isSoldStayEvent({ platform: "vrbo", summary: "Not available" })).toBe(false);
   });
 });
