@@ -134,6 +134,7 @@ const RESERVATION_SELECT = {
   linkedEventRole: true,
   bookedGuestCount: true,
   grossAmountCents: true,
+  feeCents: true,
   currency: true,
   propertyId: true,
   createdAt: true,
@@ -246,6 +247,8 @@ export async function loadMobileOperations(options: {
       checkOutTime: true,
       bookingWindow: true,
       cleaningEnabled: true,
+      bookingFeeBp: true,
+      airbnbFeeBp: true,
       feedToken: true,
       feedSlug: true,
       createdAt: true,
@@ -406,11 +409,13 @@ export async function loadMobileOperations(options: {
       checkOut: isoDate(reservation.checkOut),
       platform: reservation.platform,
       grossAmountCents: reservation.grossAmountCents,
+      feeCents: reservation.feeCents,
       currency: reservation.currency,
       linkedEventPlatform: reservation.linkedEventPlatform,
       linkedEventUid: reservation.linkedEventUid,
       linkedEventRole: reservation.linkedEventRole,
     })),
+    feeRates: { bookingFeeBp: property.bookingFeeBp, airbnbFeeBp: property.airbnbFeeBp },
     events: property.calendarEvents
       // Booking.com labels every stay "CLOSED - Not available", so the
       // plain block test dropped every Booking stay nobody had named yet.

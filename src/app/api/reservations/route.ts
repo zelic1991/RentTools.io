@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
       linkedEventRole,
       bookedGuestCount,
       grossAmountCents,
+      feeCents,
       currency,
     } = await request.json();
     if (
@@ -110,7 +111,7 @@ export async function POST(request: NextRequest) {
     ) {
       return NextResponse.json({ error: "Invalid reservation data" }, { status: 400 });
     }
-    const revenue = validateReservationRevenue({ grossAmountCents, currency });
+    const revenue = validateReservationRevenue({ grossAmountCents, feeCents, currency });
     if (!revenue.ok) {
       return NextResponse.json({ error: revenue.error }, { status: 400 });
     }

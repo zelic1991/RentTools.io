@@ -68,6 +68,8 @@ interface SheetCopy {
   checkOut: string;
   guests: string;
   amount: string;
+  fees: string;
+  feesHint: string;
   optional: string;
   editHint: string;
   createHint: string;
@@ -136,6 +138,8 @@ const COPY: CopyMap<SheetCopy> = {
     checkOut: "Check-out",
     guests: "Guests",
     amount: "Amount (€)",
+    fees: "Portal fees (€)",
+    feesHint: "From the extranet. Empty = estimate from the channel rate.",
     optional: "optional",
     editHint: "The fields show what is stored. If you empty one, the value is deleted.",
     createHint: "The amount counts in the reports. Without an amount the booking stays there without a total.",
@@ -201,6 +205,8 @@ const COPY: CopyMap<SheetCopy> = {
     checkOut: "Выезд",
     guests: "Гости",
     amount: "Сумма (€)",
+    fees: "Комиссии портала (€)",
+    feesHint: "Из экстранета. Пусто = оценка по ставке канала.",
     optional: "необязательно",
     editHint: "В полях показано то, что сохранено. Если очистить поле, значение будет удалено.",
     createHint: "Сумма учитывается в отчётах. Без суммы бронирование будет там без итога.",
@@ -266,6 +272,8 @@ const COPY: CopyMap<SheetCopy> = {
     checkOut: "Abreise",
     guests: "Gäste",
     amount: "Betrag (€)",
+    fees: "Portalgebühren (€)",
+    feesHint: "Aus dem Extranet. Leer = Schätzung mit dem Kanalsatz.",
     optional: "optional",
     editHint: "Die Felder zeigen, was gespeichert ist. Leerst du eines, wird der Wert gelöscht.",
     createHint: "Der Betrag zählt in den Berichten. Ohne Betrag bleibt die Buchung dort ohne Summe.",
@@ -331,6 +339,8 @@ const COPY: CopyMap<SheetCopy> = {
     checkOut: "Départ",
     guests: "Voyageurs",
     amount: "Montant (€)",
+    fees: "Frais du portail (€)",
+    feesHint: "Depuis l’extranet. Vide = estimation au taux du canal.",
     optional: "facultatif",
     editHint: "Les champs affichent ce qui est enregistré. Si vous en videz un, la valeur est supprimée.",
     createHint: "Le montant compte dans les rapports. Sans montant, la réservation y reste sans total.",
@@ -396,6 +406,8 @@ const COPY: CopyMap<SheetCopy> = {
     checkOut: "Salida",
     guests: "Huéspedes",
     amount: "Importe (€)",
+    fees: "Comisiones del portal (€)",
+    feesHint: "Del extranet. Vacío = estimación con la tasa del canal.",
     optional: "opcional",
     editHint: "Los campos muestran lo que está guardado. Si vacías uno, el valor se elimina.",
     createHint: "El importe cuenta en los informes. Sin importe, la reserva aparece allí sin total.",
@@ -461,6 +473,8 @@ const COPY: CopyMap<SheetCopy> = {
     checkOut: "Odlazak",
     guests: "Gosti",
     amount: "Iznos (€)",
+    fees: "Naknade portala (€)",
+    feesHint: "Iz extraneta. Prazno = procjena po stopi kanala.",
     optional: "neobavezno",
     editHint: "Polja prikazuju ono što je spremljeno. Ako neko ispraznite, vrijednost se briše.",
     createHint: "Iznos se računa u izvješćima. Bez iznosa rezervacija ondje ostaje bez zbroja.",
@@ -478,6 +492,7 @@ interface ReservationDetails {
   id: number;
   bookedGuestCount: number | null;
   grossAmountCents: number | null;
+  feeCents?: number | null;
 }
 
 function formatDay(date: string, locale: Locale): string {
@@ -584,6 +599,8 @@ export function MobileDaySheet({
   const copy = resolveCopy(COPY, locale);
   const actions = mobileDayActions(state, canWrite);
   const booked = state.kind === "reservation" ? state.reservation : null;
+  const portalPlatform = booked?.platform ?? (state.kind === "event" ? state.platform : "");
+  const isPortal = ["booking", "airbnb"].includes(portalPlatform.toLowerCase());
   const dialogRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<Mode>("actions");
   const [pending, setPending] = useState<MobileDayAction | "save" | null>(null);
@@ -593,6 +610,7 @@ export function MobileDaySheet({
   const [checkOut, setCheckOut] = useState(booked ? booked.checkOut.slice(0, 10) : nextDay(date));
   const [guests, setGuests] = useState("");
   const [amount, setAmount] = useState("");
+  const [fees, setFees] = useState("");
   const [holdDate, setHoldDate] = useState(
     state.kind === "blocked" && state.holdUntil ? state.holdUntil : "",
   );
@@ -636,6 +654,7 @@ export function MobileDaySheet({
   }
 
   function buildBody(): Record<string, unknown> | null {
+    const showFees = isPortal && (mode === "edit" || mode === "claim");
     if (!name.trim()) {
       setError(copy.enterName);
       return null;
@@ -646,6 +665,11 @@ export function MobileDaySheet({
     }
     const parsed = parseGrossAmountText(amount);
     if (!parsed.ok) {
+      setError(copy.amountFormat);
+      return null;
+    }
+    const parsedFees = parseGrossAmountText(fees);
+    if (!parsedFees.ok) {
       setError(copy.amountFormat);
       return null;
     }
@@ -675,6 +699,13 @@ export function MobileDaySheet({
           ? { grossAmountCents: null }
           : {}
         : { grossAmountCents: parsed.cents, currency: "EUR" }),
+      ...(showFees
+        ? parsedFees.cents === null
+          ? editing
+            ? { feeCents: null }
+            : {}
+          : { feeCents: parsedFees.cents }
+        : {}),
     };
   }
 
@@ -819,6 +850,7 @@ export function MobileDaySheet({
       }
       setGuests(row.bookedGuestCount === null ? "" : String(row.bookedGuestCount));
       setAmount(centsToInput(row.grossAmountCents, copy.decimalComma));
+      setFees(centsToInput(row.feeCents ?? null, copy.decimalComma));
       setMode("edit");
     } catch {
       setError(copy.noConnection);
@@ -1025,6 +1057,19 @@ export function MobileDaySheet({
                 />
               </label>
             </div>
+            {isPortal && (mode === "edit" || mode === "claim") && (
+              <label className="block text-sm font-medium">
+                {copy.fees}
+                <input
+                  inputMode="decimal"
+                  value={fees}
+                  onChange={(event) => setFees(event.target.value)}
+                  placeholder={copy.optional}
+                  className={FIELD_CLASS}
+                />
+                <span className="mt-1 block text-xs font-normal text-[var(--zf-text-muted)] dark:text-slate-400">{copy.feesHint}</span>
+              </label>
+            )}
             <p className="text-xs text-[var(--zf-text-muted)] dark:text-slate-400">
               {mode === "edit"
                 ? copy.editHint

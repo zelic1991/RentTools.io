@@ -8,6 +8,7 @@ import {
   canAccessMobileSection,
   type MobileAccessLevel,
 } from "@/lib/mobile-operations-core";
+import { summarizeNetAmounts, type FeeRates, type NetSummary } from "@/lib/channel-fees";
 
 /**
  * The phone view shipped without any reports: every figure lived in the
@@ -23,6 +24,8 @@ export interface MobileReportsReservation {
   checkOut: string;
   platform: string;
   grossAmountCents: number | null;
+  /** Actual portal fees from the extranet, when entered. */
+  feeCents?: number | null;
   currency: string | null;
   linkedEventPlatform: string | null;
   linkedEventUid: string | null;
@@ -47,6 +50,10 @@ export interface MobileReportsData {
   upcomingNights: number;
   stored: StoredGrossAmountSummary;
   breakdown: RevenueBreakdown;
+  /** Stays that have not ended yet; `bookings` counts all since the start. */
+  upcomingBookings: number;
+  /** Expected net after portal fees, from the channel rates. */
+  net: NetSummary;
 }
 
 function nightsBetween(from: string, to: string): number {
@@ -120,6 +127,7 @@ export function summarizeMobileReports(input: {
   /** First day that is no longer bookable, i.e. the window's checkout
    *  bound. Passing the last bookable *night* here drops that night. */
   untilCheckout: string;
+  feeRates?: FeeRates;
 }): MobileReportsData {
   const { reservations, events, today, untilCheckout } = input;
   const until = untilCheckout;
@@ -164,6 +172,8 @@ export function summarizeMobileReports(input: {
     upcomingNights: unionNights(occupied),
     stored: summarizeStoredGrossAmounts(reservations),
     breakdown: summarizeRevenueBreakdown(reservations),
+    upcomingBookings: reservations.filter((reservation) => reservation.checkOut.slice(0, 10) > today).length,
+    net: summarizeNetAmounts(reservations, input.feeRates ?? {}),
   };
 }
 
@@ -175,6 +185,8 @@ export const EMPTY_MOBILE_REPORTS: MobileReportsData = {
   upcomingNights: 0,
   stored: { knownCount: 0, unknownCount: 0, totalsByCurrency: [] },
   breakdown: { byMonth: [], byChannel: [], averageNightlyCents: [] },
+  upcomingBookings: 0,
+  net: { totalsByCurrency: [], byChannel: [], unknownFeeCount: 0, estimatedCount: 0 },
 };
 
 /**

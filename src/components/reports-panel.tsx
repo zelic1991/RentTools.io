@@ -18,6 +18,7 @@ import { useI18n } from "@/lib/i18n/context";
 import { hrPlural, resolveCopy, type CopyMap } from "@/lib/i18n/translations";
 import type { Property } from "@/lib/types";
 import { currentOrNextSeason, seasonDaysBetween, seasonOf, type Season } from "@/lib/season";
+import { summarizeNetAmounts, type FeeRates } from "@/lib/channel-fees";
 import {
   summarizeRevenueBreakdown,
   summarizeStoredGrossAmounts,
@@ -50,6 +51,14 @@ interface CopyShape {
   seasonSave: string;
   seasonSaved: string;
   seasonSaveFailed: string;
+  netExpected: string;
+  netAfterFees: (fees: string, estimated: number) => string;
+  netShort: (amount: string) => string;
+  feeRates: string;
+  feeRatesHelp: string;
+  bookingFee: string;
+  airbnbFee: string;
+  feeInvalid: string;
   monthNames: string[];
   upcomingNights: string;
   upcomingNightsSubtitle: (months: number) => string;
@@ -120,6 +129,14 @@ const COPY: CopyMap<CopyShape> = {
     seasonSave: "Save",
     seasonSaved: "Season saved",
     seasonSaveFailed: "Could not save the season",
+    netExpected: "Expected net",
+    netAfterFees: (f, e) => `after ${f} portal fees${e > 0 ? ` · ${e} at the channel rate` : ""}`,
+    netShort: (a) => `net ${a}`,
+    feeRates: "Portal fees",
+    feeRatesHelp: "Commission and payment fee per channel, in % of the booking amount. Used for the expected net amount.",
+    bookingFee: "Booking.com (%)",
+    airbnbFee: "Airbnb (%)",
+    feeInvalid: "Please enter a number between 0 and 50.",
     monthNames: ["January","February","March","April","May","June","July","August","September","October","November","December"],
     pastOccupancy: "Past occupancy",
     upcomingNights: "Upcoming nights",
@@ -190,6 +207,14 @@ const COPY: CopyMap<CopyShape> = {
     seasonSave: "Сохранить",
     seasonSaved: "Сезон сохранён",
     seasonSaveFailed: "Не удалось сохранить сезон",
+    netExpected: "Ожидается нетто",
+    netAfterFees: (f, e) => `после комиссий порталов ${f}${e > 0 ? ` · ${e} по ставке канала` : ""}`,
+    netShort: (a) => `нетто ${a}`,
+    feeRates: "Комиссии порталов",
+    feeRatesHelp: "Комиссия и плата за платёж по каналу, в % от суммы брони. Используется для ожидаемой суммы нетто.",
+    bookingFee: "Booking.com (%)",
+    airbnbFee: "Airbnb (%)",
+    feeInvalid: "Введите число от 0 до 50.",
     monthNames: ["Январь","Февраль","Март","Апрель","Май","Июнь","Июль","Август","Сентябрь","Октябрь","Ноябрь","Декабрь"],
     pastOccupancy: "Заполняемость",
     upcomingNights: "Ночей вперёд",
@@ -260,6 +285,14 @@ const COPY: CopyMap<CopyShape> = {
     seasonSave: "Speichern",
     seasonSaved: "Saison gespeichert",
     seasonSaveFailed: "Saison konnte nicht gespeichert werden",
+    netExpected: "Erwartet netto",
+    netAfterFees: (f, e) => `nach ${f} Portalgebühren${e > 0 ? ` · ${e} mit Kanalsatz geschätzt` : ""}`,
+    netShort: (a) => `netto ${a}`,
+    feeRates: "Portalgebühren",
+    feeRatesHelp: "Provision und Zahlungsgebühr je Kanal, in % vom Buchungsbetrag. Daraus rechnet RentTools den erwarteten Nettobetrag.",
+    bookingFee: "Booking.com (%)",
+    airbnbFee: "Airbnb (%)",
+    feeInvalid: "Bitte eine Zahl zwischen 0 und 50 eintragen.",
     monthNames: ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
     pastOccupancy: "Auslastung (Vergangenheit)",
     upcomingNights: "Anstehende Nächte",
@@ -331,6 +364,14 @@ const COPY: CopyMap<CopyShape> = {
     seasonSave: "Enregistrer",
     seasonSaved: "Saison enregistrée",
     seasonSaveFailed: "Impossible d’enregistrer la saison",
+    netExpected: "Net attendu",
+    netAfterFees: (f, e) => `après ${f} de frais des portails${e > 0 ? ` · ${e} au taux du canal` : ""}`,
+    netShort: (a) => `net ${a}`,
+    feeRates: "Frais des portails",
+    feeRatesHelp: "Commission et frais de paiement par canal, en % du montant de la réservation. Sert au montant net attendu.",
+    bookingFee: "Booking.com (%)",
+    airbnbFee: "Airbnb (%)",
+    feeInvalid: "Saisissez un nombre entre 0 et 50.",
     monthNames: ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"],
     pastOccupancy: "Taux d’occupation passé",
     upcomingNights: "Nuits à venir",
@@ -402,6 +443,14 @@ const COPY: CopyMap<CopyShape> = {
     seasonSave: "Guardar",
     seasonSaved: "Temporada guardada",
     seasonSaveFailed: "No se pudo guardar la temporada",
+    netExpected: "Neto esperado",
+    netAfterFees: (f, e) => `tras ${f} de comisiones${e > 0 ? ` · ${e} con la tasa del canal` : ""}`,
+    netShort: (a) => `neto ${a}`,
+    feeRates: "Comisiones de portales",
+    feeRatesHelp: "Comisión y tarifa de pago por canal, en % del importe de la reserva. Se usa para el neto esperado.",
+    bookingFee: "Booking.com (%)",
+    airbnbFee: "Airbnb (%)",
+    feeInvalid: "Introduce un número entre 0 y 50.",
     monthNames: ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
     pastOccupancy: "Ocupación pasada",
     upcomingNights: "Noches próximas",
@@ -476,6 +525,14 @@ const COPY: CopyMap<CopyShape> = {
     seasonSave: "Spremi",
     seasonSaved: "Sezona spremljena",
     seasonSaveFailed: "Sezona nije spremljena",
+    netExpected: "Očekivano neto",
+    netAfterFees: (f, e) => `nakon ${f} naknada portala${e > 0 ? ` · ${e} po stopi kanala` : ""}`,
+    netShort: (a) => `neto ${a}`,
+    feeRates: "Naknade portala",
+    feeRatesHelp: "Provizija i naknada za plaćanje po kanalu, u % iznosa rezervacije. Koristi se za očekivani neto iznos.",
+    bookingFee: "Booking.com (%)",
+    airbnbFee: "Airbnb (%)",
+    feeInvalid: "Upišite broj između 0 i 50.",
     monthNames: ["Siječanj","Veljača","Ožujak","Travanj","Svibanj","Lipanj","Srpanj","Kolovoz","Rujan","Listopad","Studeni","Prosinac"],
     pastOccupancy: "Prošla popunjenost",
     upcomingNights: "Nadolazeća noćenja",
@@ -1048,6 +1105,88 @@ function computePropertyKpis(
   };
 }
 
+function bpToInput(bp: number | null | undefined): string {
+  return bp === null || bp === undefined ? "" : String(bp / 100).replace(".", ",");
+}
+
+/** "16,35" → 1635; "" → null; anything else → undefined (invalid). */
+function inputToBp(value: string): number | null | undefined {
+  const text = value.trim().replace(",", ".");
+  if (text === "") return null;
+  if (!/^\d{1,2}(\.\d{1,2})?$/.test(text)) return undefined;
+  const bp = Math.round(Number(text) * 100);
+  return bp <= 5000 ? bp : undefined;
+}
+
+function FeeRatePicker({
+  propertyId,
+  initial,
+  c,
+  onSaved,
+}: {
+  propertyId: number;
+  initial: { bookingFeeBp: number | null; airbnbFeeBp: number | null };
+  c: CopyShape;
+  onSaved: (rates: FeeRates) => void;
+}) {
+  const [booking, setBooking] = useState(bpToInput(initial.bookingFeeBp));
+  const [airbnb, setAirbnb] = useState(bpToInput(initial.airbnbFeeBp));
+  const [state, setState] = useState<"idle" | "saving" | "saved" | "error" | "invalid">("idle");
+  const bookingBp = inputToBp(booking);
+  const airbnbBp = inputToBp(airbnb);
+  const changed = bookingBp !== initial.bookingFeeBp || airbnbBp !== initial.airbnbFeeBp;
+
+  async function save() {
+    if (bookingBp === undefined || airbnbBp === undefined) {
+      setState("invalid");
+      return;
+    }
+    setState("saving");
+    try {
+      const res = await fetch(`/api/properties/${propertyId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bookingFeeBp: bookingBp, airbnbFeeBp: airbnbBp }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      onSaved({ bookingFeeBp: bookingBp, airbnbFeeBp: airbnbBp });
+      setState("saved");
+    } catch {
+      setState("error");
+    }
+  }
+
+  const field =
+    "mt-1 block w-28 rounded-lg border border-[var(--line)] bg-[var(--bg)] px-2 py-1.5 text-sm tabular-nums text-[var(--ink)]";
+  return (
+    <div className="rounded-xl border border-[var(--line)] bg-[var(--bg-2)] p-4">
+      <h2 className="text-sm font-semibold text-[var(--ink)]">{c.feeRates}</h2>
+      <p className="mt-1 text-xs text-[var(--ink-3)]">{c.feeRatesHelp}</p>
+      <div className="mt-2 flex flex-wrap items-end gap-3">
+        <label className="text-xs text-[var(--ink-3)]">
+          {c.bookingFee}
+          <input inputMode="decimal" value={booking} placeholder="16,35" onChange={(e) => { setBooking(e.target.value); setState("idle"); }} className={field} />
+        </label>
+        <label className="text-xs text-[var(--ink-3)]">
+          {c.airbnbFee}
+          <input inputMode="decimal" value={airbnb} placeholder="15,5" onChange={(e) => { setAirbnb(e.target.value); setState("idle"); }} className={field} />
+        </label>
+        <button
+          type="button"
+          onClick={save}
+          disabled={!changed || state === "saving"}
+          className="rounded-lg bg-[var(--m-accent)] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+        >
+          {c.seasonSave}
+        </button>
+        {state === "saved" && <span className="text-xs text-emerald-700 dark:text-emerald-300">{c.seasonSaved}</span>}
+        {state === "error" && <span className="text-xs text-rose-700 dark:text-rose-300">{c.seasonSaveFailed}</span>}
+        {state === "invalid" && <span className="text-xs text-rose-700 dark:text-rose-300">{c.feeInvalid}</span>}
+      </div>
+    </div>
+  );
+}
+
 function SeasonPicker({
   propertyId,
   initial,
@@ -1163,18 +1302,20 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
   // Season edits made here apply at once, before the dashboard reloads
   // its property list.
   const [seasonEdits, setSeasonEdits] = useState<Record<number, Season | null>>({});
+  const [feeEdits, setFeeEdits] = useState<Record<number, FeeRates>>({});
   const targetProperties = useMemo(
     () =>
-      (property ? [property] : properties).map((p) =>
-        p.id in seasonEdits
+      (property ? [property] : properties).map((p) => ({
+        ...p,
+        ...(p.id in seasonEdits
           ? {
-              ...p,
               seasonStartMonth: seasonEdits[p.id]?.start ?? null,
               seasonEndMonth: seasonEdits[p.id]?.end ?? null,
             }
-          : p,
-      ),
-    [property, properties, seasonEdits],
+          : {}),
+        ...(feeEdits[p.id] ?? {}),
+      })),
+    [property, properties, seasonEdits, feeEdits],
   );
   const isMulti = !property;
   const targetIdsKey = useMemo(
@@ -1238,6 +1379,33 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
       ),
     [targetProperties],
   );
+
+  // Expected net after portal fees, each property with its own rates.
+  const netSummary = useMemo(() => {
+    const parts = targetProperties.map((p) =>
+      summarizeNetAmounts(p.reservations, { bookingFeeBp: p.bookingFeeBp, airbnbFeeBp: p.airbnbFeeBp }),
+    );
+    const totals = new Map<string, { netCents: number; feeCents: number }>();
+    const channels = new Map<string, { netCents: number; feeCents: number }>();
+    let estimated = 0;
+    for (const part of parts) {
+      estimated += part.estimatedCount;
+      for (const row of part.totalsByCurrency) {
+        const t = totals.get(row.currency) ?? { netCents: 0, feeCents: 0 };
+        t.netCents += row.netCents;
+        t.feeCents += row.feeCents;
+        totals.set(row.currency, t);
+      }
+      for (const row of part.byChannel) {
+        const key = `${row.platform}|${row.currency}`;
+        const t = channels.get(key) ?? { netCents: 0, feeCents: 0 };
+        t.netCents += row.netCents;
+        t.feeCents += row.feeCents;
+        channels.set(key, t);
+      }
+    }
+    return { totals, channels, estimated };
+  }, [targetProperties]);
 
   const buckets = useMemo(() => {
     const b = buildMonthRange(allStays, periodMonths, locale);
@@ -1469,6 +1637,18 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
                   onSaved={(season) => setSeasonEdits((prev) => ({ ...prev, [property.id]: season }))}
                 />
               )}
+              {property && (
+                <FeeRatePicker
+                  key={`fees-${property.id}`}
+                  propertyId={property.id}
+                  initial={{
+                    bookingFeeBp: targetProperties[0].bookingFeeBp ?? null,
+                    airbnbFeeBp: targetProperties[0].airbnbFeeBp ?? null,
+                  }}
+                  c={c}
+                  onSaved={(rates) => setFeeEdits((prev) => ({ ...prev, [property.id]: rates }))}
+                />
+              )}
 
               <div className="rounded-xl border border-[var(--line)] bg-[var(--bg-2)] p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -1497,6 +1677,23 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
                     )}
                   </div>
                 </div>
+                {Array.from(netSummary.totals).some(([, t]) => t.feeCents > 0) && (
+                  <div className="mt-2 flex flex-wrap items-baseline justify-end gap-x-2 text-sm">
+                    {Array.from(netSummary.totals).map(([currency, t]) => {
+                      const money = (cents: number) =>
+                        new Intl.NumberFormat(locale, { style: "currency", currency }).format(cents / 100);
+                      return (
+                        <span key={currency} className="tabular-nums">
+                          <span className="text-[var(--ink-3)]">{c.netExpected}: </span>
+                          <span className="font-semibold text-[var(--ink)]">{money(t.netCents)}</span>
+                          <span className="ml-1.5 text-xs text-[var(--ink-3)]">
+                            {c.netAfterFees(money(t.feeCents), netSummary.estimated)}
+                          </span>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
                 <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-[var(--ink-3)]">
                   <span>{c.knownAmounts(storedGrossSummary.knownCount)}</span>
                   <span>{c.unknownAmounts(storedGrossSummary.unknownCount)}</span>
@@ -1566,11 +1763,27 @@ export function ReportsPanel({ property, properties }: ReportsPanelProps) {
                               {platformMeta(row.platform, c.directLabel).label}
                               <span className="opacity-70">{row.nights}n</span>
                             </span>
-                            <span className="font-medium tabular-nums text-[var(--ink)]">
-                              {new Intl.NumberFormat(locale, {
-                                style: "currency",
-                                currency: row.currency,
-                              }).format(row.amountCents / 100)}
+                            <span className="text-right">
+                              <span className="font-medium tabular-nums text-[var(--ink)]">
+                                {new Intl.NumberFormat(locale, {
+                                  style: "currency",
+                                  currency: row.currency,
+                                }).format(row.amountCents / 100)}
+                              </span>
+                              {(() => {
+                                const n = netSummary.channels.get(`${row.platform}|${row.currency}`);
+                                if (!n || n.feeCents === 0) return null;
+                                return (
+                                  <span className="ml-2 tabular-nums text-[var(--ink-3)]">
+                                    {c.netShort(
+                                      new Intl.NumberFormat(locale, {
+                                        style: "currency",
+                                        currency: row.currency,
+                                      }).format(n.netCents / 100),
+                                    )}
+                                  </span>
+                                );
+                              })()}
                             </span>
                           </li>
                         ))}

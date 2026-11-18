@@ -73,6 +73,7 @@ export async function GET(
         checkOut: true,
         bookedGuestCount: true,
         grossAmountCents: true,
+        feeCents: true,
         currency: true,
         propertyId: true,
       },
@@ -236,6 +237,7 @@ export async function PATCH(
 
     const revenue = validateReservationRevenue({
       grossAmountCents: body.grossAmountCents,
+      feeCents: body.feeCents,
       currency: body.currency,
     });
     if (!revenue.ok) {

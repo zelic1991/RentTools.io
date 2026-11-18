@@ -117,6 +117,10 @@ interface PageCopy {
   storedHint: (known: number, unknown: number, extraCurrencies: number) => string;
   perNight: string;
   perNightHint: string;
+  upcomingOf: (n: number) => string;
+  netExpected: string;
+  netHint: (estimated: number, unknown: number) => string;
+  netShort: (amount: string) => string;
   byMonth: string;
   noAmount: string;
   byChannel: string;
@@ -232,6 +236,10 @@ const COPY: CopyMap<PageCopy> = {
       `since the start · ${known} with, ${unknown} without amount${extra > 0 ? ` · ${extra} more ${extra === 1 ? "currency" : "currencies"} below` : ""}`,
     perNight: "⌀ per night",
     perNightHint: "only bookings with an amount",
+    upcomingOf: (n) => `${n} upcoming`,
+    netExpected: "Expected net",
+    netHint: (e, u) => `after portal fees${e > 0 ? ` · ${e} at the channel rate` : ""}${u > 0 ? ` · ${u} without fee rate` : ""}`,
+    netShort: (a) => `net ${a}`,
     byMonth: "By arrival month",
     noAmount: "No booking with an entered amount yet.",
     byChannel: "By channel",
@@ -345,6 +353,10 @@ const COPY: CopyMap<PageCopy> = {
       `с начала · с суммой: ${known}, без суммы: ${unknown}${extra > 0 ? ` · ещё валют ниже: ${extra}` : ""}`,
     perNight: "⌀ за ночь",
     perNightHint: "только бронирования с суммой",
+    upcomingOf: (n) => `${n} предстоящих`,
+    netExpected: "Ожидается нетто",
+    netHint: (e, u) => `после комиссий порталов${e > 0 ? ` · ${e} по ставке канала` : ""}${u > 0 ? ` · ${u} без ставки` : ""}`,
+    netShort: (a) => `нетто ${a}`,
     byMonth: "По месяцу заезда",
     noAmount: "Пока нет бронирований с введённой суммой.",
     byChannel: "По каналу",
@@ -458,6 +470,10 @@ const COPY: CopyMap<PageCopy> = {
       `seit Beginn · ${known} mit, ${unknown} ohne Betrag${extra > 0 ? ` · ${extra} weitere Währung${extra > 1 ? "en" : ""} unten` : ""}`,
     perNight: "⌀ pro Nacht",
     perNightHint: "nur Buchungen mit Betrag",
+    upcomingOf: (n) => `davon ${n} kommend`,
+    netExpected: "Erwartet netto",
+    netHint: (e, u) => `nach Portalgebühren${e > 0 ? ` · ${e} mit Kanalsatz geschätzt` : ""}${u > 0 ? ` · ${u} ohne Gebührensatz` : ""}`,
+    netShort: (a) => `netto ${a}`,
     byMonth: "Nach Anreisemonat",
     noAmount: "Noch keine Buchung mit eingetragenem Betrag.",
     byChannel: "Nach Kanal",
@@ -571,6 +587,10 @@ const COPY: CopyMap<PageCopy> = {
       `depuis le début · ${known} avec, ${unknown} sans montant${extra > 0 ? ` · ${extra} autre${extra > 1 ? "s" : ""} devise${extra > 1 ? "s" : ""} ci-dessous` : ""}`,
     perNight: "⌀ par nuit",
     perNightHint: "uniquement les réservations avec montant",
+    upcomingOf: (n) => `dont ${n} à venir`,
+    netExpected: "Net attendu",
+    netHint: (e, u) => `après frais des portails${e > 0 ? ` · ${e} au taux du canal` : ""}${u > 0 ? ` · ${u} sans taux` : ""}`,
+    netShort: (a) => `net ${a}`,
     byMonth: "Par mois d’arrivée",
     noAmount: "Aucune réservation avec montant saisi pour l’instant.",
     byChannel: "Par canal",
@@ -684,6 +704,10 @@ const COPY: CopyMap<PageCopy> = {
       `desde el inicio · ${known} con, ${unknown} sin importe${extra > 0 ? ` · ${extra} ${extra === 1 ? "moneda más" : "monedas más"} abajo` : ""}`,
     perNight: "⌀ por noche",
     perNightHint: "solo reservas con importe",
+    upcomingOf: (n) => `${n} próximas`,
+    netExpected: "Neto esperado",
+    netHint: (e, u) => `tras comisiones de portales${e > 0 ? ` · ${e} con la tasa del canal` : ""}${u > 0 ? ` · ${u} sin tasa` : ""}`,
+    netShort: (a) => `neto ${a}`,
     byMonth: "Por mes de llegada",
     noAmount: "Todavía no hay reservas con importe introducido.",
     byChannel: "Por canal",
@@ -797,6 +821,10 @@ const COPY: CopyMap<PageCopy> = {
       `od početka · ${known} s iznosom, ${unknown} bez iznosa${extra > 0 ? ` · još ${extra} ${hrPlural(extra, "valuta", "valute", "valuta")} niže` : ""}`,
     perNight: "⌀ po noćenju",
     perNightHint: "samo rezervacije s iznosom",
+    upcomingOf: (n) => `od toga ${n} nadolazećih`,
+    netExpected: "Očekivano neto",
+    netHint: (e, u) => `nakon naknada portala${e > 0 ? ` · ${e} po stopi kanala` : ""}${u > 0 ? ` · ${u} bez stope` : ""}`,
+    netShort: (a) => `neto ${a}`,
     byMonth: "Po mjesecu dolaska",
     noAmount: "Još nema rezervacije s unesenim iznosom.",
     byChannel: "Po kanalu",
@@ -1250,14 +1278,17 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
   );
 }
 
-function AmountRow({ label, nights, amount }: { label: string; nights: string; amount: string }) {
+function AmountRow({ label, nights, amount, net }: { label: string; nights: string; amount: string; net?: string }) {
   return (
     <div className="flex min-h-14 items-center justify-between gap-3 rounded-xl border border-[var(--zf-border)] bg-[var(--zf-bg)] px-4 py-2.5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <span className="min-w-0">
         <span className="block truncate text-sm font-semibold">{label}</span>
         <span className="mt-0.5 block text-xs text-[var(--zf-text-muted)] tabular-nums dark:text-slate-400">{nights}</span>
       </span>
-      <span className="shrink-0 text-sm font-semibold tabular-nums">{amount}</span>
+      <span className="shrink-0 text-right">
+        <span className="block text-sm font-semibold tabular-nums">{amount}</span>
+        {net && <span className="block text-xs text-[var(--zf-text-muted)] tabular-nums dark:text-slate-400">{net}</span>}
+      </span>
     </div>
   );
 }
@@ -1266,6 +1297,10 @@ function ReportsScreen({ data, c, fmt, locale }: ScreenProps<MobileOperationsDat
   const { reports } = data;
   const totals = reports.stored.totalsByCurrency;
   const averages = reports.breakdown.averageNightlyCents;
+  const net = reports.net.totalsByCurrency;
+  const hasFees = net.some((row) => row.feeCents > 0);
+  const channelNet = (platform: string, currency: string) =>
+    reports.net.byChannel.find((row) => row.platform === platform && row.currency === currency);
   return (
     <section aria-labelledby="reports-heading" className="space-y-6">
       <div>
@@ -1280,7 +1315,7 @@ function ReportsScreen({ data, c, fmt, locale }: ScreenProps<MobileOperationsDat
         <StatTile
           label={c.bookings}
           value={String(reports.bookings)}
-          hint={c.bookingsHint(reports.averageNights === null ? null : fmt.number(reports.averageNights))}
+          hint={`${c.bookingsHint(reports.averageNights === null ? null : fmt.number(reports.averageNights))} · ${c.upcomingOf(reports.upcomingBookings)}`}
         />
         <StatTile
           label={c.bookedNights}
@@ -1292,6 +1327,13 @@ function ReportsScreen({ data, c, fmt, locale }: ScreenProps<MobileOperationsDat
           value={totals.length > 0 ? fmt.money(totals[0].amountCents, totals[0].currency) : "–"}
           hint={c.storedHint(reports.stored.knownCount, reports.stored.unknownCount, Math.max(0, totals.length - 1))}
         />
+        {hasFees && (
+          <StatTile
+            label={c.netExpected}
+            value={fmt.money(net[0].netCents, net[0].currency)}
+            hint={c.netHint(reports.net.estimatedCount, reports.net.unknownFeeCount)}
+          />
+        )}
         <StatTile
           label={c.perNight}
           value={averages.length > 0 ? fmt.money(averages[0].amountCents, averages[0].currency) : "–"}
@@ -1337,6 +1379,10 @@ function ReportsScreen({ data, c, fmt, locale }: ScreenProps<MobileOperationsDat
               label={safePlatformLabel(row.platform, locale)}
               nights={c.nights(row.nights)}
               amount={fmt.money(row.amountCents, row.currency)}
+              net={(() => {
+                const n = channelNet(row.platform, row.currency);
+                return n && n.feeCents > 0 ? c.netShort(fmt.money(n.netCents, row.currency)) : undefined;
+              })()}
             />
           ))
         )}

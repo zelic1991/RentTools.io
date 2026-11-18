@@ -1292,6 +1292,10 @@ CREATE INDEX IF NOT EXISTS "MagicLoginToken_userId_expiresAt_idx" ON "MagicLogin
     `ALTER TABLE "Property" ADD COLUMN "seasonEndMonth" INTEGER`,
     // Held blocks: last day a block is kept for an unconfirmed guest.
     `ALTER TABLE "DateOverride" ADD COLUMN "holdUntil" TEXT`,
+    // Portal fees: rate per channel on the property, actual fee per booking.
+    `ALTER TABLE "Property" ADD COLUMN "bookingFeeBp" INTEGER`,
+    `ALTER TABLE "Property" ADD COLUMN "airbnbFeeBp" INTEGER`,
+    `ALTER TABLE "Reservation" ADD COLUMN "feeCents" INTEGER`,
   ]) {
     await runAdditiveMigration(migration);
   }

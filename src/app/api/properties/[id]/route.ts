@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 import { canAdministerProperty, isPropertyOwner } from "@/lib/ownership";
 import { parseSeasonPatch } from "@/lib/season";
+import { parseFeeRateBp } from "@/lib/channel-fees";
 
 export async function PATCH(
   request: NextRequest,
@@ -39,6 +40,14 @@ export async function PATCH(
       }
       data.seasonStartMonth = season.start;
       data.seasonEndMonth = season.end;
+    }
+    for (const key of ["bookingFeeBp", "airbnbFeeBp"] as const) {
+      if (body[key] === undefined) continue;
+      const rate = parseFeeRateBp(body[key]);
+      if (rate === undefined) {
+        return NextResponse.json({ error: `${key} must be 0-5000 or null` }, { status: 400 });
+      }
+      data[key] = rate;
     }
 
     const property = await prisma.property.update({
