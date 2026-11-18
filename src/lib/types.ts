@@ -55,6 +55,8 @@ export interface Reservation {
   bookedGuestCount?: number | null;
   /** Optional owner-entered gross amount. Null means no amount is known. */
   grossAmountCents?: number | null;
+  /** Actual portal fees from the extranet; overrides the channel rate. */
+  feeCents?: number | null;
   /** ISO 4217 currency code for grossAmountCents; defaults to EUR. */
   currency?: string;
   propertyId: number;
@@ -74,6 +76,8 @@ export interface Property {
   cleaningEnabled: boolean; // master toggle for buffer / sameDayCleaning / potentialCleaning / unbookable computation
   seasonStartMonth?: number | null; // rental season, months 1-12 inclusive; null = all year
   seasonEndMonth?: number | null;
+  bookingFeeBp?: number | null; // portal fee rate, basis points (1635 = 16.35 %)
+  airbnbFeeBp?: number | null;
   feedToken: string | null; // optional token gating the public iCal feed
   createdAt: string;
   reservations: Reservation[];

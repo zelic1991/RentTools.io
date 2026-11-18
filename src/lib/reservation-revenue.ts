@@ -1,10 +1,12 @@
 export interface ReservationRevenueInput {
   grossAmountCents?: unknown;
+  feeCents?: unknown;
   currency?: unknown;
 }
 
 export type ReservationRevenuePatch = {
   grossAmountCents?: number | null;
+  feeCents?: number | null;
   currency?: string;
 };
 
@@ -43,6 +45,16 @@ export function validateReservationRevenue(
       };
     } else {
       data.grossAmountCents = input.grossAmountCents as number;
+    }
+  }
+
+  if (input.feeCents !== undefined) {
+    if (input.feeCents === null) {
+      data.feeCents = null;
+    } else if (!Number.isSafeInteger(input.feeCents) || (input.feeCents as number) < 0) {
+      return { ok: false, error: "feeCents must be a nonnegative integer or null" };
+    } else {
+      data.feeCents = input.feeCents as number;
     }
   }
 

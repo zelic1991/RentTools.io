@@ -114,3 +114,20 @@ describe("PATCH /api/properties/[id] rental season", () => {
     expect(mocks.propertyUpdate).not.toHaveBeenCalled();
   });
 });
+
+describe("PATCH /api/properties/[id] portal fee rates", () => {
+  it("stores the Booking.com rate in basis points", async () => {
+    const response = await PATCH(request({ bookingFeeBp: 1635 }), context);
+    expect(response.status).toBe(200);
+    expect(mocks.propertyUpdate).toHaveBeenCalledWith({ where: { id: 17 }, data: { bookingFeeBp: 1635 } });
+  });
+
+  it("clears a rate with null and rejects values outside 0-50 %", async () => {
+    await PATCH(request({ airbnbFeeBp: null }), context);
+    expect(mocks.propertyUpdate).toHaveBeenCalledWith({ where: { id: 17 }, data: { airbnbFeeBp: null } });
+    mocks.propertyUpdate.mockClear();
+    expect((await PATCH(request({ bookingFeeBp: 5001 }), context)).status).toBe(400);
+    expect((await PATCH(request({ bookingFeeBp: 16.35 }), context)).status).toBe(400);
+    expect(mocks.propertyUpdate).not.toHaveBeenCalled();
+  });
+});

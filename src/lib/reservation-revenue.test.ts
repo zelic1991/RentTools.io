@@ -169,3 +169,15 @@ describe("summarizeRevenueBreakdown", () => {
     });
   });
 });
+
+describe("validateReservationRevenue feeCents", () => {
+  it("accepts actual portal fees and null", () => {
+    expect(validateReservationRevenue({ feeCents: 13_552 })).toEqual({ ok: true, data: { feeCents: 13_552 } });
+    expect(validateReservationRevenue({ feeCents: null })).toEqual({ ok: true, data: { feeCents: null } });
+  });
+
+  it("rejects negative or fractional fees", () => {
+    expect(validateReservationRevenue({ feeCents: -1 }).ok).toBe(false);
+    expect(validateReservationRevenue({ feeCents: 1.5 }).ok).toBe(false);
+  });
+});

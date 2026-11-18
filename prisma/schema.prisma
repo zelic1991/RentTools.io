@@ -135,6 +135,11 @@ model Property {
   // Occupancy counts only days inside it. Both null = open all year.
   seasonStartMonth Int?
   seasonEndMonth   Int?
+  // Portal fees in basis points of the stored gross amount (1635 = 16.35 %,
+  // e.g. Booking.com 15 % commission + 1.35 % payment fee). Null = unknown.
+  // Used only to show an expected net amount next to the gross figures.
+  bookingFeeBp     Int?
+  airbnbFeeBp      Int?
   feedToken      String?          @unique // optional opt-in token gating the public iCal feed; null = public
   feedSlug       String?          @unique // durable URL identifier for the iCal feed; minted at creation, never changes
   createdAt      DateTime         @default(now())
@@ -376,6 +381,9 @@ model Reservation {
   // Optional owner-entered gross booking amount. Never inferred from nights,
   // iCal data, rates, commissions, fees, or payment state; null means unknown.
   grossAmountCents Int?
+  // Actual portal fees for this booking when the host has them from the
+  // extranet; overrides the property's fee rate. Null = use the rate.
+  feeCents         Int?
   currency         String @default("EUR") // ISO 4217 code
   propertyId      Int
   property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
